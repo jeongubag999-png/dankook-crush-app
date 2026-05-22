@@ -144,6 +144,7 @@ function App() {
 
   const [profile, setProfile] = useState({
     nickname: "",
+    gender: "",
     department: "",
     student_year: "",
     instagram_id: "",
@@ -155,7 +156,6 @@ function App() {
   const [profileImagePreview, setProfileImagePreview] = useState("");
 
   const [crushPost, setCrushPost] = useState({
-    target_gender: "",
     seen_date: "",
     place: "",
     custom_place: "",
@@ -172,7 +172,6 @@ function App() {
 
   const [searchForm, setSearchForm] = useState({
     seen_date: "",
-    target_gender: "",
     hair_feature: "",
     clothes_color: "",
     clothes_style: "",
@@ -198,6 +197,12 @@ function App() {
       ...prev,
       [key]: value,
     }));
+  };
+
+  const getOppositeGender = (gender) => {
+    if (gender === "남자") return "여자";
+    if (gender === "여자") return "남자";
+    return "";
   };
 
   const getFinalPlace = () => {
@@ -263,7 +268,7 @@ function App() {
   const selectAndNext = (key, value) => {
     updateCrushPost(key, value);
     setTimeout(() => {
-      setCrushStep((prev) => Math.min(prev + 1, 8));
+      setCrushStep((prev) => Math.min(prev + 1, 7));
     }, 120);
   };
 
@@ -272,17 +277,33 @@ function App() {
       setPage("home");
       return;
     }
+
     setCrushStep((prev) => prev - 1);
   };
 
   const openSendPage = () => {
+    if (!profile.gender) {
+      alert("먼저 내 프로필에서 성별을 선택해주세요.");
+      setPage("profile");
+      return;
+    }
+
     setCrushStep(1);
     setPage("send");
   };
 
+  const openSearchPage = () => {
+    if (!profile.gender) {
+      alert("먼저 내 프로필에서 성별을 선택해주세요.");
+      setPage("profile");
+      return;
+    }
+
+    setPage("search");
+  };
+
   const resetCrushPost = () => {
     setCrushPost({
-      target_gender: "",
       seen_date: "",
       place: "",
       custom_place: "",
@@ -296,10 +317,21 @@ function App() {
       earphone_type: "",
       message: "",
     });
+
     setCrushStep(1);
   };
 
   const saveProfile = async () => {
+    if (!profile.nickname) {
+      alert("닉네임을 입력해주세요.");
+      return;
+    }
+
+    if (!profile.gender) {
+      alert("성별을 선택해주세요.");
+      return;
+    }
+
     let imageUrl = profile.profile_image_url;
 
     if (profileImageFile) {
@@ -328,6 +360,7 @@ function App() {
     const { error } = await supabase.from("profiles").insert([
       {
         nickname: profile.nickname,
+        gender: profile.gender,
         department: profile.department,
         student_year: profile.student_year,
         instagram_id: profile.instagram_id,
@@ -350,51 +383,52 @@ function App() {
   };
 
   const saveCrushPost = async () => {
-    if (!crushPost.target_gender) {
-      alert("찾는 이성 성별을 선택해주세요.");
-      setCrushStep(1);
+    if (!profile.gender) {
+      alert("먼저 내 프로필에서 성별을 선택해주세요.");
+      setPage("profile");
       return;
     }
 
     if (!crushPost.seen_date || !crushPost.time_period) {
       alert("날짜와 시간을 선택해주세요.");
-      setCrushStep(2);
+      setCrushStep(1);
       return;
     }
 
     if (!getFinalPlace()) {
       alert("장소를 선택하거나 직접 입력해주세요.");
-      setCrushStep(3);
+      setCrushStep(2);
       return;
     }
 
     if (!crushPost.hair_feature) {
       alert("머리 특징을 선택해주세요.");
-      setCrushStep(4);
+      setCrushStep(3);
       return;
     }
 
     if (!crushPost.top_type || !crushPost.top_color) {
       alert("상의 종류와 색상을 선택해주세요.");
-      setCrushStep(5);
+      setCrushStep(4);
       return;
     }
 
     if (!crushPost.bottom_type || !crushPost.bottom_color) {
       alert("하의 종류와 색상을 선택해주세요.");
-      setCrushStep(6);
+      setCrushStep(5);
       return;
     }
 
     if (!crushPost.bag_type || !crushPost.earphone_type) {
       alert("가방과 이어폰 정보를 선택해주세요.");
-      setCrushStep(7);
+      setCrushStep(6);
       return;
     }
 
+    const targetGender = getOppositeGender(profile.gender);
     const combinedStyle = `상의:${crushPost.top_type} / 하의:${crushPost.bottom_type} ${crushPost.bottom_color}`;
     const combinedAccessory = `가방:${crushPost.bag_type} / 이어폰:${crushPost.earphone_type}`;
-    const finalMessage = `[찾는 성별: ${crushPost.target_gender}] ${crushPost.message}`;
+    const finalMessage = `[찾는 성별: ${targetGender}] ${crushPost.message}`;
 
     const { error } = await supabase.from("crush_posts").insert([
       {
@@ -421,13 +455,14 @@ function App() {
   };
 
   const searchCrushPosts = async () => {
-    if (!searchForm.seen_date) {
-      alert("날짜를 선택해주세요.");
+    if (!profile.gender) {
+      alert("먼저 내 프로필에서 성별을 선택해주세요.");
+      setPage("profile");
       return;
     }
 
-    if (!searchForm.target_gender) {
-      alert("내 성별을 선택해주세요.");
+    if (!searchForm.seen_date) {
+      alert("날짜를 선택해주세요.");
       return;
     }
 
@@ -435,7 +470,7 @@ function App() {
       .from("crush_posts")
       .select("*")
       .eq("seen_date", searchForm.seen_date)
-      .ilike("message", `%[찾는 성별: ${searchForm.target_gender}]%`);
+      .ilike("message", `%[찾는 성별: ${profile.gender}]%`);
 
     if (searchForm.hair_feature && searchForm.hair_feature !== "잘 모르겠음") {
       query = query.eq("hair_feature", searchForm.hair_feature);
@@ -595,7 +630,7 @@ function App() {
     </button>
   );
 
-  const progressPercent = (crushStep / 8) * 100;
+  const progressPercent = (crushStep / 7) * 100;
 
   return (
     <div className="app">
@@ -608,7 +643,7 @@ function App() {
 
           <button onClick={openSendPage}>스친 사람 찾기</button>
 
-          <button onClick={() => setPage("search")} className="white">
+          <button onClick={openSearchPage} className="white">
             내가 받은 설렘 찾기
           </button>
 
@@ -659,6 +694,20 @@ function App() {
             }
           />
 
+          <div className="formGroup">
+            <label className="formLabel">성별</label>
+            <div className="optionGrid">
+              {genderOptions.map((option) => (
+                <OptionButton
+                  key={option}
+                  value={option}
+                  selected={profile.gender === option}
+                  onClick={() => setProfile({ ...profile, gender: option })}
+                />
+              ))}
+            </div>
+          </div>
+
           <input
             placeholder="학과 예: 글로벌경영학과"
             value={profile.department}
@@ -701,7 +750,7 @@ function App() {
         <div className="card">
           <h2>마음 남기기</h2>
 
-          <p className="stepText">{crushStep} / 8</p>
+          <p className="stepText">{crushStep} / 7</p>
 
           <div className="progressBar">
             <div
@@ -711,26 +760,6 @@ function App() {
           </div>
 
           {crushStep === 1 && (
-            <>
-              <h3 className="questionTitle">누구를 찾고 있나요?</h3>
-              <p className="questionDesc">
-                내가 그날 마주친 사람의 성별을 선택해주세요.
-              </p>
-
-              <div className="optionGrid">
-                {genderOptions.map((option) => (
-                  <OptionButton
-                    key={option}
-                    value={option}
-                    selected={crushPost.target_gender === option}
-                    onClick={() => selectAndNext("target_gender", option)}
-                  />
-                ))}
-              </div>
-            </>
-          )}
-
-          {crushStep === 2 && (
             <>
               <h3 className="questionTitle">언제 마주쳤나요?</h3>
               <p className="questionDesc">
@@ -770,7 +799,7 @@ function App() {
                     alert("날짜와 시간을 선택해주세요.");
                     return;
                   }
-                  setCrushStep(3);
+                  setCrushStep(2);
                 }}
               >
                 다음
@@ -778,7 +807,7 @@ function App() {
             </>
           )}
 
-          {crushStep === 3 && (
+          {crushStep === 2 && (
             <>
               <h3 className="questionTitle">어디에서 봤나요?</h3>
               <p className="questionDesc">
@@ -827,7 +856,7 @@ function App() {
                     alert("장소를 선택하거나 직접 입력해주세요.");
                     return;
                   }
-                  setCrushStep(4);
+                  setCrushStep(3);
                 }}
               >
                 다음
@@ -835,7 +864,7 @@ function App() {
             </>
           )}
 
-          {crushStep === 4 && (
+          {crushStep === 3 && (
             <>
               <h3 className="questionTitle">머리 스타일이 기억나나요?</h3>
               <p className="questionDesc">
@@ -856,7 +885,7 @@ function App() {
             </>
           )}
 
-          {crushStep === 5 && (
+          {crushStep === 4 && (
             <>
               <h3 className="questionTitle">상의가 기억나나요?</h3>
               <p className="questionDesc">
@@ -895,7 +924,7 @@ function App() {
                     alert("상의 종류와 색상을 선택해주세요.");
                     return;
                   }
-                  setCrushStep(6);
+                  setCrushStep(5);
                 }}
               >
                 다음
@@ -903,7 +932,7 @@ function App() {
             </>
           )}
 
-          {crushStep === 6 && (
+          {crushStep === 5 && (
             <>
               <h3 className="questionTitle">하의가 기억나나요?</h3>
               <p className="questionDesc">
@@ -946,7 +975,7 @@ function App() {
                     alert("하의 종류와 색상을 선택해주세요.");
                     return;
                   }
-                  setCrushStep(7);
+                  setCrushStep(6);
                 }}
               >
                 다음
@@ -954,7 +983,7 @@ function App() {
             </>
           )}
 
-          {crushStep === 7 && (
+          {crushStep === 6 && (
             <>
               <h3 className="questionTitle">소지품이 기억나나요?</h3>
               <p className="questionDesc">
@@ -995,7 +1024,7 @@ function App() {
                     alert("가방과 이어폰 정보를 선택해주세요.");
                     return;
                   }
-                  setCrushStep(8);
+                  setCrushStep(7);
                 }}
               >
                 다음
@@ -1003,12 +1032,11 @@ function App() {
             </>
           )}
 
-          {crushStep === 8 && (
+          {crushStep === 7 && (
             <>
               <h3 className="questionTitle">마지막으로 확인해주세요</h3>
               <p className="questionDesc">
-                기억이 정확하지 않아도 괜찮아요. 조심스럽게 마음을
-                남겨주세요.
+                내 프로필 성별 기준으로 찾는 사람이 자동 설정돼요.
               </p>
 
               <textarea
@@ -1019,7 +1047,11 @@ function App() {
 
               <div className="summaryBox">
                 <p>
-                  <strong>찾는 사람:</strong> {crushPost.target_gender || "-"}
+                  <strong>내 성별:</strong> {profile.gender || "-"}
+                </p>
+                <p>
+                  <strong>찾는 사람:</strong>{" "}
+                  {getOppositeGender(profile.gender) || "-"}
                 </p>
                 <p>
                   <strong>날짜:</strong> {crushPost.seen_date || "-"}
@@ -1093,6 +1125,15 @@ function App() {
             수 있어요.
           </p>
 
+          <div className="summaryBox">
+            <p>
+              <strong>내 성별:</strong> {profile.gender || "-"}
+            </p>
+            <p>
+              프로필 성별 기준으로 나를 찾는 마음만 자동으로 확인해요.
+            </p>
+          </div>
+
           <div className="formGroup">
             <label className="formLabel">언제 있었나요?</label>
             <input
@@ -1102,22 +1143,6 @@ function App() {
                 setSearchForm({ ...searchForm, seen_date: e.target.value })
               }
             />
-          </div>
-
-          <div className="formGroup">
-            <label className="formLabel">나는 누구인가요?</label>
-            <div className="optionGrid twoColumns">
-              {genderOptions.map((option) => (
-                <OptionButton
-                  key={option}
-                  value={option}
-                  selected={searchForm.target_gender === option}
-                  onClick={() =>
-                    setSearchForm({ ...searchForm, target_gender: option })
-                  }
-                />
-              ))}
-            </div>
           </div>
 
           <div className="formGroup">
@@ -1196,8 +1221,8 @@ function App() {
           </div>
 
           <p className="helperText">
-            날짜와 내 성별은 필수예요. 머리, 상의, 하의 정보는 선택하면 더
-            정확하게 찾을 수 있어요.
+            날짜는 필수예요. 머리, 상의, 하의 정보는 선택하면 더 정확하게
+            찾을 수 있어요.
           </p>
 
           <button onClick={searchCrushPosts}>나를 찾는 마음 확인하기</button>
@@ -1214,8 +1239,8 @@ function App() {
 
           {searchResults.length === 0 && (
             <p className="notice">
-              아직 비슷한 마음이 없어요. 날짜를 다시 확인하거나,
-              머리와 옷 조건을 조금 줄여서 다시 찾아보세요.
+              아직 비슷한 마음이 없어요. 날짜를 다시 확인하거나, 머리와 옷
+              조건을 조금 줄여서 다시 찾아보세요.
             </p>
           )}
 
