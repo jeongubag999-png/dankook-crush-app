@@ -172,8 +172,7 @@ function App() {
 
   const [searchForm, setSearchForm] = useState({
     seen_date: "",
-    place: "",
-    search_custom_place: "",
+    target_gender: "",
     hair_feature: "",
     clothes_color: "",
     clothes_style: "",
@@ -210,17 +209,6 @@ function App() {
     }
 
     return crushPost.place;
-  };
-
-  const getFinalSearchPlace = () => {
-    if (
-      searchForm.place === "기타/직접 입력" ||
-      searchForm.place === "학교 앞 상권"
-    ) {
-      return searchForm.search_custom_place.trim();
-    }
-
-    return searchForm.place;
   };
 
   const getTargetGenderFromMessage = (message) => {
@@ -438,8 +426,8 @@ function App() {
       return;
     }
 
-    if (!getFinalSearchPlace()) {
-      alert("장소를 선택하거나 직접 입력해주세요.");
+    if (!searchForm.target_gender) {
+      alert("내 성별을 선택해주세요.");
       return;
     }
 
@@ -447,7 +435,7 @@ function App() {
       .from("crush_posts")
       .select("*")
       .eq("seen_date", searchForm.seen_date)
-      .eq("place", getFinalSearchPlace());
+      .ilike("message", `%[찾는 성별: ${searchForm.target_gender}]%`);
 
     if (searchForm.hair_feature && searchForm.hair_feature !== "잘 모르겠음") {
       query = query.eq("hair_feature", searchForm.hair_feature);
@@ -1101,7 +1089,7 @@ function App() {
         <div className="card">
           <h2>내가 받은 설렘 찾기</h2>
           <p className="subtitle">
-            그날의 내 모습과 장소를 선택하면, 나를 찾고 있는 마음을 확인할
+            오늘의 착장과 인상착의를 올리면, 나를 찾고 있는 마음을 확인할
             수 있어요.
           </p>
 
@@ -1117,44 +1105,19 @@ function App() {
           </div>
 
           <div className="formGroup">
-            <label className="formLabel">어디에 있었나요?</label>
-            <select
-              value={searchForm.place}
-              onChange={(e) =>
-                setSearchForm({
-                  ...searchForm,
-                  place: e.target.value,
-                  search_custom_place:
-                    e.target.value === "기타/직접 입력" ||
-                    e.target.value === "학교 앞 상권"
-                      ? searchForm.search_custom_place
-                      : "",
-                })
-              }
-            >
-              <option value="">장소 선택</option>
-              {placeOptions.map((option) => (
-                <option key={option}>{option}</option>
+            <label className="formLabel">나는 누구인가요?</label>
+            <div className="optionGrid twoColumns">
+              {genderOptions.map((option) => (
+                <OptionButton
+                  key={option}
+                  value={option}
+                  selected={searchForm.target_gender === option}
+                  onClick={() =>
+                    setSearchForm({ ...searchForm, target_gender: option })
+                  }
+                />
               ))}
-            </select>
-
-            {(searchForm.place === "기타/직접 입력" ||
-              searchForm.place === "학교 앞 상권") && (
-              <input
-                placeholder={
-                  searchForm.place === "학교 앞 상권"
-                    ? "학교 앞 상권 장소 예: 보정동 카페거리, 죽전역 근처"
-                    : "장소를 직접 입력해주세요 예: 공학관 2층 복도"
-                }
-                value={searchForm.search_custom_place}
-                onChange={(e) =>
-                  setSearchForm({
-                    ...searchForm,
-                    search_custom_place: e.target.value,
-                  })
-                }
-              />
-            )}
+            </div>
           </div>
 
           <div className="formGroup">
@@ -1233,7 +1196,7 @@ function App() {
           </div>
 
           <p className="helperText">
-            날짜와 장소는 필수예요. 머리, 상의, 하의 정보는 선택하면 더
+            날짜와 내 성별은 필수예요. 머리, 상의, 하의 정보는 선택하면 더
             정확하게 찾을 수 있어요.
           </p>
 
@@ -1251,7 +1214,7 @@ function App() {
 
           {searchResults.length === 0 && (
             <p className="notice">
-              아직 비슷한 마음이 없어요. 날짜와 장소를 다시 확인하거나,
+              아직 비슷한 마음이 없어요. 날짜를 다시 확인하거나,
               머리와 옷 조건을 조금 줄여서 다시 찾아보세요.
             </p>
           )}
