@@ -7,7 +7,8 @@ body {
   font-family: -apple-system, BlinkMacSystemFont, "Segoe UI", "Apple SD Gothic Neo",
     "Noto Sans KR", sans-serif;
   background:
-    radial-gradient(circle at top, rgba(255, 196, 205, 0.35), transparent 35%),
+    radial-gradient(circle at top, rgba(255, 196, 205, 0.42), transparent 36%),
+    radial-gradient(circle at bottom, rgba(255, 226, 211, 0.45), transparent 34%),
     linear-gradient(180deg, #fff8f4 0%, #faf7f2 100%);
   color: #2f2a28;
 }
@@ -22,14 +23,14 @@ body {
 
 .card {
   width: 100%;
-  max-width: 420px;
-  background: rgba(255, 255, 255, 0.88);
-  border: 1px solid rgba(255, 255, 255, 0.75);
-  border-radius: 32px;
-  padding: 36px 24px 28px;
-  box-shadow: 0 24px 60px rgba(169, 104, 116, 0.14);
+  max-width: 430px;
+  background: rgba(255, 255, 255, 0.9);
+  border: 1px solid rgba(255, 255, 255, 0.8);
+  border-radius: 34px;
+  padding: 38px 24px 30px;
+  box-shadow: 0 28px 70px rgba(169, 104, 116, 0.16);
   text-align: center;
-  backdrop-filter: blur(14px);
+  backdrop-filter: blur(16px);
 }
 
 h1 {
@@ -37,24 +38,25 @@ h1 {
   font-size: 46px;
   letter-spacing: -2px;
   color: #2f2a28;
-  font-weight: 800;
+  font-weight: 850;
 }
 
 h2 {
-  margin: 0 0 22px;
-  font-size: 26px;
-  letter-spacing: -1px;
+  margin: 0 0 14px;
+  font-size: 28px;
+  letter-spacing: -1.2px;
   color: #2f2a28;
-  font-weight: 800;
+  font-weight: 850;
 }
 
 h3 {
   margin: 0;
 }
 
-.subtitle {
-  margin: 14px 0 30px;
-  font-size: 16px;
+.subtitle,
+.card > p {
+  margin: 14px 0 26px;
+  font-size: 15px;
   line-height: 1.65;
   color: #81736d;
   word-break: keep-all;
@@ -71,22 +73,22 @@ h3 {
 button {
   width: 100%;
   border: none;
-  border-radius: 18px;
-  padding: 16px 18px;
-  margin-top: 12px;
-  background: linear-gradient(135deg, #ff7a8a 0%, #e66f8f 100%);
+  border-radius: 20px;
+  padding: 17px 18px;
+  margin-top: 13px;
+  background: linear-gradient(135deg, #ff7589 0%, #e95f87 100%);
   color: white;
   font-size: 16px;
-  font-weight: 750;
-  letter-spacing: -0.2px;
+  font-weight: 800;
+  letter-spacing: -0.3px;
   cursor: pointer;
-  box-shadow: 0 10px 24px rgba(230, 111, 143, 0.25);
+  box-shadow: 0 12px 26px rgba(230, 111, 143, 0.28);
   transition: 0.18s ease;
 }
 
 button:hover {
   transform: translateY(-1px);
-  box-shadow: 0 14px 28px rgba(230, 111, 143, 0.32);
+  box-shadow: 0 16px 32px rgba(230, 111, 143, 0.34);
 }
 
 button:active {
@@ -106,37 +108,54 @@ button.white:hover {
   box-shadow: none;
 }
 
+/* 입력창 전체 디자인 */
+
 input,
 select,
 textarea {
   width: 100%;
-  border: 1px solid #eee1dc;
-  border-radius: 16px;
-  padding: 15px 16px;
+  border: 1px solid #eadbd5;
+  border-radius: 18px;
+  padding: 16px 17px;
   margin-top: 12px;
   font-size: 15px;
-  background: #fffdfc;
+  background: rgba(255, 253, 252, 0.96);
   color: #2f2a28;
   outline: none;
   transition: 0.18s ease;
+  font-family: inherit;
+}
+
+select {
+  appearance: none;
+  -webkit-appearance: none;
+  background-image:
+    linear-gradient(45deg, transparent 50%, #8f817b 50%),
+    linear-gradient(135deg, #8f817b 50%, transparent 50%);
+  background-position:
+    calc(100% - 22px) 50%,
+    calc(100% - 15px) 50%;
+  background-size: 7px 7px, 7px 7px;
+  background-repeat: no-repeat;
+  padding-right: 44px;
 }
 
 input:focus,
 select:focus,
 textarea:focus {
-  border-color: #ff9aaa;
-  box-shadow: 0 0 0 4px rgba(255, 122, 138, 0.12);
+  border-color: #ff94a6;
+  box-shadow: 0 0 0 4px rgba(255, 122, 138, 0.13);
+  background: white;
 }
 
 input::placeholder,
 textarea::placeholder {
-  color: #b5aaa5;
+  color: #b6aaa5;
 }
 
 textarea {
-  min-height: 110px;
+  min-height: 112px;
   resize: none;
-  font-family: inherit;
   line-height: 1.55;
 }
 
@@ -144,7 +163,7 @@ textarea {
   text-align: left;
   background: #fff7f4;
   border: 1px solid #f2e4df;
-  border-radius: 20px;
+  border-radius: 22px;
   padding: 18px;
   margin: 18px 0;
   line-height: 1.65;
@@ -153,16 +172,16 @@ textarea {
 
 .message {
   color: #e66f8f;
-  font-weight: 700;
+  font-weight: 800;
 }
 
 /* 설문형 마음 남기기 화면 */
 
 .stepText {
-  margin: -8px 0 14px;
+  margin: -4px 0 14px;
   font-size: 13px;
   color: #b19f98;
-  font-weight: 700;
+  font-weight: 800;
 }
 
 .progressBar {
@@ -171,30 +190,30 @@ textarea {
   background: #f7ebe7;
   border-radius: 999px;
   overflow: hidden;
-  margin: 0 0 22px;
+  margin: 0 0 24px;
 }
 
 .progressFill {
   height: 100%;
-  background: linear-gradient(135deg, #ff7a8a 0%, #e66f8f 100%);
+  background: linear-gradient(135deg, #ff7589 0%, #e95f87 100%);
   border-radius: 999px;
   transition: width 0.2s ease;
 }
 
 .questionTitle {
-  margin: 6px 0 10px;
-  font-size: 22px;
+  margin: 8px 0 10px;
+  font-size: 23px;
   line-height: 1.35;
-  letter-spacing: -0.8px;
+  letter-spacing: -0.9px;
   color: #2f2a28;
-  font-weight: 800;
+  font-weight: 850;
   word-break: keep-all;
 }
 
 .questionDesc {
   margin: 0 0 20px;
   font-size: 14px;
-  line-height: 1.55;
+  line-height: 1.6;
   color: #8f817b;
   word-break: keep-all;
 }
@@ -215,7 +234,7 @@ textarea {
   border: 1px solid #f0ded8;
   box-shadow: none;
   font-size: 14px;
-  font-weight: 750;
+  font-weight: 800;
   word-break: keep-all;
 }
 
@@ -227,7 +246,7 @@ textarea {
 }
 
 .optionButton.selected {
-  background: linear-gradient(135deg, #ff7a8a 0%, #e66f8f 100%);
+  background: linear-gradient(135deg, #ff7589 0%, #e95f87 100%);
   color: white;
   border-color: transparent;
   box-shadow: 0 10px 24px rgba(230, 111, 143, 0.22);
@@ -243,7 +262,7 @@ textarea {
   margin: 0 0 8px;
   font-size: 14px;
   color: #6f625d;
-  font-weight: 750;
+  font-weight: 800;
 }
 
 .stepActions {
@@ -259,7 +278,7 @@ textarea {
 .summaryBox {
   margin-top: 18px;
   padding: 18px;
-  border-radius: 20px;
+  border-radius: 22px;
   background: #fff7f4;
   border: 1px solid #f2e4df;
   text-align: left;
@@ -284,6 +303,26 @@ textarea {
   grid-column: 1 / -1;
 }
 
+/* 나에게 온 마음 보기 화면 개선 */
+
+.card input[type="date"] {
+  height: 58px;
+  font-size: 16px;
+  letter-spacing: 1px;
+}
+
+.card select {
+  height: 50px;
+}
+
+.card select option {
+  color: #2f2a28;
+}
+
+.card button:first-of-type {
+  margin-top: 20px;
+}
+
 /* 모바일 대응 */
 
 @media (max-width: 480px) {
@@ -294,7 +333,7 @@ textarea {
 
   .card {
     padding: 34px 20px 26px;
-    border-radius: 28px;
+    border-radius: 30px;
   }
 
   h1 {
@@ -302,11 +341,12 @@ textarea {
   }
 
   h2 {
-    font-size: 24px;
+    font-size: 25px;
   }
 
-  .subtitle {
-    font-size: 15px;
+  .subtitle,
+  .card > p {
+    font-size: 14px;
   }
 
   button {

@@ -331,11 +331,27 @@ function App() {
       return;
     }
 
-    const { data, error } = await supabase
+    let query = supabase
       .from("crush_posts")
       .select("*")
       .eq("seen_date", searchForm.seen_date)
       .eq("place", searchForm.place);
+
+    if (searchForm.hair_feature && searchForm.hair_feature !== "잘 모르겠음") {
+      query = query.eq("hair_feature", searchForm.hair_feature);
+    }
+
+    if (searchForm.clothes_color && searchForm.clothes_color !== "잘 모르겠음") {
+      query = query.eq("clothes_color", searchForm.clothes_color);
+    }
+
+    if (searchForm.clothes_style && searchForm.clothes_style !== "잘 모르겠음") {
+      query = query.ilike("clothes_style", `%${searchForm.clothes_style}%`);
+    }
+
+    const { data, error } = await query.order("created_at", {
+      ascending: false,
+    });
 
     if (error) {
       alert("검색에 실패했어요: " + error.message);
@@ -485,7 +501,7 @@ function App() {
           <button onClick={openSendPage}>스친 사람 찾기</button>
 
           <button onClick={() => setPage("search")} className="white">
-            나에게 온 마음 보기
+            내가 받은 설렘 찾기
           </button>
 
           <button onClick={openMatchingPage} className="white">
@@ -916,68 +932,89 @@ function App() {
 
       {page === "search" && (
         <div className="card">
-          <h2>나에게 온 마음 보기</h2>
-          <p className="notice">
-            날짜와 장소를 먼저 선택하면 비슷한 마음을 찾아볼 수 있어요.
+          <h2>내가 받은 설렘 찾기</h2>
+          <p className="subtitle">
+            그날의 내 모습과 장소를 선택하면, 나를 찾고 있는 마음을 확인할
+            수 있어요.
           </p>
 
-          <input
-            type="date"
-            value={searchForm.seen_date}
-            onChange={(e) =>
-              setSearchForm({ ...searchForm, seen_date: e.target.value })
-            }
-          />
+          <div className="formGroup">
+            <label className="formLabel">언제 있었나요?</label>
+            <input
+              type="date"
+              value={searchForm.seen_date}
+              onChange={(e) =>
+                setSearchForm({ ...searchForm, seen_date: e.target.value })
+              }
+            />
+          </div>
 
-          <select
-            value={searchForm.place}
-            onChange={(e) =>
-              setSearchForm({ ...searchForm, place: e.target.value })
-            }
-          >
-            <option value="">장소 선택</option>
-            {placeOptions.map((option) => (
-              <option key={option}>{option}</option>
-            ))}
-          </select>
+          <div className="formGroup">
+            <label className="formLabel">어디에 있었나요?</label>
+            <select
+              value={searchForm.place}
+              onChange={(e) =>
+                setSearchForm({ ...searchForm, place: e.target.value })
+              }
+            >
+              <option value="">장소 선택</option>
+              {placeOptions.map((option) => (
+                <option key={option}>{option}</option>
+              ))}
+            </select>
+          </div>
 
-          <select
-            value={searchForm.hair_feature}
-            onChange={(e) =>
-              setSearchForm({ ...searchForm, hair_feature: e.target.value })
-            }
-          >
-            <option value="">내 머리 특징 선택</option>
-            {hairOptions.map((option) => (
-              <option key={option}>{option}</option>
-            ))}
-          </select>
+          <div className="formGroup">
+            <label className="formLabel">내 머리는 어땠나요?</label>
+            <select
+              value={searchForm.hair_feature}
+              onChange={(e) =>
+                setSearchForm({ ...searchForm, hair_feature: e.target.value })
+              }
+            >
+              <option value="">머리 특징 선택</option>
+              {hairOptions.map((option) => (
+                <option key={option}>{option}</option>
+              ))}
+            </select>
+          </div>
 
-          <select
-            value={searchForm.clothes_color}
-            onChange={(e) =>
-              setSearchForm({ ...searchForm, clothes_color: e.target.value })
-            }
-          >
-            <option value="">내 상의 색상 선택</option>
-            {topColorOptions.map((option) => (
-              <option key={option}>{option}</option>
-            ))}
-          </select>
+          <div className="formGroup">
+            <label className="formLabel">상의 색상은 무엇이었나요?</label>
+            <select
+              value={searchForm.clothes_color}
+              onChange={(e) =>
+                setSearchForm({ ...searchForm, clothes_color: e.target.value })
+              }
+            >
+              <option value="">상의 색상 선택</option>
+              {topColorOptions.map((option) => (
+                <option key={option}>{option}</option>
+              ))}
+            </select>
+          </div>
 
-          <select
-            value={searchForm.clothes_style}
-            onChange={(e) =>
-              setSearchForm({ ...searchForm, clothes_style: e.target.value })
-            }
-          >
-            <option value="">내 옷 스타일 선택</option>
-            {topTypeOptions.map((option) => (
-              <option key={option}>{option}</option>
-            ))}
-          </select>
+          <div className="formGroup">
+            <label className="formLabel">어떤 옷을 입고 있었나요?</label>
+            <select
+              value={searchForm.clothes_style}
+              onChange={(e) =>
+                setSearchForm({ ...searchForm, clothes_style: e.target.value })
+              }
+            >
+              <option value="">상의 종류 선택</option>
+              {topTypeOptions.map((option) => (
+                <option key={option}>{option}</option>
+              ))}
+            </select>
+          </div>
 
-          <button onClick={searchCrushPosts}>비슷한 마음 찾기</button>
+          <p className="helperText">
+            날짜와 장소는 필수예요. 머리와 옷 정보는 선택하면 더 정확하게
+            찾을 수 있어요.
+          </p>
+
+          <button onClick={searchCrushPosts}>나를 찾는 마음 확인하기</button>
 
           <button onClick={() => setPage("home")} className="white">
             홈으로
@@ -987,11 +1024,12 @@ function App() {
 
       {page === "result" && (
         <div className="card">
-          <h2>비슷한 마음 {searchResults.length}개</h2>
+          <h2>나를 찾는 마음 {searchResults.length}개</h2>
 
           {searchResults.length === 0 && (
             <p className="notice">
-              아직 비슷한 마음이 없어요. 날짜와 장소를 다시 확인해보세요.
+              아직 비슷한 마음이 없어요. 날짜와 장소를 다시 확인하거나,
+              머리와 옷 조건을 조금 줄여서 다시 찾아보세요.
             </p>
           )}
 
@@ -1023,7 +1061,7 @@ function App() {
           ))}
 
           <button onClick={() => setPage("search")} className="white">
-            다시 검색하기
+            다시 찾아보기
           </button>
 
           <button onClick={() => setPage("home")} className="white">
