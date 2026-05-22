@@ -27,11 +27,12 @@ function App() {
     "버스정류장",
     "셔틀버스 탑승장",
     "운동장/체육관 근처",
-    "기타/정확히 모르겠음",
-    "직접 입력",
+    "학교 앞 상권",
+    "기타/직접 입력",
   ];
 
   const timeOptions = [
+    "08:00~09:00",
     "09:00~10:00",
     "10:00~11:00",
     "11:00~12:00",
@@ -45,6 +46,7 @@ function App() {
     "19:00~20:00",
     "20:00~21:00",
     "21:00~22:00",
+    "22:00~08:00",
     "잘 모르겠음",
   ];
 
@@ -146,7 +148,11 @@ function App() {
     student_year: "",
     instagram_id: "",
     bio: "",
+    profile_image_url: "",
   });
+
+  const [profileImageFile, setProfileImageFile] = useState(null);
+  const [profileImagePreview, setProfileImagePreview] = useState("");
 
   const [crushPost, setCrushPost] = useState({
     target_gender: "",
@@ -196,7 +202,10 @@ function App() {
   };
 
   const getFinalPlace = () => {
-    if (crushPost.place === "직접 입력") {
+    if (
+      crushPost.place === "기타/직접 입력" ||
+      crushPost.place === "학교 앞 상권"
+    ) {
       return crushPost.custom_place.trim();
     }
 
@@ -204,11 +213,63 @@ function App() {
   };
 
   const getFinalSearchPlace = () => {
-    if (searchForm.place === "직접 입력") {
+    if (
+      searchForm.place === "기타/직접 입력" ||
+      searchForm.place === "학교 앞 상권"
+    ) {
       return searchForm.search_custom_place.trim();
     }
 
     return searchForm.place;
+  };
+
+  const getTargetGenderFromMessage = (message) => {
+    if (!message) return "-";
+
+    const match = message.match(/\[찾는 성별:\s*(.*?)\]/);
+    return match ? match[1] : "-";
+  };
+
+  const cleanMessage = (message) => {
+    if (!message) return "";
+    return message.replace(/\[찾는 성별:\s*.*?\]\s*/, "");
+  };
+
+  const renderPostQuestionAnswer = (post) => {
+    return (
+      <div className="qaBox">
+        <p className="qaTitle">상대가 남긴 질의응답</p>
+
+        <p>
+          <strong>찾는 사람:</strong> {getTargetGenderFromMessage(post.message)}
+        </p>
+
+        <p>
+          <strong>날짜:</strong> {post.seen_date || "-"}
+        </p>
+
+        <p>
+          <strong>시간:</strong> {post.time_period || "-"}
+        </p>
+
+        <p>
+          <strong>장소:</strong> {post.place || "-"}
+        </p>
+
+        <p>
+          <strong>머리:</strong> {post.hair_feature || "-"}
+        </p>
+
+        <p>
+          <strong>상의/하의:</strong> {post.clothes_color || "-"}{" "}
+          {post.clothes_style || "-"}
+        </p>
+
+        <p>
+          <strong>소지품:</strong> {post.accessory || "-"}
+        </p>
+      </div>
+    );
   };
 
   const selectAndNext = (key, value) => {
@@ -251,6 +312,31 @@ function App() {
   };
 
   const saveProfile = async () => {
+    let imageUrl = profile.profile_image_url;
+
+    if (profileImageFile) {
+      const fileExt = profileImageFile.name.split(".").pop();
+      const fileName = `${Date.now()}-${Math.random()
+        .toString(36)
+        .substring(2)}.${fileExt}`;
+
+      const { error: uploadError } = await supabase.storage
+        .from("profile-images")
+        .upload(fileName, profileImageFile);
+
+      if (uploadError) {
+        alert("프로필 사진 업로드에 실패했어요: " + uploadError.message);
+        console.log(uploadError);
+        return;
+      }
+
+      const { data } = supabase.storage
+        .from("profile-images")
+        .getPublicUrl(fileName);
+
+      imageUrl = data.publicUrl;
+    }
+
     const { error } = await supabase.from("profiles").insert([
       {
         nickname: profile.nickname,
@@ -258,6 +344,7 @@ function App() {
         student_year: profile.student_year,
         instagram_id: profile.instagram_id,
         bio: profile.bio,
+        profile_image_url: imageUrl,
       },
     ]);
 
@@ -268,6 +355,9 @@ function App() {
     }
 
     alert("프로필이 저장됐어요!");
+
+    setProfileImageFile(null);
+    setProfileImagePreview("");
     setPage("home");
   };
 
@@ -552,6 +642,27 @@ function App() {
         <div className="card">
           <h2>내 프로필</h2>
 
+          <div className="profileImageBox">
+            {profileImagePreview ? (
+              <img src={profileImagePreview} alt="프로필 미리보기" />
+            ) : (
+              <div className="profileImagePlaceholder">프로필 사진</div>
+            )}
+          </div>
+
+          <input
+            type="file"
+            accept="image/*"
+            onChange={(e) => {
+              const file = e.target.files[0];
+
+              if (!file) return;
+
+              setProfileImageFile(file);
+              setProfileImagePreview(URL.createObjectURL(file));
+            }}
+          />
+
           <input
             placeholder="닉네임 예: 곰돌이23"
             value={profile.nickname}
@@ -683,8 +794,8 @@ function App() {
             <>
               <h3 className="questionTitle">어디에서 봤나요?</h3>
               <p className="questionDesc">
-                장소는 최대한 가까운 구역을 선택해주세요. 없으면 직접 입력을
-                선택해주세요.
+                장소는 최대한 가까운 구역을 선택해주세요. 학교 앞 상권이나
+                기타 장소는 직접 입력할 수 있어요.
               </p>
 
               <select
@@ -694,7 +805,8 @@ function App() {
                     ...crushPost,
                     place: e.target.value,
                     custom_place:
-                      e.target.value === "직접 입력"
+                      e.target.value === "기타/직접 입력" ||
+                      e.target.value === "학교 앞 상권"
                         ? crushPost.custom_place
                         : "",
                   })
@@ -706,9 +818,14 @@ function App() {
                 ))}
               </select>
 
-              {crushPost.place === "직접 입력" && (
+              {(crushPost.place === "기타/직접 입력" ||
+                crushPost.place === "학교 앞 상권") && (
                 <input
-                  placeholder="장소를 직접 입력해주세요 예: 공학관 2층 복도"
+                  placeholder={
+                    crushPost.place === "학교 앞 상권"
+                      ? "학교 앞 상권 장소 예: 보정동 카페거리, 죽전역 근처"
+                      : "장소를 직접 입력해주세요 예: 공학관 2층 복도"
+                  }
                   value={crushPost.custom_place}
                   onChange={(e) =>
                     updateCrushPost("custom_place", e.target.value)
@@ -1008,7 +1125,8 @@ function App() {
                   ...searchForm,
                   place: e.target.value,
                   search_custom_place:
-                    e.target.value === "직접 입력"
+                    e.target.value === "기타/직접 입력" ||
+                    e.target.value === "학교 앞 상권"
                       ? searchForm.search_custom_place
                       : "",
                 })
@@ -1020,9 +1138,14 @@ function App() {
               ))}
             </select>
 
-            {searchForm.place === "직접 입력" && (
+            {(searchForm.place === "기타/직접 입력" ||
+              searchForm.place === "학교 앞 상권") && (
               <input
-                placeholder="장소를 직접 입력해주세요 예: 공학관 2층 복도"
+                placeholder={
+                  searchForm.place === "학교 앞 상권"
+                    ? "학교 앞 상권 장소 예: 보정동 카페거리, 죽전역 근처"
+                    : "장소를 직접 입력해주세요 예: 공학관 2층 복도"
+                }
                 value={searchForm.search_custom_place}
                 onChange={(e) =>
                   setSearchForm({
@@ -1065,7 +1188,7 @@ function App() {
           </div>
 
           <div className="formGroup">
-            <label className="formLabel">어떤 옷을 입고 있었나요?</label>
+            <label className="formLabel">상의 종류는 무엇이었나요?</label>
             <select
               value={searchForm.clothes_style}
               onChange={(e) =>
@@ -1141,13 +1264,9 @@ function App() {
                 </b>
               </p>
 
-              <p>
-                {post.hair_feature}, {post.clothes_color} {post.clothes_style}
-                {post.accessory && `, ${post.accessory}`} 분께 마음을
-                남겼어요.
-              </p>
+              {renderPostQuestionAnswer(post)}
 
-              <p className="message">“{post.message}”</p>
+              <p className="message">“{cleanMessage(post.message)}”</p>
 
               <button
                 onClick={() => {
@@ -1183,14 +1302,9 @@ function App() {
                 </b>
               </p>
 
-              <p>
-                {selectedPost.hair_feature}, {selectedPost.clothes_color}{" "}
-                {selectedPost.clothes_style}
-                {selectedPost.accessory && `, ${selectedPost.accessory}`} 분께
-                마음을 남겼어요.
-              </p>
+              {renderPostQuestionAnswer(selectedPost)}
 
-              <p className="message">“{selectedPost.message}”</p>
+              <p className="message">“{cleanMessage(selectedPost.message)}”</p>
             </div>
           )}
 
@@ -1293,14 +1407,11 @@ function App() {
                       {claim.post.time_period}, {claim.post.place}
                     </p>
 
-                    <p>
-                      {claim.post.hair_feature}, {claim.post.clothes_color}{" "}
-                      {claim.post.clothes_style}
-                      {claim.post.accessory && `, ${claim.post.accessory}`} 분께
-                      남긴 마음
-                    </p>
+                    {renderPostQuestionAnswer(claim.post)}
 
-                    <p className="message">“{claim.post.message}”</p>
+                    <p className="message">
+                      “{cleanMessage(claim.post.message)}”
+                    </p>
                   </>
                 ) : (
                   <p className="notice">연결된 마음 글을 찾지 못했어요.</p>

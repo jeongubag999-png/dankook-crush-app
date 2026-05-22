@@ -363,3 +363,61 @@ textarea {
     padding: 14px 8px;
   }
 }
+button {
+  min-height: 56px;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+}
+
+.optionButton {
+  min-height: 54px;
+}
+
+.stepActions button {
+  min-height: 54px;
+}
+
+.profileImageBox {
+  width: 112px;
+  height: 112px;
+  margin: 0 auto 18px;
+  border-radius: 50%;
+  overflow: hidden;
+  background: #fff7f4;
+  border: 1px solid #f2e4df;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+}
+
+.profileImageBox img {
+  width: 100%;
+  height: 100%;
+  object-fit: cover;
+}
+
+.profileImagePlaceholder {
+  font-size: 13px;
+  color: #a29690;
+  font-weight: 800;
+}
+
+.qaBox {
+  margin: 14px 0;
+  padding: 14px;
+  border-radius: 18px;
+  background: white;
+  border: 1px solid #f2e4df;
+  line-height: 1.65;
+}
+
+.qaBox p {
+  margin: 5px 0;
+}
+
+.qaTitle {
+  color: #e66f8f;
+  font-weight: 850;
+  margin-bottom: 8px !important;
+}
