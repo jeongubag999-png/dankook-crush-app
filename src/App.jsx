@@ -28,6 +28,7 @@ function App() {
     "셔틀버스 탑승장",
     "운동장/체육관 근처",
     "기타/정확히 모르겠음",
+    "직접 입력",
   ];
 
   const timeOptions = [
@@ -151,6 +152,7 @@ function App() {
     target_gender: "",
     seen_date: "",
     place: "",
+    custom_place: "",
     time_period: "",
     hair_feature: "",
     top_type: "",
@@ -165,9 +167,12 @@ function App() {
   const [searchForm, setSearchForm] = useState({
     seen_date: "",
     place: "",
+    search_custom_place: "",
     hair_feature: "",
     clothes_color: "",
     clothes_style: "",
+    bottom_type: "",
+    bottom_color: "",
   });
 
   const [searchResults, setSearchResults] = useState([]);
@@ -188,6 +193,22 @@ function App() {
       ...prev,
       [key]: value,
     }));
+  };
+
+  const getFinalPlace = () => {
+    if (crushPost.place === "직접 입력") {
+      return crushPost.custom_place.trim();
+    }
+
+    return crushPost.place;
+  };
+
+  const getFinalSearchPlace = () => {
+    if (searchForm.place === "직접 입력") {
+      return searchForm.search_custom_place.trim();
+    }
+
+    return searchForm.place;
   };
 
   const selectAndNext = (key, value) => {
@@ -215,6 +236,7 @@ function App() {
       target_gender: "",
       seen_date: "",
       place: "",
+      custom_place: "",
       time_period: "",
       hair_feature: "",
       top_type: "",
@@ -262,8 +284,8 @@ function App() {
       return;
     }
 
-    if (!crushPost.place) {
-      alert("장소를 선택해주세요.");
+    if (!getFinalPlace()) {
+      alert("장소를 선택하거나 직접 입력해주세요.");
       setCrushStep(3);
       return;
     }
@@ -299,7 +321,7 @@ function App() {
     const { error } = await supabase.from("crush_posts").insert([
       {
         seen_date: crushPost.seen_date,
-        place: crushPost.place,
+        place: getFinalPlace(),
         time_period: crushPost.time_period,
         hair_feature: crushPost.hair_feature,
         clothes_color: crushPost.top_color,
@@ -326,8 +348,8 @@ function App() {
       return;
     }
 
-    if (!searchForm.place) {
-      alert("장소를 선택해주세요.");
+    if (!getFinalSearchPlace()) {
+      alert("장소를 선택하거나 직접 입력해주세요.");
       return;
     }
 
@@ -335,7 +357,7 @@ function App() {
       .from("crush_posts")
       .select("*")
       .eq("seen_date", searchForm.seen_date)
-      .eq("place", searchForm.place);
+      .eq("place", getFinalSearchPlace());
 
     if (searchForm.hair_feature && searchForm.hair_feature !== "잘 모르겠음") {
       query = query.eq("hair_feature", searchForm.hair_feature);
@@ -347,6 +369,14 @@ function App() {
 
     if (searchForm.clothes_style && searchForm.clothes_style !== "잘 모르겠음") {
       query = query.ilike("clothes_style", `%${searchForm.clothes_style}%`);
+    }
+
+    if (searchForm.bottom_type && searchForm.bottom_type !== "잘 모르겠음") {
+      query = query.ilike("clothes_style", `%하의:${searchForm.bottom_type}%`);
+    }
+
+    if (searchForm.bottom_color && searchForm.bottom_color !== "잘 모르겠음") {
+      query = query.ilike("clothes_style", `%${searchForm.bottom_color}%`);
     }
 
     const { data, error } = await query.order("created_at", {
@@ -653,12 +683,22 @@ function App() {
             <>
               <h3 className="questionTitle">어디에서 봤나요?</h3>
               <p className="questionDesc">
-                장소는 최대한 가까운 구역을 선택해주세요.
+                장소는 최대한 가까운 구역을 선택해주세요. 없으면 직접 입력을
+                선택해주세요.
               </p>
 
               <select
                 value={crushPost.place}
-                onChange={(e) => updateCrushPost("place", e.target.value)}
+                onChange={(e) =>
+                  setCrushPost({
+                    ...crushPost,
+                    place: e.target.value,
+                    custom_place:
+                      e.target.value === "직접 입력"
+                        ? crushPost.custom_place
+                        : "",
+                  })
+                }
               >
                 <option value="">장소 선택</option>
                 {placeOptions.map((option) => (
@@ -666,10 +706,20 @@ function App() {
                 ))}
               </select>
 
+              {crushPost.place === "직접 입력" && (
+                <input
+                  placeholder="장소를 직접 입력해주세요 예: 공학관 2층 복도"
+                  value={crushPost.custom_place}
+                  onChange={(e) =>
+                    updateCrushPost("custom_place", e.target.value)
+                  }
+                />
+              )}
+
               <button
                 onClick={() => {
-                  if (!crushPost.place) {
-                    alert("장소를 선택해주세요.");
+                  if (!getFinalPlace()) {
+                    alert("장소를 선택하거나 직접 입력해주세요.");
                     return;
                   }
                   setCrushStep(4);
@@ -873,7 +923,7 @@ function App() {
                   <strong>시간:</strong> {crushPost.time_period || "-"}
                 </p>
                 <p>
-                  <strong>장소:</strong> {crushPost.place || "-"}
+                  <strong>장소:</strong> {getFinalPlace() || "-"}
                 </p>
                 <p>
                   <strong>머리:</strong> {crushPost.hair_feature || "-"}
@@ -954,7 +1004,14 @@ function App() {
             <select
               value={searchForm.place}
               onChange={(e) =>
-                setSearchForm({ ...searchForm, place: e.target.value })
+                setSearchForm({
+                  ...searchForm,
+                  place: e.target.value,
+                  search_custom_place:
+                    e.target.value === "직접 입력"
+                      ? searchForm.search_custom_place
+                      : "",
+                })
               }
             >
               <option value="">장소 선택</option>
@@ -962,6 +1019,19 @@ function App() {
                 <option key={option}>{option}</option>
               ))}
             </select>
+
+            {searchForm.place === "직접 입력" && (
+              <input
+                placeholder="장소를 직접 입력해주세요 예: 공학관 2층 복도"
+                value={searchForm.search_custom_place}
+                onChange={(e) =>
+                  setSearchForm({
+                    ...searchForm,
+                    search_custom_place: e.target.value,
+                  })
+                }
+              />
+            )}
           </div>
 
           <div className="formGroup">
@@ -1009,9 +1079,39 @@ function App() {
             </select>
           </div>
 
+          <div className="formGroup">
+            <label className="formLabel">하의 종류는 무엇이었나요?</label>
+            <select
+              value={searchForm.bottom_type}
+              onChange={(e) =>
+                setSearchForm({ ...searchForm, bottom_type: e.target.value })
+              }
+            >
+              <option value="">하의 종류 선택</option>
+              {bottomTypeOptions.map((option) => (
+                <option key={option}>{option}</option>
+              ))}
+            </select>
+          </div>
+
+          <div className="formGroup">
+            <label className="formLabel">하의 색상은 무엇이었나요?</label>
+            <select
+              value={searchForm.bottom_color}
+              onChange={(e) =>
+                setSearchForm({ ...searchForm, bottom_color: e.target.value })
+              }
+            >
+              <option value="">하의 색상 선택</option>
+              {bottomColorOptions.map((option) => (
+                <option key={option}>{option}</option>
+              ))}
+            </select>
+          </div>
+
           <p className="helperText">
-            날짜와 장소는 필수예요. 머리와 옷 정보는 선택하면 더 정확하게
-            찾을 수 있어요.
+            날짜와 장소는 필수예요. 머리, 상의, 하의 정보는 선택하면 더
+            정확하게 찾을 수 있어요.
           </p>
 
           <button onClick={searchCrushPosts}>나를 찾는 마음 확인하기</button>
