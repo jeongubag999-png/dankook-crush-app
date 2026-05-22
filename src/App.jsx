@@ -157,6 +157,7 @@ function App() {
 
   const [profile, setProfile] = useState({
     nickname: "",
+    gender: "",
     department: "",
     student_year: "",
     instagram_id: "",
@@ -278,9 +279,20 @@ function App() {
   };
 
   const saveProfile = async () => {
+    if (!profile.nickname) {
+      alert("닉네임을 입력해주세요.");
+      return;
+    }
+
+    if (!profile.gender) {
+      alert("내 성별을 선택해주세요.");
+      return;
+    }
+
     const { error } = await supabase.from("profiles").insert([
       {
         nickname: profile.nickname,
+        gender: profile.gender,
         department: profile.department,
         student_year: profile.student_year,
         instagram_id: profile.instagram_id,
@@ -586,6 +598,17 @@ function App() {
               setProfile({ ...profile, nickname: e.target.value })
             }
           />
+
+          <select
+            value={profile.gender}
+            onChange={(e) =>
+              setProfile({ ...profile, gender: e.target.value })
+            }
+          >
+            <option value="">내 성별 선택</option>
+            <option value="남자">남자</option>
+            <option value="여자">여자</option>
+          </select>
 
           <input
             placeholder="학과 예: 글로벌경영학과"
