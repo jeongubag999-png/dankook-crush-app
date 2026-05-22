@@ -4,61 +4,132 @@ import { supabase } from "./supabase";
 
 function App() {
   const [page, setPage] = useState("home");
+  const [crushStep, setCrushStep] = useState(1);
 
   const placeOptions = [
     "혜당관 앞",
-    "퇴계기념중앙도서관",
-    "학생회관",
-    "상경관",
+    "혜당관 내부",
+    "중앙도서관 앞",
+    "중앙도서관 내부",
+    "학생회관 앞",
+    "학생회관 내부",
+    "상경관 앞",
+    "상경관 내부",
+    "사범관 앞",
+    "사범관 내부",
+    "공학관 앞",
+    "공학관 내부",
     "곰상 근처",
+    "폭포공원 근처",
+    "난파음악관 근처",
+    "기숙사 방향 길",
+    "정문",
     "버스정류장",
-    "기타",
+    "셔틀버스 탑승장",
+    "운동장/체육관 근처",
+    "기타/정확히 모르겠음",
   ];
 
-  const timeOptions = ["아침", "점심", "오후", "저녁", "밤"];
+  const timeOptions = [
+    "09:00~10:00",
+    "10:00~11:00",
+    "11:00~12:00",
+    "12:00~13:00",
+    "13:00~14:00",
+    "14:00~15:00",
+    "15:00~16:00",
+    "16:00~17:00",
+    "17:00~18:00",
+    "18:00~19:00",
+    "19:00~20:00",
+    "20:00~21:00",
+    "21:00~22:00",
+    "잘 모르겠음",
+  ];
+
+  const genderOptions = ["여자", "남자"];
 
   const hairOptions = [
-    "짧은 머리",
-    "중간 길이",
-    "긴 머리",
+    "긴 생머리",
+    "긴 웨이브",
+    "중단발",
+    "단발",
     "묶은 머리",
+    "짧은 머리",
+    "펌/웨이브",
     "모자 착용",
     "잘 모르겠음",
   ];
 
-  const colorOptions = [
-    "검정",
-    "흰색",
-    "회색",
-    "파랑",
-    "빨강",
-    "초록",
-    "베이지",
-    "분홍",
-    "기타",
-    "잘 모르겠음",
-  ];
-
-  const styleOptions = [
+  const topTypeOptions = [
+    "반팔 티셔츠",
+    "긴팔 티셔츠",
+    "셔츠",
     "후드티",
     "맨투맨",
-    "셔츠",
     "니트",
     "자켓",
+    "코트/패딩",
     "원피스",
-    "운동복",
-    "교복 느낌",
     "잘 모르겠음",
   ];
 
-  const accessoryOptions = [
+  const topColorOptions = [
+    "흰색",
+    "검정",
+    "회색",
+    "네이비",
+    "파랑",
+    "하늘색",
+    "분홍",
+    "빨강",
+    "베이지",
+    "갈색",
+    "초록",
+    "노랑",
+    "패턴/무늬",
+    "잘 모르겠음",
+  ];
+
+  const bottomTypeOptions = [
+    "청바지",
+    "슬랙스",
+    "면바지",
+    "반바지",
+    "치마",
+    "트레이닝 바지",
+    "레깅스",
+    "잘 모르겠음",
+  ];
+
+  const bottomColorOptions = [
+    "검정",
+    "청색",
+    "연청",
+    "진청",
+    "회색",
+    "흰색",
+    "베이지",
+    "갈색",
+    "잘 모르겠음",
+  ];
+
+  const bagOptions = [
+    "백팩",
+    "에코백",
+    "숄더백",
+    "크로스백",
+    "토트백",
+    "작은 가방",
+    "가방 없음",
+    "잘 모르겠음",
+  ];
+
+  const earphoneOptions = [
+    "무선 이어폰",
+    "유선 이어폰",
+    "헤드셋",
     "없음",
-    "안경",
-    "모자",
-    "가방",
-    "이어폰",
-    "노트북",
-    "책",
     "잘 모르겠음",
   ];
 
@@ -77,19 +148,23 @@ function App() {
   });
 
   const [crushPost, setCrushPost] = useState({
+    target_gender: "",
     seen_date: "",
-    place: "혜당관 앞",
-    time_period: "아침",
+    place: "",
+    time_period: "",
     hair_feature: "",
-    clothes_color: "",
-    clothes_style: "",
-    accessory: "",
+    top_type: "",
+    top_color: "",
+    bottom_type: "",
+    bottom_color: "",
+    bag_type: "",
+    earphone_type: "",
     message: "",
   });
 
   const [searchForm, setSearchForm] = useState({
     seen_date: "",
-    place: "혜당관 앞",
+    place: "",
     hair_feature: "",
     clothes_color: "",
     clothes_style: "",
@@ -107,6 +182,51 @@ function App() {
 
   const [matchingClaims, setMatchingClaims] = useState([]);
   const [matchingLoading, setMatchingLoading] = useState(false);
+
+  const updateCrushPost = (key, value) => {
+    setCrushPost((prev) => ({
+      ...prev,
+      [key]: value,
+    }));
+  };
+
+  const selectAndNext = (key, value) => {
+    updateCrushPost(key, value);
+    setTimeout(() => {
+      setCrushStep((prev) => Math.min(prev + 1, 8));
+    }, 120);
+  };
+
+  const goBackStep = () => {
+    if (crushStep === 1) {
+      setPage("home");
+      return;
+    }
+    setCrushStep((prev) => prev - 1);
+  };
+
+  const openSendPage = () => {
+    setCrushStep(1);
+    setPage("send");
+  };
+
+  const resetCrushPost = () => {
+    setCrushPost({
+      target_gender: "",
+      seen_date: "",
+      place: "",
+      time_period: "",
+      hair_feature: "",
+      top_type: "",
+      top_color: "",
+      bottom_type: "",
+      bottom_color: "",
+      bag_type: "",
+      earphone_type: "",
+      message: "",
+    });
+    setCrushStep(1);
+  };
 
   const saveProfile = async () => {
     const { error } = await supabase.from("profiles").insert([
@@ -130,15 +250,51 @@ function App() {
   };
 
   const saveCrushPost = async () => {
-    if (!crushPost.seen_date) {
-      alert("날짜를 선택해주세요.");
+    if (!crushPost.target_gender) {
+      alert("찾는 이성 성별을 선택해주세요.");
+      setCrushStep(1);
       return;
     }
 
-    if (!crushPost.hair_feature || !crushPost.clothes_color || !crushPost.clothes_style) {
-      alert("기억나는 단서를 선택해주세요.");
+    if (!crushPost.seen_date || !crushPost.time_period) {
+      alert("날짜와 시간을 선택해주세요.");
+      setCrushStep(2);
       return;
     }
+
+    if (!crushPost.place) {
+      alert("장소를 선택해주세요.");
+      setCrushStep(3);
+      return;
+    }
+
+    if (!crushPost.hair_feature) {
+      alert("머리 특징을 선택해주세요.");
+      setCrushStep(4);
+      return;
+    }
+
+    if (!crushPost.top_type || !crushPost.top_color) {
+      alert("상의 종류와 색상을 선택해주세요.");
+      setCrushStep(5);
+      return;
+    }
+
+    if (!crushPost.bottom_type || !crushPost.bottom_color) {
+      alert("하의 종류와 색상을 선택해주세요.");
+      setCrushStep(6);
+      return;
+    }
+
+    if (!crushPost.bag_type || !crushPost.earphone_type) {
+      alert("가방과 이어폰 정보를 선택해주세요.");
+      setCrushStep(7);
+      return;
+    }
+
+    const combinedStyle = `상의:${crushPost.top_type} / 하의:${crushPost.bottom_type} ${crushPost.bottom_color}`;
+    const combinedAccessory = `가방:${crushPost.bag_type} / 이어폰:${crushPost.earphone_type}`;
+    const finalMessage = `[찾는 성별: ${crushPost.target_gender}] ${crushPost.message}`;
 
     const { error } = await supabase.from("crush_posts").insert([
       {
@@ -146,10 +302,10 @@ function App() {
         place: crushPost.place,
         time_period: crushPost.time_period,
         hair_feature: crushPost.hair_feature,
-        clothes_color: crushPost.clothes_color,
-        clothes_style: crushPost.clothes_style,
-        accessory: crushPost.accessory,
-        message: crushPost.message,
+        clothes_color: crushPost.top_color,
+        clothes_style: combinedStyle,
+        accessory: combinedAccessory,
+        message: finalMessage,
       },
     ]);
 
@@ -160,24 +316,18 @@ function App() {
     }
 
     alert("마음을 남겼어요!");
-
-    setCrushPost({
-      seen_date: "",
-      place: "혜당관 앞",
-      time_period: "아침",
-      hair_feature: "",
-      clothes_color: "",
-      clothes_style: "",
-      accessory: "",
-      message: "",
-    });
-
+    resetCrushPost();
     setPage("sent");
   };
 
   const searchCrushPosts = async () => {
     if (!searchForm.seen_date) {
       alert("날짜를 선택해주세요.");
+      return;
+    }
+
+    if (!searchForm.place) {
+      alert("장소를 선택해주세요.");
       return;
     }
 
@@ -309,6 +459,20 @@ function App() {
     openMatchingPage();
   };
 
+  const OptionButton = ({ value, selected, onClick, full }) => (
+    <button
+      type="button"
+      className={`optionButton ${selected ? "selected" : ""} ${
+        full ? "fullOption" : ""
+      }`}
+      onClick={onClick}
+    >
+      {value}
+    </button>
+  );
+
+  const progressPercent = (crushStep / 8) * 100;
+
   return (
     <div className="app">
       {page === "home" && (
@@ -318,10 +482,10 @@ function App() {
             단국대에서 스친 인연에게, 조심스럽게 마음을 남겨보세요.
           </p>
 
-          <button onClick={() => setPage("send")}>마음 남기기</button>
+          <button onClick={openSendPage}>스친 사람 찾기</button>
 
           <button onClick={() => setPage("search")} className="white">
-            나에게 온 마음 확인하기
+            나에게 온 마음 보기
           </button>
 
           <button onClick={openMatchingPage} className="white">
@@ -391,108 +555,353 @@ function App() {
       {page === "send" && (
         <div className="card">
           <h2>마음 남기기</h2>
-          <p className="notice">
-            기억나는 단서를 선택해주세요. 외모를 자세히 적기보다, 장소와 시간 중심으로 조심스럽게 남겨주세요.
-          </p>
 
-          <input
-            type="date"
-            value={crushPost.seen_date}
-            onChange={(e) =>
-              setCrushPost({ ...crushPost, seen_date: e.target.value })
-            }
-          />
+          <p className="stepText">{crushStep} / 8</p>
 
-          <select
-            value={crushPost.place}
-            onChange={(e) =>
-              setCrushPost({ ...crushPost, place: e.target.value })
-            }
-          >
-            {placeOptions.map((option) => (
-              <option key={option}>{option}</option>
-            ))}
-          </select>
+          <div className="progressBar">
+            <div
+              className="progressFill"
+              style={{ width: `${progressPercent}%` }}
+            />
+          </div>
 
-          <select
-            value={crushPost.time_period}
-            onChange={(e) =>
-              setCrushPost({ ...crushPost, time_period: e.target.value })
-            }
-          >
-            {timeOptions.map((option) => (
-              <option key={option}>{option}</option>
-            ))}
-          </select>
+          {crushStep === 1 && (
+            <>
+              <h3 className="questionTitle">누구를 찾고 있나요?</h3>
+              <p className="questionDesc">
+                내가 그날 마주친 사람의 성별을 선택해주세요.
+              </p>
 
-          <select
-            value={crushPost.hair_feature}
-            onChange={(e) =>
-              setCrushPost({ ...crushPost, hair_feature: e.target.value })
-            }
-          >
-            <option value="">머리 특징 선택</option>
-            {hairOptions.map((option) => (
-              <option key={option}>{option}</option>
-            ))}
-          </select>
+              <div className="optionGrid">
+                {genderOptions.map((option) => (
+                  <OptionButton
+                    key={option}
+                    value={option}
+                    selected={crushPost.target_gender === option}
+                    onClick={() => selectAndNext("target_gender", option)}
+                  />
+                ))}
+              </div>
+            </>
+          )}
 
-          <select
-            value={crushPost.clothes_color}
-            onChange={(e) =>
-              setCrushPost({ ...crushPost, clothes_color: e.target.value })
-            }
-          >
-            <option value="">상의 색상 선택</option>
-            {colorOptions.map((option) => (
-              <option key={option}>{option}</option>
-            ))}
-          </select>
+          {crushStep === 2 && (
+            <>
+              <h3 className="questionTitle">언제 마주쳤나요?</h3>
+              <p className="questionDesc">
+                시간은 1시간 단위로 선택해주세요. 매칭은 앞뒤 시간까지
+                참고할 수 있어요.
+              </p>
 
-          <select
-            value={crushPost.clothes_style}
-            onChange={(e) =>
-              setCrushPost({ ...crushPost, clothes_style: e.target.value })
-            }
-          >
-            <option value="">옷 스타일 선택</option>
-            {styleOptions.map((option) => (
-              <option key={option}>{option}</option>
-            ))}
-          </select>
+              <div className="formGroup">
+                <label className="formLabel">날짜</label>
+                <input
+                  type="date"
+                  value={crushPost.seen_date}
+                  onChange={(e) =>
+                    updateCrushPost("seen_date", e.target.value)
+                  }
+                />
+              </div>
 
-          <select
-            value={crushPost.accessory}
-            onChange={(e) =>
-              setCrushPost({ ...crushPost, accessory: e.target.value })
-            }
-          >
-            <option value="">기억나는 소지품 선택</option>
-            {accessoryOptions.map((option) => (
-              <option key={option}>{option}</option>
-            ))}
-          </select>
+              <div className="formGroup">
+                <label className="formLabel">시간</label>
+                <select
+                  value={crushPost.time_period}
+                  onChange={(e) =>
+                    updateCrushPost("time_period", e.target.value)
+                  }
+                >
+                  <option value="">시간 선택</option>
+                  {timeOptions.map((option) => (
+                    <option key={option}>{option}</option>
+                  ))}
+                </select>
+              </div>
 
-          <textarea
-            placeholder="짧은 메시지 예: 분위기가 좋아 보여서 조심스럽게 마음 남겨요."
-            value={crushPost.message}
-            onChange={(e) =>
-              setCrushPost({ ...crushPost, message: e.target.value })
-            }
-          />
+              <button
+                onClick={() => {
+                  if (!crushPost.seen_date || !crushPost.time_period) {
+                    alert("날짜와 시간을 선택해주세요.");
+                    return;
+                  }
+                  setCrushStep(3);
+                }}
+              >
+                다음
+              </button>
+            </>
+          )}
 
-          <button onClick={saveCrushPost}>마음 남기기</button>
+          {crushStep === 3 && (
+            <>
+              <h3 className="questionTitle">어디에서 봤나요?</h3>
+              <p className="questionDesc">
+                장소는 최대한 가까운 구역을 선택해주세요.
+              </p>
 
-          <button onClick={() => setPage("home")} className="white">
-            홈으로
-          </button>
+              <select
+                value={crushPost.place}
+                onChange={(e) => updateCrushPost("place", e.target.value)}
+              >
+                <option value="">장소 선택</option>
+                {placeOptions.map((option) => (
+                  <option key={option}>{option}</option>
+                ))}
+              </select>
+
+              <button
+                onClick={() => {
+                  if (!crushPost.place) {
+                    alert("장소를 선택해주세요.");
+                    return;
+                  }
+                  setCrushStep(4);
+                }}
+              >
+                다음
+              </button>
+            </>
+          )}
+
+          {crushStep === 4 && (
+            <>
+              <h3 className="questionTitle">머리 스타일이 기억나나요?</h3>
+              <p className="questionDesc">
+                가장 비슷한 머리 특징을 선택해주세요.
+              </p>
+
+              <div className="optionGrid">
+                {hairOptions.map((option) => (
+                  <OptionButton
+                    key={option}
+                    value={option}
+                    selected={crushPost.hair_feature === option}
+                    onClick={() => selectAndNext("hair_feature", option)}
+                    full={option === "잘 모르겠음"}
+                  />
+                ))}
+              </div>
+            </>
+          )}
+
+          {crushStep === 5 && (
+            <>
+              <h3 className="questionTitle">상의가 기억나나요?</h3>
+              <p className="questionDesc">
+                상의 종류와 색상을 각각 선택해주세요.
+              </p>
+
+              <div className="formGroup">
+                <label className="formLabel">상의 종류</label>
+                <select
+                  value={crushPost.top_type}
+                  onChange={(e) => updateCrushPost("top_type", e.target.value)}
+                >
+                  <option value="">상의 종류 선택</option>
+                  {topTypeOptions.map((option) => (
+                    <option key={option}>{option}</option>
+                  ))}
+                </select>
+              </div>
+
+              <div className="formGroup">
+                <label className="formLabel">상의 색상</label>
+                <select
+                  value={crushPost.top_color}
+                  onChange={(e) => updateCrushPost("top_color", e.target.value)}
+                >
+                  <option value="">상의 색상 선택</option>
+                  {topColorOptions.map((option) => (
+                    <option key={option}>{option}</option>
+                  ))}
+                </select>
+              </div>
+
+              <button
+                onClick={() => {
+                  if (!crushPost.top_type || !crushPost.top_color) {
+                    alert("상의 종류와 색상을 선택해주세요.");
+                    return;
+                  }
+                  setCrushStep(6);
+                }}
+              >
+                다음
+              </button>
+            </>
+          )}
+
+          {crushStep === 6 && (
+            <>
+              <h3 className="questionTitle">하의가 기억나나요?</h3>
+              <p className="questionDesc">
+                하의 종류와 색상을 각각 선택해주세요.
+              </p>
+
+              <div className="formGroup">
+                <label className="formLabel">하의 종류</label>
+                <select
+                  value={crushPost.bottom_type}
+                  onChange={(e) =>
+                    updateCrushPost("bottom_type", e.target.value)
+                  }
+                >
+                  <option value="">하의 종류 선택</option>
+                  {bottomTypeOptions.map((option) => (
+                    <option key={option}>{option}</option>
+                  ))}
+                </select>
+              </div>
+
+              <div className="formGroup">
+                <label className="formLabel">하의 색상</label>
+                <select
+                  value={crushPost.bottom_color}
+                  onChange={(e) =>
+                    updateCrushPost("bottom_color", e.target.value)
+                  }
+                >
+                  <option value="">하의 색상 선택</option>
+                  {bottomColorOptions.map((option) => (
+                    <option key={option}>{option}</option>
+                  ))}
+                </select>
+              </div>
+
+              <button
+                onClick={() => {
+                  if (!crushPost.bottom_type || !crushPost.bottom_color) {
+                    alert("하의 종류와 색상을 선택해주세요.");
+                    return;
+                  }
+                  setCrushStep(7);
+                }}
+              >
+                다음
+              </button>
+            </>
+          )}
+
+          {crushStep === 7 && (
+            <>
+              <h3 className="questionTitle">소지품이 기억나나요?</h3>
+              <p className="questionDesc">
+                가방과 이어폰/헤드셋 여부를 선택해주세요.
+              </p>
+
+              <div className="formGroup">
+                <label className="formLabel">가방</label>
+                <select
+                  value={crushPost.bag_type}
+                  onChange={(e) => updateCrushPost("bag_type", e.target.value)}
+                >
+                  <option value="">가방 선택</option>
+                  {bagOptions.map((option) => (
+                    <option key={option}>{option}</option>
+                  ))}
+                </select>
+              </div>
+
+              <div className="formGroup">
+                <label className="formLabel">이어폰/헤드셋</label>
+                <select
+                  value={crushPost.earphone_type}
+                  onChange={(e) =>
+                    updateCrushPost("earphone_type", e.target.value)
+                  }
+                >
+                  <option value="">이어폰 선택</option>
+                  {earphoneOptions.map((option) => (
+                    <option key={option}>{option}</option>
+                  ))}
+                </select>
+              </div>
+
+              <button
+                onClick={() => {
+                  if (!crushPost.bag_type || !crushPost.earphone_type) {
+                    alert("가방과 이어폰 정보를 선택해주세요.");
+                    return;
+                  }
+                  setCrushStep(8);
+                }}
+              >
+                다음
+              </button>
+            </>
+          )}
+
+          {crushStep === 8 && (
+            <>
+              <h3 className="questionTitle">마지막으로 확인해주세요</h3>
+              <p className="questionDesc">
+                기억이 정확하지 않아도 괜찮아요. 조심스럽게 마음을
+                남겨주세요.
+              </p>
+
+              <textarea
+                placeholder="짧은 메시지 예: 분위기가 좋아 보여서 조심스럽게 마음 남겨요."
+                value={crushPost.message}
+                onChange={(e) => updateCrushPost("message", e.target.value)}
+              />
+
+              <div className="summaryBox">
+                <p>
+                  <strong>찾는 사람:</strong> {crushPost.target_gender || "-"}
+                </p>
+                <p>
+                  <strong>날짜:</strong> {crushPost.seen_date || "-"}
+                </p>
+                <p>
+                  <strong>시간:</strong> {crushPost.time_period || "-"}
+                </p>
+                <p>
+                  <strong>장소:</strong> {crushPost.place || "-"}
+                </p>
+                <p>
+                  <strong>머리:</strong> {crushPost.hair_feature || "-"}
+                </p>
+                <p>
+                  <strong>상의:</strong> {crushPost.top_color || "-"}{" "}
+                  {crushPost.top_type || "-"}
+                </p>
+                <p>
+                  <strong>하의:</strong> {crushPost.bottom_color || "-"}{" "}
+                  {crushPost.bottom_type || "-"}
+                </p>
+                <p>
+                  <strong>소지품:</strong> {crushPost.bag_type || "-"},{" "}
+                  {crushPost.earphone_type || "-"}
+                </p>
+              </div>
+
+              <button onClick={saveCrushPost}>그날의 마음 남기기</button>
+            </>
+          )}
+
+          <div className="stepActions">
+            <button onClick={goBackStep} className="white">
+              {crushStep === 1 ? "홈으로" : "이전"}
+            </button>
+
+            <button
+              onClick={() => {
+                resetCrushPost();
+                setPage("home");
+              }}
+              className="white"
+            >
+              취소
+            </button>
+          </div>
         </div>
       )}
 
       {page === "sent" && (
         <div className="card">
           <h2>마음을 남겼어요</h2>
-          <p>
+          <p className="subtitle">
             상대가 본인이라고 생각하고 응답하면 매칭 관리에서 확인할 수
             있어요.
           </p>
@@ -507,7 +916,7 @@ function App() {
 
       {page === "search" && (
         <div className="card">
-          <h2>나에게 온 마음 확인</h2>
+          <h2>나에게 온 마음 보기</h2>
           <p className="notice">
             날짜와 장소를 먼저 선택하면 비슷한 마음을 찾아볼 수 있어요.
           </p>
@@ -526,6 +935,7 @@ function App() {
               setSearchForm({ ...searchForm, place: e.target.value })
             }
           >
+            <option value="">장소 선택</option>
             {placeOptions.map((option) => (
               <option key={option}>{option}</option>
             ))}
@@ -550,7 +960,7 @@ function App() {
             }
           >
             <option value="">내 상의 색상 선택</option>
-            {colorOptions.map((option) => (
+            {topColorOptions.map((option) => (
               <option key={option}>{option}</option>
             ))}
           </select>
@@ -562,7 +972,7 @@ function App() {
             }
           >
             <option value="">내 옷 스타일 선택</option>
-            {styleOptions.map((option) => (
+            {topTypeOptions.map((option) => (
               <option key={option}>{option}</option>
             ))}
           </select>
@@ -709,7 +1119,7 @@ function App() {
       {page === "claim" && (
         <div className="card">
           <h2>응답을 보냈어요</h2>
-          <p>
+          <p className="subtitle">
             마음을 남긴 사람이 수락하면 서로의 프로필을 볼 수 있어요.
           </p>
 
@@ -769,7 +1179,9 @@ function App() {
                 <p>상태: {claim.status}</p>
 
                 {claim.status === "pending" && (
-                  <button onClick={() => acceptClaim(claim.id)}>수락하기</button>
+                  <button onClick={() => acceptClaim(claim.id)}>
+                    수락하기
+                  </button>
                 )}
 
                 {claim.status === "accepted" && (
