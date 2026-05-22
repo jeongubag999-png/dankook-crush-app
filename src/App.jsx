@@ -27,12 +27,11 @@ function App() {
     "버스정류장",
     "셔틀버스 탑승장",
     "운동장/체육관 근처",
-    "학교 앞 상권",
-    "기타/직접 입력",
+    "기타/정확히 모르겠음",
+    "직접 입력",
   ];
 
   const timeOptions = [
-    "08:00~09:00",
     "09:00~10:00",
     "10:00~11:00",
     "11:00~12:00",
@@ -46,23 +45,37 @@ function App() {
     "19:00~20:00",
     "20:00~21:00",
     "21:00~22:00",
-    "22:00~08:00",
     "잘 모르겠음",
   ];
 
   const genderOptions = ["여자", "남자"];
 
-  const hairOptions = [
+  const femaleHairOptions = [
     "긴 생머리",
     "긴 웨이브",
     "중단발",
     "단발",
     "묶은 머리",
-    "짧은 머리",
-    "펌/웨이브",
+    "반묶음",
+    "염색머리",
     "모자 착용",
     "잘 모르겠음",
   ];
+
+  const maleHairOptions = [
+    "짧은 머리",
+    "가르마펌",
+    "쉼표머리",
+    "댄디컷",
+    "투블럭",
+    "스포츠머리",
+    "장발",
+    "염색머리",
+    "모자 착용",
+    "잘 모르겠음",
+  ];
+
+  const allHairOptions = [...new Set([...femaleHairOptions, ...maleHairOptions])];
 
   const topTypeOptions = [
     "반팔 티셔츠",
@@ -144,18 +157,14 @@ function App() {
 
   const [profile, setProfile] = useState({
     nickname: "",
-    gender: "",
     department: "",
     student_year: "",
     instagram_id: "",
     bio: "",
-    profile_image_url: "",
   });
 
-  const [profileImageFile, setProfileImageFile] = useState(null);
-  const [profileImagePreview, setProfileImagePreview] = useState("");
-
   const [crushPost, setCrushPost] = useState({
+    target_gender: "",
     seen_date: "",
     place: "",
     custom_place: "",
@@ -172,9 +181,11 @@ function App() {
 
   const [searchForm, setSearchForm] = useState({
     seen_date: "",
+    place: "",
+    search_custom_place: "",
     hair_feature: "",
-    top_type: "",
-    top_color: "",
+    clothes_color: "",
+    clothes_style: "",
     bottom_type: "",
     bottom_color: "",
   });
@@ -192,11 +203,6 @@ function App() {
   const [matchingClaims, setMatchingClaims] = useState([]);
   const [matchingLoading, setMatchingLoading] = useState(false);
 
-  const [secondMessageForm, setSecondMessageForm] = useState({
-    claimId: null,
-    message: "",
-  });
-
   const updateCrushPost = (key, value) => {
     setCrushPost((prev) => ({
       ...prev,
@@ -204,81 +210,38 @@ function App() {
     }));
   };
 
-  const getOppositeGender = (gender) => {
-    if (gender === "남자") return "여자";
-    if (gender === "여자") return "남자";
-    return "";
-  };
-
   const getFinalPlace = () => {
-    if (
-      crushPost.place === "기타/직접 입력" ||
-      crushPost.place === "학교 앞 상권"
-    ) {
+    if (crushPost.place === "직접 입력") {
       return crushPost.custom_place.trim();
     }
 
     return crushPost.place;
   };
 
-  const cleanInstagram = (value) => {
-    if (!value) return "";
-    return value.trim().replace("@", "");
+  const getFinalSearchPlace = () => {
+    if (searchForm.place === "직접 입력") {
+      return searchForm.search_custom_place.trim();
+    }
+
+    return searchForm.place;
   };
 
-  const renderPostQuestionAnswer = (post) => {
-    return (
-      <div className="qaBox">
-        <p className="qaTitle">상대가 기억한 내 정보</p>
+  const getActiveHairOptions = () => {
+    if (crushPost.target_gender === "남자") {
+      return maleHairOptions;
+    }
 
-        <p>
-          <strong>찾는 사람:</strong> {post.target_gender || "-"}
-        </p>
+    if (crushPost.target_gender === "여자") {
+      return femaleHairOptions;
+    }
 
-        <p>
-          <strong>날짜:</strong> {post.seen_date || "-"}
-        </p>
-
-        <p>
-          <strong>시간:</strong> {post.time_period || "-"}
-        </p>
-
-        <p>
-          <strong>장소:</strong> {post.place || "-"}
-        </p>
-
-        <p>
-          <strong>머리:</strong> {post.hair_feature || "-"}
-        </p>
-
-        <p>
-          <strong>상의:</strong> {post.clothes_color || "-"}{" "}
-          {post.clothes_style?.replace("상의:", "").split("/")[0] || "-"}
-        </p>
-
-        <p>
-          <strong>하의:</strong>{" "}
-          {post.clothes_style?.includes("하의:")
-            ? post.clothes_style.split("하의:")[1]
-            : "-"}
-        </p>
-
-        <p>
-          <strong>소지품:</strong> {post.accessory || "-"}
-        </p>
-      </div>
-    );
-  };
-
-  const cleanMessage = (message) => {
-    if (!message) return "";
-    return message.replace(/\[찾는 성별:\s*.*?\]\s*/, "");
+    return allHairOptions;
   };
 
   const selectAndNext = (key, value) => {
     updateCrushPost(key, value);
     setTimeout(() => {
-      setCrushStep((prev) => Math.min(prev + 1, 7));
+      setCrushStep((prev) => Math.min(prev + 1, 8));
     }, 120);
   };
 
@@ -287,47 +250,17 @@ function App() {
       setPage("home");
       return;
     }
-
     setCrushStep((prev) => prev - 1);
   };
 
-  const checkProfileRequired = () => {
-    if (!profile.nickname) {
-      alert("먼저 내 프로필에서 닉네임을 입력해주세요.");
-      setPage("profile");
-      return false;
-    }
-
-    if (!profile.gender) {
-      alert("먼저 내 프로필에서 성별을 선택해주세요.");
-      setPage("profile");
-      return false;
-    }
-
-    if (!profile.instagram_id) {
-      alert("먼저 내 프로필에서 인스타 아이디를 입력해주세요.");
-      setPage("profile");
-      return false;
-    }
-
-    return true;
-  };
-
   const openSendPage = () => {
-    if (!checkProfileRequired()) return;
-
     setCrushStep(1);
     setPage("send");
   };
 
-  const openSearchPage = () => {
-    if (!checkProfileRequired()) return;
-
-    setPage("search");
-  };
-
   const resetCrushPost = () => {
     setCrushPost({
+      target_gender: "",
       seen_date: "",
       place: "",
       custom_place: "",
@@ -341,60 +274,17 @@ function App() {
       earphone_type: "",
       message: "",
     });
-
     setCrushStep(1);
   };
 
   const saveProfile = async () => {
-    if (!profile.nickname) {
-      alert("닉네임을 입력해주세요.");
-      return;
-    }
-
-    if (!profile.gender) {
-      alert("성별을 선택해주세요.");
-      return;
-    }
-
-    if (!profile.instagram_id) {
-      alert("인스타 아이디를 입력해주세요.");
-      return;
-    }
-
-    let imageUrl = profile.profile_image_url;
-
-    if (profileImageFile) {
-      const fileExt = profileImageFile.name.split(".").pop();
-      const fileName = `${Date.now()}-${Math.random()
-        .toString(36)
-        .substring(2)}.${fileExt}`;
-
-      const { error: uploadError } = await supabase.storage
-        .from("profile-images")
-        .upload(fileName, profileImageFile);
-
-      if (uploadError) {
-        alert("프로필 사진 업로드에 실패했어요: " + uploadError.message);
-        console.log(uploadError);
-        return;
-      }
-
-      const { data } = supabase.storage
-        .from("profile-images")
-        .getPublicUrl(fileName);
-
-      imageUrl = data.publicUrl;
-    }
-
     const { error } = await supabase.from("profiles").insert([
       {
         nickname: profile.nickname,
-        gender: profile.gender,
         department: profile.department,
         student_year: profile.student_year,
-        instagram_id: cleanInstagram(profile.instagram_id),
+        instagram_id: profile.instagram_id,
         bio: profile.bio,
-        profile_image_url: imageUrl,
       },
     ]);
 
@@ -404,61 +294,56 @@ function App() {
       return;
     }
 
-    setProfile({
-      ...profile,
-      instagram_id: cleanInstagram(profile.instagram_id),
-      profile_image_url: imageUrl,
-    });
-
     alert("프로필이 저장됐어요!");
-
-    setProfileImageFile(null);
-    setProfileImagePreview("");
     setPage("home");
   };
 
   const saveCrushPost = async () => {
-    if (!checkProfileRequired()) return;
+    if (!crushPost.target_gender) {
+      alert("찾는 이성 성별을 선택해주세요.");
+      setCrushStep(1);
+      return;
+    }
 
     if (!crushPost.seen_date || !crushPost.time_period) {
       alert("날짜와 시간을 선택해주세요.");
-      setCrushStep(1);
+      setCrushStep(2);
       return;
     }
 
     if (!getFinalPlace()) {
       alert("장소를 선택하거나 직접 입력해주세요.");
-      setCrushStep(2);
+      setCrushStep(3);
       return;
     }
 
     if (!crushPost.hair_feature) {
       alert("머리 특징을 선택해주세요.");
-      setCrushStep(3);
+      setCrushStep(4);
       return;
     }
 
     if (!crushPost.top_type || !crushPost.top_color) {
       alert("상의 종류와 색상을 선택해주세요.");
-      setCrushStep(4);
+      setCrushStep(5);
       return;
     }
 
     if (!crushPost.bottom_type || !crushPost.bottom_color) {
       alert("하의 종류와 색상을 선택해주세요.");
-      setCrushStep(5);
+      setCrushStep(6);
       return;
     }
 
     if (!crushPost.bag_type || !crushPost.earphone_type) {
       alert("가방과 이어폰 정보를 선택해주세요.");
-      setCrushStep(6);
+      setCrushStep(7);
       return;
     }
 
-    const targetGender = getOppositeGender(profile.gender);
     const combinedStyle = `상의:${crushPost.top_type} / 하의:${crushPost.bottom_type} ${crushPost.bottom_color}`;
     const combinedAccessory = `가방:${crushPost.bag_type} / 이어폰:${crushPost.earphone_type}`;
+    const finalMessage = `[찾는 성별: ${crushPost.target_gender}] ${crushPost.message}`;
 
     const { error } = await supabase.from("crush_posts").insert([
       {
@@ -469,31 +354,29 @@ function App() {
         clothes_color: crushPost.top_color,
         clothes_style: combinedStyle,
         accessory: combinedAccessory,
-        message: crushPost.message,
-        sender_nickname: profile.nickname,
-        sender_instagram: cleanInstagram(profile.instagram_id),
-        sender_gender: profile.gender,
-        target_gender: targetGender,
-        second_message_count: 0,
+        message: finalMessage,
       },
     ]);
 
     if (error) {
-      alert("설렘 남기기에 실패했어요: " + error.message);
+      alert("마음 남기기에 실패했어요: " + error.message);
       console.log(error);
       return;
     }
 
-    alert("설렘을 남겼어요!");
+    alert("마음을 남겼어요!");
     resetCrushPost();
     setPage("sent");
   };
 
   const searchCrushPosts = async () => {
-    if (!checkProfileRequired()) return;
-
     if (!searchForm.seen_date) {
       alert("날짜를 선택해주세요.");
+      return;
+    }
+
+    if (!getFinalSearchPlace()) {
+      alert("장소를 선택하거나 직접 입력해주세요.");
       return;
     }
 
@@ -501,18 +384,18 @@ function App() {
       .from("crush_posts")
       .select("*")
       .eq("seen_date", searchForm.seen_date)
-      .eq("target_gender", profile.gender);
+      .eq("place", getFinalSearchPlace());
 
     if (searchForm.hair_feature && searchForm.hair_feature !== "잘 모르겠음") {
       query = query.eq("hair_feature", searchForm.hair_feature);
     }
 
-    if (searchForm.top_color && searchForm.top_color !== "잘 모르겠음") {
-      query = query.eq("clothes_color", searchForm.top_color);
+    if (searchForm.clothes_color && searchForm.clothes_color !== "잘 모르겠음") {
+      query = query.eq("clothes_color", searchForm.clothes_color);
     }
 
-    if (searchForm.top_type && searchForm.top_type !== "잘 모르겠음") {
-      query = query.ilike("clothes_style", `%상의:${searchForm.top_type}%`);
+    if (searchForm.clothes_style && searchForm.clothes_style !== "잘 모르겠음") {
+      query = query.ilike("clothes_style", `%${searchForm.clothes_style}%`);
     }
 
     if (searchForm.bottom_type && searchForm.bottom_type !== "잘 모르겠음") {
@@ -533,17 +416,20 @@ function App() {
       return;
     }
 
-    setSearchResults(data || []);
+    setSearchResults(data);
     setPage("result");
   };
 
   const saveClaim = async () => {
     if (!selectedPost) {
-      alert("응답할 설렘 글을 찾지 못했어요.");
+      alert("응답할 마음 글을 찾지 못했어요.");
       return;
     }
 
-    if (!checkProfileRequired()) return;
+    if (!claimForm.claimer_nickname) {
+      alert("닉네임을 입력해주세요.");
+      return;
+    }
 
     if (!claimForm.match_level) {
       alert("일치 정도를 선택해주세요.");
@@ -555,8 +441,8 @@ function App() {
     const { error } = await supabase.from("claims").insert([
       {
         crush_post_id: selectedPost.id,
-        claimer_nickname: profile.nickname,
-        claimer_instagram: cleanInstagram(profile.instagram_id),
+        claimer_nickname: claimForm.claimer_nickname,
+        claimer_instagram: claimForm.claimer_instagram,
         claimer_message: finalMessage,
         status: "pending",
       },
@@ -582,49 +468,43 @@ function App() {
   };
 
   const openMatchingPage = async () => {
-    if (!checkProfileRequired()) return;
-
     setMatchingLoading(true);
     setPage("matching");
-
-    const myInstagram = cleanInstagram(profile.instagram_id);
-
-    const { data: myPosts, error: postsError } = await supabase
-      .from("crush_posts")
-      .select("*")
-      .eq("sender_instagram", myInstagram)
-      .order("created_at", { ascending: false });
-
-    if (postsError) {
-      alert("내 설렘 글을 불러오지 못했어요: " + postsError.message);
-      console.log(postsError);
-      setMatchingLoading(false);
-      return;
-    }
-
-    if (!myPosts || myPosts.length === 0) {
-      setMatchingClaims([]);
-      setMatchingLoading(false);
-      return;
-    }
-
-    const postIds = myPosts.map((post) => post.id);
 
     const { data: claimsData, error: claimsError } = await supabase
       .from("claims")
       .select("*")
-      .in("crush_post_id", postIds)
       .order("created_at", { ascending: false });
 
     if (claimsError) {
-      alert("응답 데이터를 불러오지 못했어요: " + claimsError.message);
+      alert("매칭 데이터를 불러오지 못했어요: " + claimsError.message);
       console.log(claimsError);
       setMatchingLoading(false);
       return;
     }
 
-    const combinedData = (claimsData || []).map((claim) => {
-      const post = myPosts.find((post) => post.id === claim.crush_post_id);
+    const postIds = claimsData.map((claim) => claim.crush_post_id);
+
+    if (postIds.length === 0) {
+      setMatchingClaims([]);
+      setMatchingLoading(false);
+      return;
+    }
+
+    const { data: postsData, error: postsError } = await supabase
+      .from("crush_posts")
+      .select("*")
+      .in("id", postIds);
+
+    if (postsError) {
+      alert("마음 글 데이터를 불러오지 못했어요: " + postsError.message);
+      console.log(postsError);
+      setMatchingLoading(false);
+      return;
+    }
+
+    const combinedData = claimsData.map((claim) => {
+      const post = postsData.find((post) => post.id === claim.crush_post_id);
 
       return {
         ...claim,
@@ -648,43 +528,7 @@ function App() {
       return;
     }
 
-    alert("매칭을 수락했어요! 이제 서로의 인스타를 확인할 수 있어요.");
-    openMatchingPage();
-  };
-
-  const sendSecondMessage = async (claim) => {
-    if (!secondMessageForm.message.trim()) {
-      alert("2차 설렘 메시지를 입력해주세요.");
-      return;
-    }
-
-    if (claim.second_message_sent) {
-      alert("이미 2차 설렘을 보냈어요.");
-      return;
-    }
-
-    const { error } = await supabase
-      .from("claims")
-      .update({
-        second_message: secondMessageForm.message.trim(),
-        second_message_sent: true,
-        second_message_created_at: new Date().toISOString(),
-      })
-      .eq("id", claim.id);
-
-    if (error) {
-      alert("2차 설렘 보내기에 실패했어요: " + error.message);
-      console.log(error);
-      return;
-    }
-
-    alert("2차 설렘을 보냈어요.");
-
-    setSecondMessageForm({
-      claimId: null,
-      message: "",
-    });
-
+    alert("매칭을 수락했어요!");
     openMatchingPage();
   };
 
@@ -700,7 +544,7 @@ function App() {
     </button>
   );
 
-  const progressPercent = (crushStep / 7) * 100;
+  const progressPercent = (crushStep / 8) * 100;
 
   return (
     <div className="app">
@@ -708,18 +552,17 @@ function App() {
         <div className="card">
           <h1>단꿈</h1>
           <p className="subtitle">
-            스쳐 지나간 설렘을, 서로가 원할 때만 연결해주는 단국대 익명
-            호감 매칭 서비스
+            단국대에서 스친 인연에게, 조심스럽게 마음을 남겨보세요.
           </p>
 
-          <button onClick={openSendPage}>설렘 남기기</button>
+          <button onClick={openSendPage}>스친 사람 찾기</button>
 
-          <button onClick={openSearchPage} className="white">
-            나에게 온 설렘 찾기
+          <button onClick={() => setPage("search")} className="white">
+            내가 받은 설렘 찾기
           </button>
 
           <button onClick={openMatchingPage} className="white">
-            내 설렘 관리
+            매칭 관리
           </button>
 
           <button onClick={() => setPage("profile")} className="white">
@@ -727,7 +570,7 @@ function App() {
           </button>
 
           <p className="notice">
-            서로 응답하기 전까지 인스타 아이디는 공개되지 않습니다.
+            서로 수락하기 전까지 인스타 아이디는 공개되지 않습니다.
           </p>
         </div>
       )}
@@ -736,48 +579,13 @@ function App() {
         <div className="card">
           <h2>내 프로필</h2>
 
-          <div className="profileImageBox">
-            {profileImagePreview ? (
-              <img src={profileImagePreview} alt="프로필 미리보기" />
-            ) : (
-              <div className="profileImagePlaceholder">프로필 사진</div>
-            )}
-          </div>
-
           <input
-            type="file"
-            accept="image/*"
-            onChange={(e) => {
-              const file = e.target.files[0];
-
-              if (!file) return;
-
-              setProfileImageFile(file);
-              setProfileImagePreview(URL.createObjectURL(file));
-            }}
-          />
-
-          <input
-            placeholder="닉네임 예: 정우23"
+            placeholder="닉네임 예: 곰돌이23"
             value={profile.nickname}
             onChange={(e) =>
               setProfile({ ...profile, nickname: e.target.value })
             }
           />
-
-          <div className="formGroup">
-            <label className="formLabel">성별</label>
-            <div className="optionGrid">
-              {genderOptions.map((option) => (
-                <OptionButton
-                  key={option}
-                  value={option}
-                  selected={profile.gender === option}
-                  onClick={() => setProfile({ ...profile, gender: option })}
-                />
-              ))}
-            </div>
-          </div>
 
           <input
             placeholder="학과 예: 글로벌경영학과"
@@ -796,7 +604,7 @@ function App() {
           />
 
           <input
-            placeholder="인스타 아이디 예: dankum_test"
+            placeholder="인스타 아이디"
             value={profile.instagram_id}
             onChange={(e) =>
               setProfile({ ...profile, instagram_id: e.target.value })
@@ -819,9 +627,9 @@ function App() {
 
       {page === "send" && (
         <div className="card">
-          <h2>설렘 남기기</h2>
+          <h2>마음 남기기</h2>
 
-          <p className="stepText">{crushStep} / 7</p>
+          <p className="stepText">{crushStep} / 8</p>
 
           <div className="progressBar">
             <div
@@ -832,10 +640,40 @@ function App() {
 
           {crushStep === 1 && (
             <>
+              <h3 className="questionTitle">누구를 찾고 있나요?</h3>
+              <p className="questionDesc">
+                내가 그날 마주친 사람의 성별을 선택해주세요.
+              </p>
+
+              <div className="optionGrid">
+                {genderOptions.map((option) => (
+                  <OptionButton
+                    key={option}
+                    value={option}
+                    selected={crushPost.target_gender === option}
+                    onClick={() => {
+                      setCrushPost({
+                        ...crushPost,
+                        target_gender: option,
+                        hair_feature: "",
+                      });
+
+                      setTimeout(() => {
+                        setCrushStep(2);
+                      }, 120);
+                    }}
+                  />
+                ))}
+              </div>
+            </>
+          )}
+
+          {crushStep === 2 && (
+            <>
               <h3 className="questionTitle">언제 마주쳤나요?</h3>
               <p className="questionDesc">
-                시간은 1시간 단위로 선택해주세요. 나중에 상대가 날짜와
-                착장을 올리면 비슷한 설렘으로 보여져요.
+                시간은 1시간 단위로 선택해주세요. 매칭은 앞뒤 시간까지
+                참고할 수 있어요.
               </p>
 
               <div className="formGroup">
@@ -870,7 +708,7 @@ function App() {
                     alert("날짜와 시간을 선택해주세요.");
                     return;
                   }
-                  setCrushStep(2);
+                  setCrushStep(3);
                 }}
               >
                 다음
@@ -878,12 +716,12 @@ function App() {
             </>
           )}
 
-          {crushStep === 2 && (
+          {crushStep === 3 && (
             <>
               <h3 className="questionTitle">어디에서 봤나요?</h3>
               <p className="questionDesc">
-                장소는 최대한 가까운 구역을 선택해주세요. 기타 장소는 직접
-                입력할 수 있어요.
+                장소는 최대한 가까운 구역을 선택해주세요. 없으면 직접 입력을
+                선택해주세요.
               </p>
 
               <select
@@ -893,8 +731,7 @@ function App() {
                     ...crushPost,
                     place: e.target.value,
                     custom_place:
-                      e.target.value === "기타/직접 입력" ||
-                      e.target.value === "학교 앞 상권"
+                      e.target.value === "직접 입력"
                         ? crushPost.custom_place
                         : "",
                   })
@@ -906,14 +743,9 @@ function App() {
                 ))}
               </select>
 
-              {(crushPost.place === "기타/직접 입력" ||
-                crushPost.place === "학교 앞 상권") && (
+              {crushPost.place === "직접 입력" && (
                 <input
-                  placeholder={
-                    crushPost.place === "학교 앞 상권"
-                      ? "학교 앞 상권 장소 예: 죽전역 근처, 보정동 카페거리"
-                      : "장소를 직접 입력해주세요 예: 공학관 2층 복도"
-                  }
+                  placeholder="장소를 직접 입력해주세요 예: 공학관 2층 복도"
                   value={crushPost.custom_place}
                   onChange={(e) =>
                     updateCrushPost("custom_place", e.target.value)
@@ -927,7 +759,7 @@ function App() {
                     alert("장소를 선택하거나 직접 입력해주세요.");
                     return;
                   }
-                  setCrushStep(3);
+                  setCrushStep(4);
                 }}
               >
                 다음
@@ -935,15 +767,15 @@ function App() {
             </>
           )}
 
-          {crushStep === 3 && (
+          {crushStep === 4 && (
             <>
               <h3 className="questionTitle">머리 스타일이 기억나나요?</h3>
               <p className="questionDesc">
-                가장 비슷한 머리 특징을 선택해주세요.
+                찾는 사람의 성별에 맞는 머리 특징을 선택해주세요.
               </p>
 
               <div className="optionGrid">
-                {hairOptions.map((option) => (
+                {getActiveHairOptions().map((option) => (
                   <OptionButton
                     key={option}
                     value={option}
@@ -956,7 +788,7 @@ function App() {
             </>
           )}
 
-          {crushStep === 4 && (
+          {crushStep === 5 && (
             <>
               <h3 className="questionTitle">상의가 기억나나요?</h3>
               <p className="questionDesc">
@@ -995,7 +827,7 @@ function App() {
                     alert("상의 종류와 색상을 선택해주세요.");
                     return;
                   }
-                  setCrushStep(5);
+                  setCrushStep(6);
                 }}
               >
                 다음
@@ -1003,7 +835,7 @@ function App() {
             </>
           )}
 
-          {crushStep === 5 && (
+          {crushStep === 6 && (
             <>
               <h3 className="questionTitle">하의가 기억나나요?</h3>
               <p className="questionDesc">
@@ -1046,7 +878,7 @@ function App() {
                     alert("하의 종류와 색상을 선택해주세요.");
                     return;
                   }
-                  setCrushStep(6);
+                  setCrushStep(7);
                 }}
               >
                 다음
@@ -1054,7 +886,7 @@ function App() {
             </>
           )}
 
-          {crushStep === 6 && (
+          {crushStep === 7 && (
             <>
               <h3 className="questionTitle">소지품이 기억나나요?</h3>
               <p className="questionDesc">
@@ -1095,7 +927,7 @@ function App() {
                     alert("가방과 이어폰 정보를 선택해주세요.");
                     return;
                   }
-                  setCrushStep(7);
+                  setCrushStep(8);
                 }}
               >
                 다음
@@ -1103,29 +935,23 @@ function App() {
             </>
           )}
 
-          {crushStep === 7 && (
+          {crushStep === 8 && (
             <>
               <h3 className="questionTitle">마지막으로 확인해주세요</h3>
               <p className="questionDesc">
-                내 프로필 성별 기준으로 찾는 사람이 자동 설정돼요.
+                기억이 정확하지 않아도 괜찮아요. 조심스럽게 마음을
+                남겨주세요.
               </p>
 
               <textarea
-                placeholder="짧은 메시지 예: 분위기가 좋아 보여서 조심스럽게 설렘 남겨요."
+                placeholder="짧은 메시지 예: 분위기가 좋아 보여서 조심스럽게 마음 남겨요."
                 value={crushPost.message}
                 onChange={(e) => updateCrushPost("message", e.target.value)}
               />
 
               <div className="summaryBox">
                 <p>
-                  <strong>보내는 사람:</strong> {profile.nickname || "-"}
-                </p>
-                <p>
-                  <strong>내 성별:</strong> {profile.gender || "-"}
-                </p>
-                <p>
-                  <strong>찾는 사람:</strong>{" "}
-                  {getOppositeGender(profile.gender) || "-"}
+                  <strong>찾는 사람:</strong> {crushPost.target_gender || "-"}
                 </p>
                 <p>
                   <strong>날짜:</strong> {crushPost.seen_date || "-"}
@@ -1153,7 +979,7 @@ function App() {
                 </p>
               </div>
 
-              <button onClick={saveCrushPost}>그날의 설렘 남기기</button>
+              <button onClick={saveCrushPost}>그날의 마음 남기기</button>
             </>
           )}
 
@@ -1177,13 +1003,13 @@ function App() {
 
       {page === "sent" && (
         <div className="card">
-          <h2>설렘을 남겼어요</h2>
+          <h2>마음을 남겼어요</h2>
           <p className="subtitle">
-            상대가 자신의 날짜와 착장을 올리면, 당신의 설렘을 발견할 수
+            상대가 본인이라고 생각하고 응답하면 매칭 관리에서 확인할 수
             있어요.
           </p>
 
-          <button onClick={openMatchingPage}>내 설렘 관리로 가기</button>
+          <button onClick={openMatchingPage}>매칭 관리로 가기</button>
 
           <button onClick={() => setPage("home")} className="white">
             홈으로
@@ -1193,18 +1019,11 @@ function App() {
 
       {page === "search" && (
         <div className="card">
-          <h2>나에게 온 설렘 찾기</h2>
+          <h2>내가 받은 설렘 찾기</h2>
           <p className="subtitle">
-            오늘의 착장과 인상착의를 올리면, 나를 찾고 있는 설렘 후보를
-            확인할 수 있어요.
+            그날의 내 모습과 장소를 선택하면, 나를 찾고 있는 마음을 확인할
+            수 있어요.
           </p>
-
-          <div className="summaryBox">
-            <p>
-              <strong>내 성별:</strong> {profile.gender || "-"}
-            </p>
-            <p>프로필 성별 기준으로 나를 찾는 설렘만 자동으로 확인해요.</p>
-          </div>
 
           <div className="formGroup">
             <label className="formLabel">언제 있었나요?</label>
@@ -1218,6 +1037,41 @@ function App() {
           </div>
 
           <div className="formGroup">
+            <label className="formLabel">어디에 있었나요?</label>
+            <select
+              value={searchForm.place}
+              onChange={(e) =>
+                setSearchForm({
+                  ...searchForm,
+                  place: e.target.value,
+                  search_custom_place:
+                    e.target.value === "직접 입력"
+                      ? searchForm.search_custom_place
+                      : "",
+                })
+              }
+            >
+              <option value="">장소 선택</option>
+              {placeOptions.map((option) => (
+                <option key={option}>{option}</option>
+              ))}
+            </select>
+
+            {searchForm.place === "직접 입력" && (
+              <input
+                placeholder="장소를 직접 입력해주세요 예: 공학관 2층 복도"
+                value={searchForm.search_custom_place}
+                onChange={(e) =>
+                  setSearchForm({
+                    ...searchForm,
+                    search_custom_place: e.target.value,
+                  })
+                }
+              />
+            )}
+          </div>
+
+          <div className="formGroup">
             <label className="formLabel">내 머리는 어땠나요?</label>
             <select
               value={searchForm.hair_feature}
@@ -1226,22 +1080,7 @@ function App() {
               }
             >
               <option value="">머리 특징 선택</option>
-              {hairOptions.map((option) => (
-                <option key={option}>{option}</option>
-              ))}
-            </select>
-          </div>
-
-          <div className="formGroup">
-            <label className="formLabel">상의 종류는 무엇이었나요?</label>
-            <select
-              value={searchForm.top_type}
-              onChange={(e) =>
-                setSearchForm({ ...searchForm, top_type: e.target.value })
-              }
-            >
-              <option value="">상의 종류 선택</option>
-              {topTypeOptions.map((option) => (
+              {allHairOptions.map((option) => (
                 <option key={option}>{option}</option>
               ))}
             </select>
@@ -1250,13 +1089,28 @@ function App() {
           <div className="formGroup">
             <label className="formLabel">상의 색상은 무엇이었나요?</label>
             <select
-              value={searchForm.top_color}
+              value={searchForm.clothes_color}
               onChange={(e) =>
-                setSearchForm({ ...searchForm, top_color: e.target.value })
+                setSearchForm({ ...searchForm, clothes_color: e.target.value })
               }
             >
               <option value="">상의 색상 선택</option>
               {topColorOptions.map((option) => (
+                <option key={option}>{option}</option>
+              ))}
+            </select>
+          </div>
+
+          <div className="formGroup">
+            <label className="formLabel">어떤 옷을 입고 있었나요?</label>
+            <select
+              value={searchForm.clothes_style}
+              onChange={(e) =>
+                setSearchForm({ ...searchForm, clothes_style: e.target.value })
+              }
+            >
+              <option value="">상의 종류 선택</option>
+              {topTypeOptions.map((option) => (
                 <option key={option}>{option}</option>
               ))}
             </select>
@@ -1293,11 +1147,11 @@ function App() {
           </div>
 
           <p className="helperText">
-            날짜는 필수예요. 머리, 상의, 하의 정보는 선택하면 더 정확하게
-            찾을 수 있어요. 장소는 입력하지 않아도 돼요.
+            날짜와 장소는 필수예요. 머리, 상의, 하의 정보는 선택하면 더
+            정확하게 찾을 수 있어요.
           </p>
 
-          <button onClick={searchCrushPosts}>나를 찾는 설렘 확인하기</button>
+          <button onClick={searchCrushPosts}>나를 찾는 마음 확인하기</button>
 
           <button onClick={() => setPage("home")} className="white">
             홈으로
@@ -1307,12 +1161,12 @@ function App() {
 
       {page === "result" && (
         <div className="card">
-          <h2>나를 찾는 설렘 {searchResults.length}개</h2>
+          <h2>나를 찾는 마음 {searchResults.length}개</h2>
 
           {searchResults.length === 0 && (
             <p className="notice">
-              아직 비슷한 설렘이 없어요. 날짜를 다시 확인하거나, 머리와 옷
-              조건을 조금 줄여서 다시 찾아보세요.
+              아직 비슷한 마음이 없어요. 날짜와 장소를 다시 확인하거나,
+              머리와 옷 조건을 조금 줄여서 다시 찾아보세요.
             </p>
           )}
 
@@ -1324,9 +1178,13 @@ function App() {
                 </b>
               </p>
 
-              {renderPostQuestionAnswer(post)}
+              <p>
+                {post.hair_feature}, {post.clothes_color} {post.clothes_style}
+                {post.accessory && `, ${post.accessory}`} 분께 마음을
+                남겼어요.
+              </p>
 
-              <p className="message">“{cleanMessage(post.message)}”</p>
+              <p className="message">“{post.message}”</p>
 
               <button
                 onClick={() => {
@@ -1351,7 +1209,7 @@ function App() {
 
       {page === "claimForm" && (
         <div className="card">
-          <h2>이 설렘에 응답하기</h2>
+          <h2>이 마음에 응답하기</h2>
 
           {selectedPost && (
             <div className="post">
@@ -1362,9 +1220,14 @@ function App() {
                 </b>
               </p>
 
-              {renderPostQuestionAnswer(selectedPost)}
+              <p>
+                {selectedPost.hair_feature}, {selectedPost.clothes_color}{" "}
+                {selectedPost.clothes_style}
+                {selectedPost.accessory && `, ${selectedPost.accessory}`} 분께
+                마음을 남겼어요.
+              </p>
 
-              <p className="message">“{cleanMessage(selectedPost.message)}”</p>
+              <p className="message">“{selectedPost.message}”</p>
             </div>
           )}
 
@@ -1382,6 +1245,28 @@ function App() {
               <option key={option}>{option}</option>
             ))}
           </select>
+
+          <input
+            placeholder="내 닉네임 예: 파란하늘"
+            value={claimForm.claimer_nickname}
+            onChange={(e) =>
+              setClaimForm({
+                ...claimForm,
+                claimer_nickname: e.target.value,
+              })
+            }
+          />
+
+          <input
+            placeholder="내 인스타 아이디 선택사항 예: @dankum_test"
+            value={claimForm.claimer_instagram}
+            onChange={(e) =>
+              setClaimForm({
+                ...claimForm,
+                claimer_instagram: e.target.value,
+              })
+            }
+          />
 
           <textarea
             placeholder="상대에게 남길 말 예: 저 맞는 것 같아요!"
@@ -1410,49 +1295,52 @@ function App() {
         <div className="card">
           <h2>응답을 보냈어요</h2>
           <p className="subtitle">
-            설렘을 남긴 사람이 수락하면 서로의 인스타를 볼 수 있어요.
-            상대가 확신하면 2차 설렘을 보낼 수도 있어요.
+            마음을 남긴 사람이 수락하면 서로의 프로필을 볼 수 있어요.
           </p>
 
-          <button onClick={() => setPage("home")}>홈으로</button>
+          <button onClick={openMatchingPage}>매칭 관리로 가기</button>
+
+          <button onClick={() => setPage("home")} className="white">
+            홈으로
+          </button>
         </div>
       )}
 
       {page === "matching" && (
         <div className="card">
-          <h2>내 설렘 관리</h2>
+          <h2>매칭 관리</h2>
 
           {matchingLoading && <p className="notice">불러오는 중이에요...</p>}
 
           {!matchingLoading && matchingClaims.length === 0 && (
-            <p className="notice">
-              아직 내 설렘에 응답한 사람이 없어요. 상대가 본인 착장을 올리고
-              응답하면 여기에 표시돼요.
-            </p>
+            <p className="notice">아직 받은 응답이 없어요.</p>
           )}
 
           {!matchingLoading &&
             matchingClaims.map((claim) => (
               <div className="post" key={claim.id}>
                 <p>
-                  <b>내 설렘에 온 응답</b>
+                  <b>나에게 온 응답</b>
                 </p>
 
                 {claim.post ? (
                   <>
                     <p>
-                      내가 남긴 설렘: {claim.post.seen_date},{" "}
+                      원래 마음 글: {claim.post.seen_date},{" "}
                       {claim.post.time_period}, {claim.post.place}
                     </p>
 
-                    {renderPostQuestionAnswer(claim.post)}
-
-                    <p className="message">
-                      “{cleanMessage(claim.post.message)}”
+                    <p>
+                      {claim.post.hair_feature}, {claim.post.clothes_color}{" "}
+                      {claim.post.clothes_style}
+                      {claim.post.accessory && `, ${claim.post.accessory}`} 분께
+                      남긴 마음
                     </p>
+
+                    <p className="message">“{claim.post.message}”</p>
                   </>
                 ) : (
-                  <p className="notice">연결된 설렘 글을 찾지 못했어요.</p>
+                  <p className="notice">연결된 마음 글을 찾지 못했어요.</p>
                 )}
 
                 <hr />
@@ -1463,85 +1351,19 @@ function App() {
 
                 <p className="message">“{claim.claimer_message}”</p>
 
-                <p>
-                  상태:{" "}
-                  <b>
-                    {claim.status === "accepted"
-                      ? "매칭 수락됨"
-                      : "응답 대기 중"}
-                  </b>
-                </p>
+                <p>상태: {claim.status}</p>
 
                 {claim.status === "pending" && (
-                  <>
-                    <button onClick={() => acceptClaim(claim.id)}>
-                      이 사람 맞아요, 인스타 교환하기
-                    </button>
-
-                    {!claim.second_message_sent && (
-                      <>
-                        {secondMessageForm.claimId === claim.id ? (
-                          <div className="secondMessageBox">
-                            <textarea
-                              placeholder="2차 설렘 메시지 예: 혹시 오늘 혜당관 앞에서 파란 상의를 입고 계셨나요? 맞는 것 같아서 한 번 더 설렘을 보내요."
-                              value={secondMessageForm.message}
-                              onChange={(e) =>
-                                setSecondMessageForm({
-                                  ...secondMessageForm,
-                                  message: e.target.value,
-                                })
-                              }
-                            />
-
-                            <button onClick={() => sendSecondMessage(claim)}>
-                              2차 설렘 보내기
-                            </button>
-
-                            <button
-                              className="white"
-                              onClick={() =>
-                                setSecondMessageForm({
-                                  claimId: null,
-                                  message: "",
-                                })
-                              }
-                            >
-                              취소
-                            </button>
-                          </div>
-                        ) : (
-                          <button
-                            className="white"
-                            onClick={() =>
-                              setSecondMessageForm({
-                                claimId: claim.id,
-                                message: "",
-                              })
-                            }
-                          >
-                            이 사람인 것 같아요, 한 번 더 설렘 보내기
-                          </button>
-                        )}
-                      </>
-                    )}
-
-                    {claim.second_message_sent && (
-                      <div className="noticeBox">
-                        <p>2차 설렘을 이미 보냈어요.</p>
-                        <p>“{claim.second_message}”</p>
-                      </div>
-                    )}
-                  </>
+                  <button onClick={() => acceptClaim(claim.id)}>
+                    수락하기
+                  </button>
                 )}
 
                 {claim.status === "accepted" && (
-                  <div className="noticeBox">
+                  <div className="notice">
                     <p>매칭이 수락됐어요.</p>
                     <p>
-                      내 인스타: <b>@{profile.instagram_id}</b>
-                    </p>
-                    <p>
-                      상대 인스타: <b>@{claim.claimer_instagram}</b>
+                      상대 인스타: <b>{claim.claimer_instagram}</b>
                     </p>
                   </div>
                 )}
