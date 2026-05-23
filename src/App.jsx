@@ -264,8 +264,14 @@ function App() {
   };
 
   const makeAuthEmail = (loginId) => {
-    const cleanId = loginId.trim().toLowerCase().replace(/[^a-z0-9_]/g, "");
-    return `${cleanId}@dankum.local`;
+    const rawId = loginId.trim();
+
+    const encodedId = btoa(unescape(encodeURIComponent(rawId)))
+      .replace(/\+/g, "-")
+      .replace(/\//g, "_")
+      .replace(/=+$/g, "");
+
+    return `user-${encodedId}@dankum.app`;
   };
 
   const getFinalPlace = () => {
@@ -327,6 +333,7 @@ function App() {
     } else {
       setProfile((prev) => ({
         ...prev,
+        nickname: user?.user_metadata?.name || "",
         student_year: user?.user_metadata?.student_id || "",
       }));
     }
@@ -375,8 +382,7 @@ function App() {
   }, []);
 
   const handleSignUp = async () => {
-    const loginId = authForm.login_id.trim().toLowerCase();
-    const cleanId = loginId.replace(/[^a-z0-9_]/g, "");
+    const loginId = authForm.login_id.trim();
 
     if (!authForm.name.trim()) {
       alert("이름을 입력해주세요.");
@@ -393,8 +399,13 @@ function App() {
       return;
     }
 
-    if (loginId !== cleanId) {
-      alert("아이디는 영어 소문자, 숫자, 밑줄(_)만 사용할 수 있어요.");
+    if (loginId.length < 4) {
+      alert("아이디는 4자 이상으로 입력해주세요.");
+      return;
+    }
+
+    if (loginId.length > 30) {
+      alert("아이디는 30자 이하로 입력해주세요.");
       return;
     }
 
@@ -442,16 +453,10 @@ function App() {
   };
 
   const handleLogin = async () => {
-    const loginId = authForm.login_id.trim().toLowerCase();
-    const cleanId = loginId.replace(/[^a-z0-9_]/g, "");
+    const loginId = authForm.login_id.trim();
 
     if (!loginId || !authForm.password) {
       alert("아이디와 비밀번호를 입력해주세요.");
-      return;
-    }
-
-    if (loginId !== cleanId) {
-      alert("아이디는 영어 소문자, 숫자, 밑줄(_)만 사용할 수 있어요.");
       return;
     }
 
@@ -1051,7 +1056,7 @@ function App() {
           <div className="formGroup">
             <label className="formLabel">아이디</label>
             <input
-              placeholder="아이디 예: jungwoo23"
+              placeholder="아이디 예: jungwoo23, jw_123, jw!2026"
               value={authForm.login_id}
               onChange={(e) =>
                 setAuthForm({ ...authForm, login_id: e.target.value })
