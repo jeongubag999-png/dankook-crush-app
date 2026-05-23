@@ -1106,34 +1106,62 @@ function App() {
   return (
     <div className="app">
       {page === "home" && (
-        <div className="card">
-          <h1>단꿈</h1>
-          <p className="subtitle">
-            스쳐 지나간 설렘을, 서로가 원할 때만 연결해주는 단국대 익명 호감
-            매칭 서비스
-          </p>
+        <div className="homeCard">
+          <div className="homeTop">
+            <div className="floatingHeart heartOne">♡</div>
+            <div className="floatingHeart heartTwo">♡</div>
 
-          <button onClick={openSendPage}>설렘 남기기</button>
+            <div className="brandBadge">Dankook crush matching</div>
 
-          <button onClick={openSearchPage} className="white">
-            나에게 온 설렘 찾기
-          </button>
+            <h1 className="homeLogo">단꿈</h1>
 
-          <button onClick={openMatchingPage} className="white">
-            내 설렘 관리
-          </button>
+            <p className="homeSlogan">
+              오늘 스쳐간 그 사람,
+              <br />
+              어쩌면 나를 찾고 있을지도 몰라요.
+            </p>
 
-          <button onClick={() => setPage("profile")} className="white">
-            내 프로필
-          </button>
+            <p className="homeDescription">
+              단국대 안에서 마주친 설렘을 조심스럽게 남기고, 서로가 원할 때만
+              이어지는 익명 설렘 매칭 서비스
+            </p>
+          </div>
 
-          <button onClick={handleLogout} className="white">
+          <div className="homeMainAction">
+            <button onClick={openSendPage} className="primaryHomeButton">
+              <span className="buttonEmoji">💌</span>
+              <span>
+                <b>그날의 설렘 남기기</b>
+                <small>마주친 사람에게 조심스럽게 마음 남기기</small>
+              </span>
+            </button>
+
+            <button onClick={openSearchPage} className="secondaryHomeButton">
+              <span className="buttonEmoji">🔍</span>
+              <span>
+                <b>나에게 온 설렘 찾기</b>
+                <small>내 착장과 비슷한 설렘 확인하기</small>
+              </span>
+            </button>
+          </div>
+
+          <div className="homeMiniMenu">
+            <button onClick={openMatchingPage} className="miniMenuButton">
+              내 설렘 관리
+            </button>
+
+            <button onClick={() => setPage("profile")} className="miniMenuButton">
+              내 프로필
+            </button>
+          </div>
+
+          <div className="homeBottomNotice">
+            <p>서로 응답하기 전까지 인스타 아이디는 공개되지 않아요.</p>
+          </div>
+
+          <button onClick={handleLogout} className="logoutTextButton">
             로그아웃
           </button>
-
-          <p className="notice">
-            서로 응답하기 전까지 인스타 아이디는 공개되지 않습니다.
-          </p>
         </div>
       )}
 
