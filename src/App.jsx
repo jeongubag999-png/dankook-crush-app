@@ -1,4 +1,4 @@
-import { useState } from "react";
+import { useEffect, useState } from "react";
 import "./App.css";
 import { supabase } from "./supabase";
 
@@ -6,28 +6,55 @@ function App() {
   const [page, setPage] = useState("home");
   const [crushStep, setCrushStep] = useState(1);
 
+  const [session, setSession] = useState(null);
+  const [currentUser, setCurrentUser] = useState(null);
+  const [authMode, setAuthMode] = useState("login");
+
+  const [authForm, setAuthForm] = useState({
+    name: "",
+    student_id: "",
+    login_id: "",
+    password: "",
+  });
+
   const placeOptions = [
-    "혜당관 앞",
-    "혜당관 내부",
-    "중앙도서관 앞",
-    "중앙도서관 내부",
-    "학생회관 앞",
-    "학생회관 내부",
-    "상경관 앞",
-    "상경관 내부",
-    "사범관 앞",
-    "사범관 내부",
-    "공학관 앞",
-    "공학관 내부",
-    "곰상 근처",
-    "폭포공원 근처",
-    "난파음악관 근처",
-    "기숙사 방향 길",
+    "혜당관",
+    "퇴계기념중앙도서관",
+    "학생회관",
+    "상경관",
+    "사범관",
+    "인문관",
+    "사회과학관",
+    "법학관/대학원동",
+    "국제관",
+    "미술관",
+    "난파음악관",
+    "무용관",
+    "제1공학관",
+    "제2공학관",
+    "제3공학관",
+    "소프트웨어ICT관",
+    "종합실험동",
+    "미디어센터",
+    "범정관/대학본부",
+    "석주선기념박물관",
+    "체육관",
+    "대운동장",
+    "학군단",
+    "복지관",
+    "베어토피아",
+    "웅비홀",
+    "집현재1",
+    "집현재2",
     "정문",
     "버스정류장",
     "셔틀버스 탑승장",
-    "운동장/체육관 근처",
-    "학교 앞 상권",
+    "곰상 근처",
+    "폭포공원 근처",
+    "기숙사 방향 길",
+    "학교 앞 상권/거리",
+    "죽전역 근처",
+    "보정동 카페거리",
     "기타/직접 입력",
   ];
 
@@ -230,20 +257,219 @@ function App() {
     }));
   };
 
-  const getFinalPlace = () => {
-    if (
-      crushPost.place === "기타/직접 입력" ||
-      crushPost.place === "학교 앞 상권"
-    ) {
-      return crushPost.custom_place.trim();
-    }
-
-    return crushPost.place;
-  };
-
   const cleanInstagram = (value) => {
     if (!value) return "";
     return value.trim().replace("@", "");
+  };
+
+  const makeAuthEmail = (loginId) => {
+    const cleanId = loginId.trim().toLowerCase().replace(/[^a-z0-9_]/g, "");
+    return `${cleanId}@dankum.local`;
+  };
+
+  const getFinalPlace = () => {
+    const mainPlace = crushPost.place;
+    const detailPlace = crushPost.custom_place.trim();
+
+    if (!mainPlace) return "";
+
+    if (mainPlace === "기타/직접 입력") {
+      return detailPlace;
+    }
+
+    if (detailPlace) {
+      return `${mainPlace} - ${detailPlace}`;
+    }
+
+    return mainPlace;
+  };
+
+  const resetProfile = () => {
+    setProfile({
+      nickname: "",
+      gender: "",
+      department: "",
+      student_year: "",
+      instagram_id: "",
+      bio: "",
+      profile_image_url: "",
+    });
+
+    setProfileImageFile(null);
+    setProfileImagePreview("");
+  };
+
+  const loadMyProfile = async (userId) => {
+    const { data, error } = await supabase
+      .from("profiles")
+      .select("*")
+      .eq("user_id", userId)
+      .maybeSingle();
+
+    if (error) {
+      console.log(error);
+      return;
+    }
+
+    if (data) {
+      setProfile({
+        nickname: data.nickname || "",
+        gender: data.gender || "",
+        department: data.department || "",
+        student_year: data.student_year || "",
+        instagram_id: data.instagram_id || "",
+        bio: data.bio || "",
+        profile_image_url: data.profile_image_url || "",
+      });
+    } else {
+      const user = currentUser;
+      setProfile((prev) => ({
+        ...prev,
+        student_year: user?.user_metadata?.student_id || "",
+      }));
+    }
+  };
+
+  useEffect(() => {
+    const initAuth = async () => {
+      const { data } = await supabase.auth.getSession();
+
+      setSession(data.session);
+      setCurrentUser(data.session?.user || null);
+
+      if (data.session?.user) {
+        await loadMyProfile(data.session.user.id);
+      }
+    };
+
+    initAuth();
+
+    const {
+      data: { subscription },
+    } = supabase.auth.onAuthStateChange((_event, newSession) => {
+      setSession(newSession);
+      setCurrentUser(newSession?.user || null);
+
+      if (newSession?.user) {
+        loadMyProfile(newSession.user.id);
+      }
+    });
+
+    return () => subscription.unsubscribe();
+  }, []);
+
+  const handleSignUp = async () => {
+    const loginId = authForm.login_id.trim().toLowerCase();
+    const cleanId = loginId.replace(/[^a-z0-9_]/g, "");
+
+    if (!authForm.name.trim()) {
+      alert("이름을 입력해주세요.");
+      return;
+    }
+
+    if (!authForm.student_id.trim()) {
+      alert("학번을 입력해주세요.");
+      return;
+    }
+
+    if (!loginId) {
+      alert("아이디를 입력해주세요.");
+      return;
+    }
+
+    if (loginId !== cleanId) {
+      alert("아이디는 영어 소문자, 숫자, 밑줄(_)만 사용할 수 있어요.");
+      return;
+    }
+
+    if (authForm.password.length < 6) {
+      alert("비밀번호는 6자리 이상으로 입력해주세요.");
+      return;
+    }
+
+    const { data, error } = await supabase.auth.signUp({
+      email: makeAuthEmail(loginId),
+      password: authForm.password,
+      options: {
+        data: {
+          name: authForm.name.trim(),
+          student_id: authForm.student_id.trim(),
+          login_id: loginId,
+        },
+      },
+    });
+
+    if (error) {
+      alert("회원가입에 실패했어요: " + error.message);
+      console.log(error);
+      return;
+    }
+
+    alert("회원가입이 완료됐어요. 이제 프로필을 작성해주세요.");
+
+    setSession(data.session || null);
+    setCurrentUser(data.user || null);
+
+    setProfile((prev) => ({
+      ...prev,
+      student_year: authForm.student_id.trim(),
+    }));
+
+    setAuthMode("login");
+
+    if (data.user) {
+      setPage("profile");
+    }
+  };
+
+  const handleLogin = async () => {
+    const loginId = authForm.login_id.trim().toLowerCase();
+    const cleanId = loginId.replace(/[^a-z0-9_]/g, "");
+
+    if (!loginId || !authForm.password) {
+      alert("아이디와 비밀번호를 입력해주세요.");
+      return;
+    }
+
+    if (loginId !== cleanId) {
+      alert("아이디는 영어 소문자, 숫자, 밑줄(_)만 사용할 수 있어요.");
+      return;
+    }
+
+    const { data, error } = await supabase.auth.signInWithPassword({
+      email: makeAuthEmail(loginId),
+      password: authForm.password,
+    });
+
+    if (error) {
+      alert("로그인에 실패했어요. 아이디와 비밀번호를 확인해주세요.");
+      console.log(error);
+      return;
+    }
+
+    setSession(data.session);
+    setCurrentUser(data.user);
+
+    await loadMyProfile(data.user.id);
+
+    setPage("home");
+  };
+
+  const handleLogout = async () => {
+    await supabase.auth.signOut();
+
+    setSession(null);
+    setCurrentUser(null);
+    resetProfile();
+
+    setAuthForm({
+      name: "",
+      student_id: "",
+      login_id: "",
+      password: "",
+    });
+
+    setPage("home");
   };
 
   const renderPostQuestionAnswer = (post) => {
@@ -324,6 +550,11 @@ function App() {
   };
 
   const checkProfileRequired = () => {
+    if (!currentUser) {
+      alert("먼저 로그인해주세요.");
+      return false;
+    }
+
     if (!profile.nickname) {
       alert("먼저 내 프로필에서 닉네임을 입력해주세요.");
       setPage("profile");
@@ -379,6 +610,11 @@ function App() {
   };
 
   const saveProfile = async () => {
+    if (!currentUser) {
+      alert("먼저 로그인해주세요.");
+      return;
+    }
+
     if (!profile.nickname) {
       alert("닉네임을 입력해주세요.");
       return;
@@ -398,7 +634,7 @@ function App() {
 
     if (profileImageFile) {
       const fileExt = profileImageFile.name.split(".").pop();
-      const fileName = `${Date.now()}-${Math.random()
+      const fileName = `${currentUser.id}/${Date.now()}-${Math.random()
         .toString(36)
         .substring(2)}.${fileExt}`;
 
@@ -419,17 +655,21 @@ function App() {
       imageUrl = data.publicUrl;
     }
 
-    const { error } = await supabase.from("profiles").insert([
-      {
-        nickname: profile.nickname,
-        gender: profile.gender,
-        department: profile.department,
-        student_year: profile.student_year,
-        instagram_id: cleanInstagram(profile.instagram_id),
-        bio: profile.bio,
-        profile_image_url: imageUrl,
-      },
-    ]);
+    const { error } = await supabase.from("profiles").upsert(
+      [
+        {
+          user_id: currentUser.id,
+          nickname: profile.nickname,
+          gender: profile.gender,
+          department: profile.department,
+          student_year: profile.student_year,
+          instagram_id: cleanInstagram(profile.instagram_id),
+          bio: profile.bio,
+          profile_image_url: imageUrl,
+        },
+      ],
+      { onConflict: "user_id" }
+    );
 
     if (error) {
       alert("프로필 저장에 실패했어요: " + error.message);
@@ -495,7 +735,6 @@ function App() {
       return;
     }
 
-    const targetGender = crushPost.target_gender;
     const combinedStyle = `상의:${crushPost.top_type} / 하의:${crushPost.bottom_type} ${crushPost.bottom_color}`;
     const combinedAccessory = `가방:${crushPost.bag_type} / 이어폰:${crushPost.earphone_type}`;
 
@@ -509,10 +748,11 @@ function App() {
         clothes_style: combinedStyle,
         accessory: combinedAccessory,
         message: crushPost.message,
+        sender_user_id: currentUser.id,
         sender_nickname: profile.nickname,
         sender_instagram: cleanInstagram(profile.instagram_id),
         sender_gender: profile.gender,
-        target_gender: targetGender,
+        target_gender: crushPost.target_gender,
         second_message_count: 0,
       },
     ]);
@@ -594,6 +834,7 @@ function App() {
     const { error } = await supabase.from("claims").insert([
       {
         crush_post_id: selectedPost.id,
+        claimer_user_id: currentUser.id,
         claimer_nickname: profile.nickname,
         claimer_instagram: cleanInstagram(profile.instagram_id),
         claimer_message: finalMessage,
@@ -626,12 +867,10 @@ function App() {
     setMatchingLoading(true);
     setPage("matching");
 
-    const myInstagram = cleanInstagram(profile.instagram_id);
-
     const { data: myPosts, error: postsError } = await supabase
       .from("crush_posts")
       .select("*")
-      .eq("sender_instagram", myInstagram)
+      .eq("sender_user_id", currentUser.id)
       .order("created_at", { ascending: false });
 
     if (postsError) {
@@ -741,6 +980,91 @@ function App() {
 
   const progressPercent = (crushStep / 8) * 100;
 
+  if (!currentUser) {
+    return (
+      <div className="app">
+        <div className="card">
+          <h1>단꿈</h1>
+
+          <p className="subtitle">
+            내가 남긴 설렘과 받은 응답을 안전하게 확인하려면 로그인이 필요해요.
+          </p>
+
+          {authMode === "signup" && (
+            <>
+              <div className="formGroup">
+                <label className="formLabel">이름</label>
+                <input
+                  placeholder="이름 예: 박정우"
+                  value={authForm.name}
+                  onChange={(e) =>
+                    setAuthForm({ ...authForm, name: e.target.value })
+                  }
+                />
+              </div>
+
+              <div className="formGroup">
+                <label className="formLabel">학번</label>
+                <input
+                  placeholder="학번 예: 32240000"
+                  value={authForm.student_id}
+                  onChange={(e) =>
+                    setAuthForm({ ...authForm, student_id: e.target.value })
+                  }
+                />
+              </div>
+            </>
+          )}
+
+          <div className="formGroup">
+            <label className="formLabel">아이디</label>
+            <input
+              placeholder="아이디 예: jungwoo23"
+              value={authForm.login_id}
+              onChange={(e) =>
+                setAuthForm({ ...authForm, login_id: e.target.value })
+              }
+            />
+          </div>
+
+          <div className="formGroup">
+            <label className="formLabel">비밀번호</label>
+            <input
+              type="password"
+              placeholder="비밀번호 6자리 이상"
+              value={authForm.password}
+              onChange={(e) =>
+                setAuthForm({ ...authForm, password: e.target.value })
+              }
+            />
+          </div>
+
+          {authMode === "login" ? (
+            <>
+              <button onClick={handleLogin}>로그인하기</button>
+
+              <button className="white" onClick={() => setAuthMode("signup")}>
+                처음이라면 회원가입
+              </button>
+            </>
+          ) : (
+            <>
+              <button onClick={handleSignUp}>회원가입하기</button>
+
+              <button className="white" onClick={() => setAuthMode("login")}>
+                이미 계정이 있어요
+              </button>
+            </>
+          )}
+
+          <p className="notice">
+            로그인할 때는 아이디와 비밀번호만 입력하면 돼요.
+          </p>
+        </div>
+      </div>
+    );
+  }
+
   return (
     <div className="app">
       {page === "home" && (
@@ -763,6 +1087,10 @@ function App() {
 
           <button onClick={() => setPage("profile")} className="white">
             내 프로필
+          </button>
+
+          <button onClick={handleLogout} className="white">
+            로그아웃
           </button>
 
           <p className="notice">
@@ -830,7 +1158,7 @@ function App() {
           />
 
           <input
-            placeholder="학번 예: 23학번"
+            placeholder="학번 표시 예: 23학번 또는 32240000"
             value={profile.student_year}
             onChange={(e) =>
               setProfile({ ...profile, student_year: e.target.value })
@@ -945,44 +1273,51 @@ function App() {
             <>
               <h3 className="questionTitle">어디에서 봤나요?</h3>
               <p className="questionDesc">
-                장소는 최대한 가까운 구역을 선택해주세요. 기타 장소는 직접
-                입력할 수 있어요.
+                먼저 큰 장소를 선택하고, 아래에 구체적인 위치를 적어주세요.
+                예: 무용관 선택 후 “앞 편의점”, 학교 앞 상권/거리 선택 후
+                “○○술집 앞”
               </p>
 
-              <select
-                value={crushPost.place}
-                onChange={(e) =>
-                  setCrushPost({
-                    ...crushPost,
-                    place: e.target.value,
-                    custom_place:
-                      e.target.value === "기타/직접 입력" ||
-                      e.target.value === "학교 앞 상권"
-                        ? crushPost.custom_place
-                        : "",
-                  })
-                }
-              >
-                <option value="">장소 선택</option>
-                {placeOptions.map((option) => (
-                  <option key={option}>{option}</option>
-                ))}
-              </select>
+              <div className="formGroup">
+                <label className="formLabel">큰 장소</label>
+                <select
+                  value={crushPost.place}
+                  onChange={(e) =>
+                    setCrushPost({
+                      ...crushPost,
+                      place: e.target.value,
+                      custom_place: "",
+                    })
+                  }
+                >
+                  <option value="">장소 선택</option>
+                  {placeOptions.map((option) => (
+                    <option key={option}>{option}</option>
+                  ))}
+                </select>
+              </div>
 
-              {(crushPost.place === "기타/직접 입력" ||
-                crushPost.place === "학교 앞 상권") && (
+              <div className="formGroup">
+                <label className="formLabel">구체적인 위치</label>
                 <input
                   placeholder={
-                    crushPost.place === "학교 앞 상권"
-                      ? "학교 앞 상권 장소 예: 죽전역 근처, 보정동 카페거리"
-                      : "장소를 직접 입력해주세요 예: 공학관 2층 복도"
+                    crushPost.place === "학교 앞 상권/거리"
+                      ? "예: ○○술집 앞, ○○카페 앞, 편의점 앞"
+                      : crushPost.place === "기타/직접 입력"
+                      ? "예: 학교 근처 골목, 카페 앞"
+                      : "예: 1층 편의점 앞, 건물 입구, 2층 복도"
                   }
                   value={crushPost.custom_place}
                   onChange={(e) =>
                     updateCrushPost("custom_place", e.target.value)
                   }
                 />
-              )}
+              </div>
+
+              <p className="helperText">
+                구체적인 위치는 선택사항이지만, 적을수록 상대가 알아보기
+                쉬워요.
+              </p>
 
               <button
                 onClick={() => {
