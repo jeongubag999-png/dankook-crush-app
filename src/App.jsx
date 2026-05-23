@@ -9,6 +9,7 @@ function App() {
   const [session, setSession] = useState(null);
   const [currentUser, setCurrentUser] = useState(null);
   const [authMode, setAuthMode] = useState("login");
+  const [authLoading, setAuthLoading] = useState(true);
 
   const [authForm, setAuthForm] = useState({
     name: "",
@@ -299,11 +300,13 @@ function App() {
     setProfileImagePreview("");
   };
 
-  const loadMyProfile = async (userId) => {
+  const loadMyProfile = async (user) => {
+    if (!user) return;
+
     const { data, error } = await supabase
       .from("profiles")
       .select("*")
-      .eq("user_id", userId)
+      .eq("user_id", user.id)
       .maybeSingle();
 
     if (error) {
@@ -322,7 +325,6 @@ function App() {
         profile_image_url: data.profile_image_url || "",
       });
     } else {
-      const user = currentUser;
       setProfile((prev) => ({
         ...prev,
         student_year: user?.user_metadata?.student_id || "",
@@ -332,27 +334,41 @@ function App() {
 
   useEffect(() => {
     const initAuth = async () => {
+      setAuthLoading(true);
+
       const { data } = await supabase.auth.getSession();
 
-      setSession(data.session);
-      setCurrentUser(data.session?.user || null);
+      const savedSession = data.session;
+      const savedUser = savedSession?.user || null;
 
-      if (data.session?.user) {
-        await loadMyProfile(data.session.user.id);
+      setSession(savedSession);
+      setCurrentUser(savedUser);
+
+      if (savedUser) {
+        await loadMyProfile(savedUser);
       }
+
+      setAuthLoading(false);
     };
 
     initAuth();
 
     const {
       data: { subscription },
-    } = supabase.auth.onAuthStateChange((_event, newSession) => {
-      setSession(newSession);
-      setCurrentUser(newSession?.user || null);
+    } = supabase.auth.onAuthStateChange(async (_event, newSession) => {
+      const newUser = newSession?.user || null;
 
-      if (newSession?.user) {
-        loadMyProfile(newSession.user.id);
+      setSession(newSession);
+      setCurrentUser(newUser);
+
+      if (newUser) {
+        await loadMyProfile(newUser);
+      } else {
+        resetProfile();
+        setPage("home");
       }
+
+      setAuthLoading(false);
     });
 
     return () => subscription.unsubscribe();
@@ -405,20 +421,23 @@ function App() {
       return;
     }
 
-    alert("회원가입이 완료됐어요. 이제 프로필을 작성해주세요.");
+    const signedUpUser = data.session?.user || data.user || null;
 
     setSession(data.session || null);
-    setCurrentUser(data.user || null);
+    setCurrentUser(signedUpUser);
 
     setProfile((prev) => ({
       ...prev,
+      nickname: authForm.name.trim(),
       student_year: authForm.student_id.trim(),
     }));
 
-    setAuthMode("login");
+    alert("회원가입이 완료됐어요. 이제 프로필을 작성해주세요.");
 
-    if (data.user) {
+    if (signedUpUser) {
       setPage("profile");
+    } else {
+      setAuthMode("login");
     }
   };
 
@@ -450,7 +469,7 @@ function App() {
     setSession(data.session);
     setCurrentUser(data.user);
 
-    await loadMyProfile(data.user.id);
+    await loadMyProfile(data.user);
 
     setPage("home");
   };
@@ -469,6 +488,7 @@ function App() {
       password: "",
     });
 
+    setAuthMode("login");
     setPage("home");
   };
 
@@ -551,7 +571,7 @@ function App() {
 
   const checkProfileRequired = () => {
     if (!currentUser) {
-      alert("먼저 로그인해주세요.");
+      alert("먼저 로그인 또는 회원가입을 해주세요.");
       return false;
     }
 
@@ -980,89 +1000,104 @@ function App() {
 
   const progressPercent = (crushStep / 8) * 100;
 
-  if (!currentUser) {
+  const AuthScreen = () => (
+    <div className="app">
+      <div className="card">
+        <h1>단꿈</h1>
+
+        <p className="subtitle">
+          단꿈은 로그인 또는 회원가입 후 이용할 수 있어요. 설렘을 남기거나
+          나에게 온 설렘을 확인하려면 먼저 계정을 만들어주세요.
+        </p>
+
+        {authMode === "signup" && (
+          <>
+            <div className="formGroup">
+              <label className="formLabel">이름</label>
+              <input
+                placeholder="이름 예: 박정우"
+                value={authForm.name}
+                onChange={(e) =>
+                  setAuthForm({ ...authForm, name: e.target.value })
+                }
+              />
+            </div>
+
+            <div className="formGroup">
+              <label className="formLabel">학번</label>
+              <input
+                placeholder="학번 예: 32240000"
+                value={authForm.student_id}
+                onChange={(e) =>
+                  setAuthForm({ ...authForm, student_id: e.target.value })
+                }
+              />
+            </div>
+          </>
+        )}
+
+        <div className="formGroup">
+          <label className="formLabel">아이디</label>
+          <input
+            placeholder="아이디 예: jungwoo23"
+            value={authForm.login_id}
+            onChange={(e) =>
+              setAuthForm({ ...authForm, login_id: e.target.value })
+            }
+          />
+        </div>
+
+        <div className="formGroup">
+          <label className="formLabel">비밀번호</label>
+          <input
+            type="password"
+            placeholder="비밀번호 6자리 이상"
+            value={authForm.password}
+            onChange={(e) =>
+              setAuthForm({ ...authForm, password: e.target.value })
+            }
+          />
+        </div>
+
+        {authMode === "login" ? (
+          <>
+            <button onClick={handleLogin}>로그인하기</button>
+
+            <button className="white" onClick={() => setAuthMode("signup")}>
+              처음이라면 회원가입
+            </button>
+          </>
+        ) : (
+          <>
+            <button onClick={handleSignUp}>회원가입하기</button>
+
+            <button className="white" onClick={() => setAuthMode("login")}>
+              이미 계정이 있어요
+            </button>
+          </>
+        )}
+
+        <p className="notice">
+          로그인하지 않으면 홈 화면, 설렘 남기기, 설렘 확인 기능을 사용할 수
+          없어요.
+        </p>
+      </div>
+    </div>
+  );
+
+  if (authLoading) {
     return (
       <div className="app">
         <div className="card">
           <h1>단꿈</h1>
-
-          <p className="subtitle">
-            내가 남긴 설렘과 받은 응답을 안전하게 확인하려면 로그인이 필요해요.
-          </p>
-
-          {authMode === "signup" && (
-            <>
-              <div className="formGroup">
-                <label className="formLabel">이름</label>
-                <input
-                  placeholder="이름 예: 박정우"
-                  value={authForm.name}
-                  onChange={(e) =>
-                    setAuthForm({ ...authForm, name: e.target.value })
-                  }
-                />
-              </div>
-
-              <div className="formGroup">
-                <label className="formLabel">학번</label>
-                <input
-                  placeholder="학번 예: 32240000"
-                  value={authForm.student_id}
-                  onChange={(e) =>
-                    setAuthForm({ ...authForm, student_id: e.target.value })
-                  }
-                />
-              </div>
-            </>
-          )}
-
-          <div className="formGroup">
-            <label className="formLabel">아이디</label>
-            <input
-              placeholder="아이디 예: jungwoo23"
-              value={authForm.login_id}
-              onChange={(e) =>
-                setAuthForm({ ...authForm, login_id: e.target.value })
-              }
-            />
-          </div>
-
-          <div className="formGroup">
-            <label className="formLabel">비밀번호</label>
-            <input
-              type="password"
-              placeholder="비밀번호 6자리 이상"
-              value={authForm.password}
-              onChange={(e) =>
-                setAuthForm({ ...authForm, password: e.target.value })
-              }
-            />
-          </div>
-
-          {authMode === "login" ? (
-            <>
-              <button onClick={handleLogin}>로그인하기</button>
-
-              <button className="white" onClick={() => setAuthMode("signup")}>
-                처음이라면 회원가입
-              </button>
-            </>
-          ) : (
-            <>
-              <button onClick={handleSignUp}>회원가입하기</button>
-
-              <button className="white" onClick={() => setAuthMode("login")}>
-                이미 계정이 있어요
-              </button>
-            </>
-          )}
-
-          <p className="notice">
-            로그인할 때는 아이디와 비밀번호만 입력하면 돼요.
-          </p>
+          <p className="subtitle">로그인 상태를 확인하고 있어요...</p>
         </div>
       </div>
     );
+  }
+
+  if (!session || !currentUser) {
+    return <AuthScreen />;
   }
 
   return (
@@ -1071,8 +1106,8 @@ function App() {
         <div className="card">
           <h1>단꿈</h1>
           <p className="subtitle">
-            스쳐 지나간 설렘을, 서로가 원할 때만 연결해주는 단국대 익명
-            호감 매칭 서비스
+            스쳐 지나간 설렘을, 서로가 원할 때만 연결해주는 단국대 익명 호감
+            매칭 서비스
           </p>
 
           <button onClick={openSendPage}>설렘 남기기</button>
@@ -1225,8 +1260,8 @@ function App() {
             <>
               <h3 className="questionTitle">언제 마주쳤나요?</h3>
               <p className="questionDesc">
-                시간은 1시간 단위로 선택해주세요. 나중에 상대가 날짜와
-                착장을 올리면 비슷한 설렘으로 보여져요.
+                시간은 1시간 단위로 선택해주세요. 나중에 상대가 날짜와 착장을
+                올리면 비슷한 설렘으로 보여져요.
               </p>
 
               <div className="formGroup">
@@ -1361,9 +1396,7 @@ function App() {
           {crushStep === 5 && (
             <>
               <h3 className="questionTitle">상의가 기억나나요?</h3>
-              <p className="questionDesc">
-                상의 종류와 색상을 각각 선택해주세요.
-              </p>
+              <p className="questionDesc">상의 종류와 색상을 각각 선택해주세요.</p>
 
               <div className="formGroup">
                 <label className="formLabel">상의 종류</label>
@@ -1408,9 +1441,7 @@ function App() {
           {crushStep === 6 && (
             <>
               <h3 className="questionTitle">하의가 기억나나요?</h3>
-              <p className="questionDesc">
-                하의 종류와 색상을 각각 선택해주세요.
-              </p>
+              <p className="questionDesc">하의 종류와 색상을 각각 선택해주세요.</p>
 
               <div className="formGroup">
                 <label className="formLabel">하의 종류</label>
@@ -1580,8 +1611,7 @@ function App() {
         <div className="card">
           <h2>설렘을 남겼어요</h2>
           <p className="subtitle">
-            상대가 자신의 날짜와 착장을 올리면, 당신의 설렘을 발견할 수
-            있어요.
+            상대가 자신의 날짜와 착장을 올리면, 당신의 설렘을 발견할 수 있어요.
           </p>
 
           <button onClick={openMatchingPage}>내 설렘 관리로 가기</button>
@@ -1596,8 +1626,8 @@ function App() {
         <div className="card">
           <h2>나에게 온 설렘 찾기</h2>
           <p className="subtitle">
-            오늘의 착장과 인상착의를 올리면, 나를 찾고 있는 설렘 후보를
-            확인할 수 있어요.
+            오늘의 착장과 인상착의를 올리면, 나를 찾고 있는 설렘 후보를 확인할
+            수 있어요.
           </p>
 
           <div className="summaryBox">
@@ -1694,8 +1724,8 @@ function App() {
           </div>
 
           <p className="helperText">
-            날짜는 필수예요. 머리, 상의, 하의 정보는 선택하면 더 정확하게
-            찾을 수 있어요. 장소는 입력하지 않아도 돼요.
+            날짜는 필수예요. 머리, 상의, 하의 정보는 선택하면 더 정확하게 찾을
+            수 있어요. 장소는 입력하지 않아도 돼요.
           </p>
 
           <button onClick={searchCrushPosts}>나를 찾는 설렘 확인하기</button>
@@ -1811,8 +1841,8 @@ function App() {
         <div className="card">
           <h2>응답을 보냈어요</h2>
           <p className="subtitle">
-            설렘을 남긴 사람이 수락하면 서로의 인스타를 볼 수 있어요.
-            상대가 확신하면 2차 설렘을 보낼 수도 있어요.
+            설렘을 남긴 사람이 수락하면 서로의 인스타를 볼 수 있어요. 상대가
+            확신하면 2차 설렘을 보낼 수도 있어요.
           </p>
 
           <button onClick={() => setPage("home")}>홈으로</button>
