@@ -1000,91 +1000,6 @@ function App() {
 
   const progressPercent = (crushStep / 8) * 100;
 
-  const AuthScreen = () => (
-    <div className="app">
-      <div className="card">
-        <h1>단꿈</h1>
-
-        <p className="subtitle">
-          단꿈은 로그인 또는 회원가입 후 이용할 수 있어요. 설렘을 남기거나
-          나에게 온 설렘을 확인하려면 먼저 계정을 만들어주세요.
-        </p>
-
-        {authMode === "signup" && (
-          <>
-            <div className="formGroup">
-              <label className="formLabel">이름</label>
-              <input
-                placeholder="이름 예: 박정우"
-                value={authForm.name}
-                onChange={(e) =>
-                  setAuthForm({ ...authForm, name: e.target.value })
-                }
-              />
-            </div>
-
-            <div className="formGroup">
-              <label className="formLabel">학번</label>
-              <input
-                placeholder="학번 예: 32240000"
-                value={authForm.student_id}
-                onChange={(e) =>
-                  setAuthForm({ ...authForm, student_id: e.target.value })
-                }
-              />
-            </div>
-          </>
-        )}
-
-        <div className="formGroup">
-          <label className="formLabel">아이디</label>
-          <input
-            placeholder="아이디 예: jungwoo23"
-            value={authForm.login_id}
-            onChange={(e) =>
-              setAuthForm({ ...authForm, login_id: e.target.value })
-            }
-          />
-        </div>
-
-        <div className="formGroup">
-          <label className="formLabel">비밀번호</label>
-          <input
-            type="password"
-            placeholder="비밀번호 6자리 이상"
-            value={authForm.password}
-            onChange={(e) =>
-              setAuthForm({ ...authForm, password: e.target.value })
-            }
-          />
-        </div>
-
-        {authMode === "login" ? (
-          <>
-            <button onClick={handleLogin}>로그인하기</button>
-
-            <button className="white" onClick={() => setAuthMode("signup")}>
-              처음이라면 회원가입
-            </button>
-          </>
-        ) : (
-          <>
-            <button onClick={handleSignUp}>회원가입하기</button>
-
-            <button className="white" onClick={() => setAuthMode("login")}>
-              이미 계정이 있어요
-            </button>
-          </>
-        )}
-
-        <p className="notice">
-          로그인하지 않으면 홈 화면, 설렘 남기기, 설렘 확인 기능을 사용할 수
-          없어요.
-        </p>
-      </div>
-    </div>
-  );
-
   if (authLoading) {
     return (
       <div className="app">
@@ -1097,7 +1012,90 @@ function App() {
   }
 
   if (!session || !currentUser) {
-    return <AuthScreen />;
+    return (
+      <div className="app">
+        <div className="card">
+          <h1>단꿈</h1>
+
+          <p className="subtitle">
+            단꿈은 로그인 또는 회원가입 후 이용할 수 있어요. 설렘을 남기거나
+            나에게 온 설렘을 확인하려면 먼저 계정을 만들어주세요.
+          </p>
+
+          {authMode === "signup" && (
+            <>
+              <div className="formGroup">
+                <label className="formLabel">이름</label>
+                <input
+                  placeholder="이름 예: 박정우"
+                  value={authForm.name}
+                  onChange={(e) =>
+                    setAuthForm({ ...authForm, name: e.target.value })
+                  }
+                />
+              </div>
+
+              <div className="formGroup">
+                <label className="formLabel">학번</label>
+                <input
+                  placeholder="학번 예: 32240000"
+                  value={authForm.student_id}
+                  onChange={(e) =>
+                    setAuthForm({ ...authForm, student_id: e.target.value })
+                  }
+                />
+              </div>
+            </>
+          )}
+
+          <div className="formGroup">
+            <label className="formLabel">아이디</label>
+            <input
+              placeholder="아이디 예: jungwoo23"
+              value={authForm.login_id}
+              onChange={(e) =>
+                setAuthForm({ ...authForm, login_id: e.target.value })
+              }
+            />
+          </div>
+
+          <div className="formGroup">
+            <label className="formLabel">비밀번호</label>
+            <input
+              type="password"
+              placeholder="비밀번호 6자리 이상"
+              value={authForm.password}
+              onChange={(e) =>
+                setAuthForm({ ...authForm, password: e.target.value })
+              }
+            />
+          </div>
+
+          {authMode === "login" ? (
+            <>
+              <button onClick={handleLogin}>로그인하기</button>
+
+              <button className="white" onClick={() => setAuthMode("signup")}>
+                처음이라면 회원가입
+              </button>
+            </>
+          ) : (
+            <>
+              <button onClick={handleSignUp}>회원가입하기</button>
+
+              <button className="white" onClick={() => setAuthMode("login")}>
+                이미 계정이 있어요
+              </button>
+            </>
+          )}
+
+          <p className="notice">
+            로그인하지 않으면 홈 화면, 설렘 남기기, 설렘 확인 기능을 사용할 수
+            없어요.
+          </p>
+        </div>
+      </div>
+    );
   }
 
   return (
