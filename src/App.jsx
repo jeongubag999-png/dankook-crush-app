@@ -1,4 +1,4 @@
-import { useEffect, useState } from "react";
+import { useEffect, useRef, useState } from "react";
 import "./App.css";
 import { supabase } from "./supabase";
 
@@ -10,6 +10,7 @@ function App() {
   const [currentUser, setCurrentUser] = useState(null);
   const [authMode, setAuthMode] = useState("login");
   const [authLoading, setAuthLoading] = useState(true);
+  const profileLoadedUserIdRef = useRef(null);
 
   const [authForm, setAuthForm] = useState({
     name: "",
@@ -395,17 +396,26 @@ function App() {
     setProfileImagePreview("");
   };
 
-  const loadMyProfile = async (user) => {
+  const loadMyProfile = async (user, force = false) => {
     if (!user) return;
+
+    if (!force && profileLoadedUserIdRef.current === user.id) {
+      return;
+    }
+
+    profileLoadedUserIdRef.current = user.id;
 
     const { data, error } = await supabase
       .from("profiles")
-      .select("*")
+      .select(
+        "nickname, gender, department, student_year, instagram_id, bio, profile_image_url"
+      )
       .eq("user_id", user.id)
       .maybeSingle();
 
     if (error) {
       console.log(error);
+      profileLoadedUserIdRef.current = null;
       return;
     }
 
@@ -429,45 +439,53 @@ function App() {
   };
 
   useEffect(() => {
+    let mounted = true;
+
     const initAuth = async () => {
       setAuthLoading(true);
 
       const { data } = await supabase.auth.getSession();
+
+      if (!mounted) return;
 
       const savedSession = data.session;
       const savedUser = savedSession?.user || null;
 
       setSession(savedSession);
       setCurrentUser(savedUser);
+      setAuthLoading(false);
 
       if (savedUser) {
-        await loadMyProfile(savedUser);
+        loadMyProfile(savedUser);
       }
-
-      setAuthLoading(false);
     };
 
     initAuth();
 
     const {
       data: { subscription },
-    } = supabase.auth.onAuthStateChange(async (_event, newSession) => {
+    } = supabase.auth.onAuthStateChange((event, newSession) => {
       const newUser = newSession?.user || null;
 
       setSession(newSession);
       setCurrentUser(newUser);
+      setAuthLoading(false);
 
       if (newUser) {
-        await loadMyProfile(newUser);
+        if (event !== "INITIAL_SESSION") {
+          loadMyProfile(newUser);
+        }
       } else {
+        profileLoadedUserIdRef.current = null;
         resetProfile();
         setPage("home");
       }
-
-      setAuthLoading(false);
     });
 
-    return () => subscription.unsubscribe();
+    return () => {
+      mounted = false;
+      subscription.unsubscribe();
+    };
   }, []);
 
   const handleSignUp = async () => {
@@ -562,10 +580,9 @@ function App() {
 
     setSession(data.session);
     setCurrentUser(data.user);
-
-    await loadMyProfile(data.user);
-
     setPage("home");
+
+    loadMyProfile(data.user, true);
   };
 
   const handleLogout = async () => {
@@ -853,6 +870,8 @@ function App() {
       instagram_id: cleanInstagram(profile.instagram_id),
       profile_image_url: imageUrl,
     });
+
+    profileLoadedUserIdRef.current = currentUser.id;
 
     alert("프로필이 저장됐어요!");
 
