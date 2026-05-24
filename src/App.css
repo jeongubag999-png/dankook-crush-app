@@ -762,3 +762,134 @@ textarea {
     font-size: 15px;
   }
 }
+/* 내 설렘 관리 확장 화면 */
+
+.manageCard {
+  max-width: 460px;
+}
+
+.manageTabs {
+  display: grid;
+  grid-template-columns: 1fr 1fr;
+  gap: 10px;
+  margin: 18px 0 14px;
+}
+
+.manageTab {
+  height: 52px;
+  min-height: 52px;
+  margin-top: 0;
+  border-radius: 18px;
+  background: #f8f1ee;
+  color: #6a5a55;
+  box-shadow: none;
+  border: 1px solid #f1dfd9;
+  font-size: 14px;
+}
+
+.manageTab.active {
+  background: linear-gradient(135deg, #ff7589 0%, #e95f87 100%);
+  color: white;
+  box-shadow: 0 12px 26px rgba(230, 111, 143, 0.24);
+  border-color: transparent;
+}
+
+.manageSummaryGrid {
+  display: grid;
+  grid-template-columns: repeat(4, 1fr);
+  gap: 8px;
+  margin: 16px 0 22px;
+}
+
+.manageSummaryItem {
+  padding: 12px 6px;
+  border-radius: 18px;
+  background: #fff7f4;
+  border: 1px solid #f2e4df;
+  text-align: center;
+}
+
+.manageSummaryItem span {
+  display: block;
+  margin-bottom: 5px;
+  font-size: 11px;
+  line-height: 1.25;
+  color: #9a8580;
+  font-weight: 800;
+  word-break: keep-all;
+}
+
+.manageSummaryItem b {
+  display: block;
+  font-size: 20px;
+  color: #e66f8f;
+  font-weight: 900;
+}
+
+.manageSection {
+  margin-top: 24px;
+}
+
+.manageSectionTitle {
+  margin: 0 0 12px;
+  padding: 0 2px;
+  text-align: left;
+  font-size: 18px;
+  color: #302522;
+  letter-spacing: -0.6px;
+  font-weight: 900;
+}
+
+.postTopLine {
+  display: flex;
+  justify-content: flex-end;
+  margin-bottom: 10px;
+}
+
+.statusPill {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  min-height: 28px;
+  padding: 0 10px;
+  border-radius: 999px;
+  background: #f5ebe7;
+  color: #8b7872;
+  font-size: 12px;
+  font-weight: 900;
+}
+
+.statusPill.active {
+  background: #ffe8ee;
+  color: #e66f8f;
+}
+
+.responseBox {
+  margin-top: 16px;
+  padding: 15px;
+  border-radius: 20px;
+  background: white;
+  border: 1px solid #f2e4df;
+  line-height: 1.6;
+}
+
+.responseBox p {
+  margin: 7px 0;
+}
+
+.miniTitle {
+  color: #e66f8f;
+  font-weight: 900;
+  margin-bottom: 8px !important;
+}
+
+@media (max-width: 480px) {
+  .manageSummaryGrid {
+    grid-template-columns: repeat(2, 1fr);
+  }
+
+  .manageTab {
+    font-size: 13px;
+    padding: 0 8px;
+  }
+}

@@ -189,11 +189,7 @@ function App() {
     "잘 모르겠음",
   ];
 
-  const matchOptions = [
-    "거의 저 같아요",
-    "조금 비슷해요",
-    "잘 모르겠어요",
-  ];
+  const matchOptions = ["거의 저 같아요", "조금 비슷해요", "잘 모르겠어요"];
 
   const [profile, setProfile] = useState({
     nickname: "",
@@ -243,8 +239,12 @@ function App() {
     claimer_message: "",
   });
 
-  const [matchingClaims, setMatchingClaims] = useState([]);
   const [matchingLoading, setMatchingLoading] = useState(false);
+  const [matchingMode, setMatchingMode] = useState("sent");
+
+  const [mySentPosts, setMySentPosts] = useState([]);
+  const [sentClaims, setSentClaims] = useState([]);
+  const [receivedClaims, setReceivedClaims] = useState([]);
 
   const [secondMessageForm, setSecondMessageForm] = useState({
     claimId: null,
@@ -500,7 +500,7 @@ function App() {
   const renderPostQuestionAnswer = (post) => {
     return (
       <div className="qaBox">
-        <p className="qaTitle">상대가 기억한 내 정보</p>
+        <p className="qaTitle">상대가 기억한 정보</p>
 
         <p>
           <strong>찾는 사람:</strong> {post.target_gender || "-"}
@@ -892,6 +892,10 @@ function App() {
     setMatchingLoading(true);
     setPage("matching");
 
+    setMySentPosts([]);
+    setSentClaims([]);
+    setReceivedClaims([]);
+
     const { data: myPosts, error: postsError } = await supabase
       .from("crush_posts")
       .select("*")
@@ -899,43 +903,97 @@ function App() {
       .order("created_at", { ascending: false });
 
     if (postsError) {
-      alert("내 설렘 글을 불러오지 못했어요: " + postsError.message);
+      alert("내가 보낸 설렘을 불러오지 못했어요: " + postsError.message);
       console.log(postsError);
       setMatchingLoading(false);
       return;
     }
 
-    if (!myPosts || myPosts.length === 0) {
-      setMatchingClaims([]);
-      setMatchingLoading(false);
-      return;
+    const finalMyPosts = myPosts || [];
+    setMySentPosts(finalMyPosts);
+
+    let finalSentClaims = [];
+
+    if (finalMyPosts.length > 0) {
+      const postIds = finalMyPosts.map((post) => post.id);
+
+      const { data: claimsData, error: claimsError } = await supabase
+        .from("claims")
+        .select("*")
+        .in("crush_post_id", postIds)
+        .order("created_at", { ascending: false });
+
+      if (claimsError) {
+        alert("내 설렘에 온 응답을 불러오지 못했어요: " + claimsError.message);
+        console.log(claimsError);
+        setMatchingLoading(false);
+        return;
+      }
+
+      finalSentClaims = (claimsData || []).map((claim) => {
+        const post = finalMyPosts.find((item) => item.id === claim.crush_post_id);
+
+        return {
+          ...claim,
+          post,
+        };
+      });
     }
 
-    const postIds = myPosts.map((post) => post.id);
+    setSentClaims(finalSentClaims);
 
-    const { data: claimsData, error: claimsError } = await supabase
+    const { data: myReceivedClaims, error: receivedError } = await supabase
       .from("claims")
       .select("*")
-      .in("crush_post_id", postIds)
+      .eq("claimer_user_id", currentUser.id)
       .order("created_at", { ascending: false });
 
-    if (claimsError) {
-      alert("응답 데이터를 불러오지 못했어요: " + claimsError.message);
-      console.log(claimsError);
+    if (receivedError) {
+      alert("내가 받은 설렘 목록을 불러오지 못했어요: " + receivedError.message);
+      console.log(receivedError);
       setMatchingLoading(false);
       return;
     }
 
-    const combinedData = (claimsData || []).map((claim) => {
-      const post = myPosts.find((post) => post.id === claim.crush_post_id);
+    const finalReceivedClaims = myReceivedClaims || [];
+    let combinedReceivedClaims = finalReceivedClaims.map((claim) => ({
+      ...claim,
+      post: null,
+    }));
 
-      return {
-        ...claim,
-        post,
-      };
-    });
+    if (finalReceivedClaims.length > 0) {
+      const receivedPostIds = [
+        ...new Set(finalReceivedClaims.map((claim) => claim.crush_post_id)),
+      ];
 
-    setMatchingClaims(combinedData);
+      const { data: receivedPosts, error: receivedPostsError } = await supabase
+        .from("crush_posts")
+        .select("*")
+        .in("id", receivedPostIds);
+
+      if (receivedPostsError) {
+        alert(
+          "내가 응답한 설렘 글 정보를 불러오지 못했어요: " +
+            receivedPostsError.message
+        );
+        console.log(receivedPostsError);
+        setMatchingLoading(false);
+        return;
+      }
+
+      combinedReceivedClaims = finalReceivedClaims.map((claim) => {
+        const post = (receivedPosts || []).find(
+          (item) => item.id === claim.crush_post_id
+        );
+
+        return {
+          ...claim,
+          post,
+        };
+      });
+    }
+
+    setReceivedClaims(combinedReceivedClaims);
     setMatchingLoading(false);
   };
 
@@ -1004,6 +1062,234 @@ function App() {
   );
 
   const progressPercent = (crushStep / 8) * 100;
+
+  const sentClaimsByPostId = sentClaims.reduce((acc, claim) => {
+    if (!acc[claim.crush_post_id]) {
+      acc[claim.crush_post_id] = [];
+    }
+
+    acc[claim.crush_post_id].push(claim);
+    return acc;
+  }, {});
+
+  const mySentPostsWithResponses = mySentPosts.filter(
+    (post) => sentClaimsByPostId[post.id]?.length > 0
+  );
+
+  const mySentPostsWithoutResponses = mySentPosts.filter(
+    (post) => !sentClaimsByPostId[post.id]?.length
+  );
+
+  const receivedFirstClaims = receivedClaims.filter(
+    (claim) => !claim.second_message_sent
+  );
+
+  const receivedSecondClaims = receivedClaims.filter(
+    (claim) => claim.second_message_sent
+  );
+
+  const totalSentResponseCount = sentClaims.length;
+  const totalReceivedSecondCount = receivedSecondClaims.length;
+
+  const renderSentClaimCard = (claim) => {
+    return (
+      <div className="responseBox" key={claim.id}>
+        <p className="miniTitle">도착한 응답</p>
+
+        <p>
+          응답한 사람 닉네임: <b>{claim.claimer_nickname || "-"}</b>
+        </p>
+
+        <p className="message">“{claim.claimer_message || "-"}”</p>
+
+        <p>
+          상태:{" "}
+          <b>
+            {claim.status === "accepted" ? "매칭 수락됨" : "응답 대기 중"}
+          </b>
+        </p>
+
+        {claim.status === "pending" && (
+          <>
+            <button onClick={() => acceptClaim(claim.id)}>
+              이 사람 맞아요, 인스타 교환하기
+            </button>
+
+            {!claim.second_message_sent && (
+              <>
+                {secondMessageForm.claimId === claim.id ? (
+                  <div className="secondMessageBox">
+                    <textarea
+                      placeholder="2차 설렘 메시지 예: 혹시 오늘 혜당관 앞에서 파란 상의를 입고 계셨나요? 맞는 것 같아서 한 번 더 설렘을 보내요."
+                      value={secondMessageForm.message}
+                      onChange={(e) =>
+                        setSecondMessageForm({
+                          ...secondMessageForm,
+                          message: e.target.value,
+                        })
+                      }
+                    />
+
+                    <button onClick={() => sendSecondMessage(claim)}>
+                      2차 설렘 보내기
+                    </button>
+
+                    <button
+                      className="white"
+                      onClick={() =>
+                        setSecondMessageForm({
+                          claimId: null,
+                          message: "",
+                        })
+                      }
+                    >
+                      취소
+                    </button>
+                  </div>
+                ) : (
+                  <button
+                    className="white"
+                    onClick={() =>
+                      setSecondMessageForm({
+                        claimId: claim.id,
+                        message: "",
+                      })
+                    }
+                  >
+                    이 사람인 것 같아요, 한 번 더 설렘 보내기
+                  </button>
+                )}
+              </>
+            )}
+
+            {claim.second_message_sent && (
+              <div className="noticeBox">
+                <p>2차 설렘을 이미 보냈어요.</p>
+                <p>“{claim.second_message}”</p>
+              </div>
+            )}
+          </>
+        )}
+
+        {claim.status === "accepted" && (
+          <div className="noticeBox">
+            <p>매칭이 수락됐어요.</p>
+            <p>
+              내 인스타: <b>@{profile.instagram_id}</b>
+            </p>
+            <p>
+              상대 인스타: <b>@{claim.claimer_instagram}</b>
+            </p>
+          </div>
+        )}
+      </div>
+    );
+  };
+
+  const renderSentPostCard = (post, mode) => {
+    const claims = sentClaimsByPostId[post.id] || [];
+
+    return (
+      <div className="post" key={post.id}>
+        <div className="postTopLine">
+          <span className={claims.length > 0 ? "statusPill active" : "statusPill"}>
+            {claims.length > 0 ? `응답 ${claims.length}개` : "응답 없음"}
+          </span>
+        </div>
+
+        <p>
+          <b>
+            {post.seen_date}, {post.time_period}, {post.place}
+          </b>
+        </p>
+
+        {renderPostQuestionAnswer(post)}
+
+        <p className="message">“{cleanMessage(post.message) || "남긴 메시지가 없어요."}”</p>
+
+        {mode === "empty" && (
+          <div className="noticeBox">
+            <p>아직 이 설렘에 응답한 사람이 없어요.</p>
+            <p>상대가 본인 착장과 날짜를 올리고 응답하면 여기에 표시돼요.</p>
+          </div>
+        )}
+
+        {mode === "answered" && claims.map((claim) => renderSentClaimCard(claim))}
+      </div>
+    );
+  };
+
+  const renderReceivedClaimCard = (claim, type) => {
+    const post = claim.post;
+
+    return (
+      <div className="post" key={claim.id}>
+        <div className="postTopLine">
+          <span className={type === "second" ? "statusPill active" : "statusPill"}>
+            {type === "second" ? "2차 호감 도착" : "1차 호감 응답"}
+          </span>
+        </div>
+
+        {post ? (
+          <>
+            <p>
+              <b>
+                {post.seen_date}, {post.time_period}, {post.place}
+              </b>
+            </p>
+
+            {renderPostQuestionAnswer(post)}
+
+            <p className="message">
+              상대가 남긴 설렘: “
+              {cleanMessage(post.message) || "남긴 메시지가 없어요."}”
+            </p>
+          </>
+        ) : (
+          <p className="notice">연결된 설렘 글을 찾지 못했어요.</p>
+        )}
+
+        <hr />
+
+        <p>
+          내가 보낸 응답: <b>{claim.claimer_message || "-"}</b>
+        </p>
+
+        <p>
+          상태:{" "}
+          <b>
+            {claim.status === "accepted" ? "매칭 수락됨" : "상대 수락 대기 중"}
+          </b>
+        </p>
+
+        {type === "second" && (
+          <div className="noticeBox">
+            <p>상대가 한 번 더 설렘을 보냈어요.</p>
+            <p className="message">“{claim.second_message || "-"}”</p>
+          </div>
+        )}
+
+        {claim.status === "pending" && (
+          <div className="noticeBox">
+            <p>아직 상대가 인스타 교환을 수락하지 않았어요.</p>
+            <p>상대가 수락하면 서로의 인스타가 공개돼요.</p>
+          </div>
+        )}
+
+        {claim.status === "accepted" && (
+          <div className="noticeBox">
+            <p>매칭이 수락됐어요.</p>
+            <p>
+              내 인스타: <b>@{profile.instagram_id}</b>
+            </p>
+            <p>
+              상대 인스타: <b>@{post?.sender_instagram || "-"}</b>
+            </p>
+          </div>
+        )}
+      </div>
+    );
+  };
 
   if (authLoading) {
     return (
@@ -1196,9 +1482,7 @@ function App() {
           <input
             placeholder="닉네임 예: 정우23"
             value={profile.nickname}
-            onChange={(e) =>
-              setProfile({ ...profile, nickname: e.target.value })
-            }
+            onChange={(e) => setProfile({ ...profile, nickname: e.target.value })}
           />
 
           <div className="formGroup">
@@ -1300,9 +1584,7 @@ function App() {
                 <input
                   type="date"
                   value={crushPost.seen_date}
-                  onChange={(e) =>
-                    updateCrushPost("seen_date", e.target.value)
-                  }
+                  onChange={(e) => updateCrushPost("seen_date", e.target.value)}
                 />
               </div>
 
@@ -1310,9 +1592,7 @@ function App() {
                 <label className="formLabel">시간</label>
                 <select
                   value={crushPost.time_period}
-                  onChange={(e) =>
-                    updateCrushPost("time_period", e.target.value)
-                  }
+                  onChange={(e) => updateCrushPost("time_period", e.target.value)}
                 >
                   <option value="">시간 선택</option>
                   {timeOptions.map((option) => (
@@ -1374,9 +1654,7 @@ function App() {
                       : "예: 1층 편의점 앞, 건물 입구, 2층 복도"
                   }
                   value={crushPost.custom_place}
-                  onChange={(e) =>
-                    updateCrushPost("custom_place", e.target.value)
-                  }
+                  onChange={(e) => updateCrushPost("custom_place", e.target.value)}
                 />
               </div>
 
@@ -1409,17 +1687,15 @@ function App() {
               </p>
 
               <div className="optionGrid">
-                {getHairOptionsByGender(crushPost.target_gender).map(
-                  (option) => (
-                    <OptionButton
-                      key={option}
-                      value={option}
-                      selected={crushPost.hair_feature === option}
-                      onClick={() => selectAndNext("hair_feature", option)}
-                      full={option === "잘 모르겠음"}
-                    />
-                  )
-                )}
+                {getHairOptionsByGender(crushPost.target_gender).map((option) => (
+                  <OptionButton
+                    key={option}
+                    value={option}
+                    selected={crushPost.hair_feature === option}
+                    onClick={() => selectAndNext("hair_feature", option)}
+                    full={option === "잘 모르겠음"}
+                  />
+                ))}
               </div>
             </>
           )}
@@ -1478,9 +1754,7 @@ function App() {
                 <label className="formLabel">하의 종류</label>
                 <select
                   value={crushPost.bottom_type}
-                  onChange={(e) =>
-                    updateCrushPost("bottom_type", e.target.value)
-                  }
+                  onChange={(e) => updateCrushPost("bottom_type", e.target.value)}
                 >
                   <option value="">하의 종류 선택</option>
                   {bottomTypeOptions.map((option) => (
@@ -1493,9 +1767,7 @@ function App() {
                 <label className="formLabel">하의 색상</label>
                 <select
                   value={crushPost.bottom_color}
-                  onChange={(e) =>
-                    updateCrushPost("bottom_color", e.target.value)
-                  }
+                  onChange={(e) => updateCrushPost("bottom_color", e.target.value)}
                 >
                   <option value="">하의 색상 선택</option>
                   {bottomColorOptions.map((option) => (
@@ -1542,9 +1814,7 @@ function App() {
                 <label className="formLabel">이어폰/헤드셋</label>
                 <select
                   value={crushPost.earphone_type}
-                  onChange={(e) =>
-                    updateCrushPost("earphone_type", e.target.value)
-                  }
+                  onChange={(e) => updateCrushPost("earphone_type", e.target.value)}
                 >
                   <option value="">이어폰 선택</option>
                   {earphoneOptions.map((option) => (
@@ -1876,139 +2146,135 @@ function App() {
             확신하면 2차 설렘을 보낼 수도 있어요.
           </p>
 
-          <button onClick={() => setPage("home")}>홈으로</button>
+          <button onClick={openMatchingPage}>내 설렘 관리로 가기</button>
+
+          <button onClick={() => setPage("home")} className="white">
+            홈으로
+          </button>
         </div>
       )}
 
       {page === "matching" && (
-        <div className="card">
+        <div className="card manageCard">
           <h2>내 설렘 관리</h2>
+
+          <p className="subtitle">
+            내가 보낸 설렘과 내가 받은 설렘을 한눈에 확인할 수 있어요.
+          </p>
+
+          <div className="manageTabs">
+            <button
+              className={matchingMode === "sent" ? "manageTab active" : "manageTab"}
+              onClick={() => setMatchingMode("sent")}
+            >
+              내가 보낸 설렘
+            </button>
+
+            <button
+              className={
+                matchingMode === "received" ? "manageTab active" : "manageTab"
+              }
+              onClick={() => setMatchingMode("received")}
+            >
+              내가 받은 설렘
+            </button>
+          </div>
+
+          <div className="manageSummaryGrid">
+            <div className="manageSummaryItem">
+              <span>보낸 설렘</span>
+              <b>{mySentPosts.length}</b>
+            </div>
+
+            <div className="manageSummaryItem">
+              <span>도착 응답</span>
+              <b>{totalSentResponseCount}</b>
+            </div>
+
+            <div className="manageSummaryItem">
+              <span>받은 설렘</span>
+              <b>{receivedClaims.length}</b>
+            </div>
+
+            <div className="manageSummaryItem">
+              <span>2차 호감</span>
+              <b>{totalReceivedSecondCount}</b>
+            </div>
+          </div>
 
           {matchingLoading && <p className="notice">불러오는 중이에요...</p>}
 
-          {!matchingLoading && matchingClaims.length === 0 && (
-            <p className="notice">
-              아직 내 설렘에 응답한 사람이 없어요. 상대가 본인 착장을 올리고
-              응답하면 여기에 표시돼요.
-            </p>
-          )}
+          {!matchingLoading && matchingMode === "sent" && (
+            <>
+              <div className="manageSection">
+                <h3 className="manageSectionTitle">
+                  응답 도착 {mySentPostsWithResponses.length}개
+                </h3>
 
-          {!matchingLoading &&
-            matchingClaims.map((claim) => (
-              <div className="post" key={claim.id}>
-                <p>
-                  <b>내 설렘에 온 응답</b>
-                </p>
-
-                {claim.post ? (
-                  <>
-                    <p>
-                      내가 남긴 설렘: {claim.post.seen_date},{" "}
-                      {claim.post.time_period}, {claim.post.place}
-                    </p>
-
-                    {renderPostQuestionAnswer(claim.post)}
-
-                    <p className="message">
-                      “{cleanMessage(claim.post.message)}”
-                    </p>
-                  </>
-                ) : (
-                  <p className="notice">연결된 설렘 글을 찾지 못했어요.</p>
+                {mySentPostsWithResponses.length === 0 && (
+                  <p className="noticeBox">
+                    아직 응답이 도착한 설렘이 없어요.
+                  </p>
                 )}
 
-                <hr />
-
-                <p>
-                  응답한 사람 닉네임: <b>{claim.claimer_nickname}</b>
-                </p>
-
-                <p className="message">“{claim.claimer_message}”</p>
-
-                <p>
-                  상태:{" "}
-                  <b>
-                    {claim.status === "accepted"
-                      ? "매칭 수락됨"
-                      : "응답 대기 중"}
-                  </b>
-                </p>
-
-                {claim.status === "pending" && (
-                  <>
-                    <button onClick={() => acceptClaim(claim.id)}>
-                      이 사람 맞아요, 인스타 교환하기
-                    </button>
-
-                    {!claim.second_message_sent && (
-                      <>
-                        {secondMessageForm.claimId === claim.id ? (
-                          <div className="secondMessageBox">
-                            <textarea
-                              placeholder="2차 설렘 메시지 예: 혹시 오늘 혜당관 앞에서 파란 상의를 입고 계셨나요? 맞는 것 같아서 한 번 더 설렘을 보내요."
-                              value={secondMessageForm.message}
-                              onChange={(e) =>
-                                setSecondMessageForm({
-                                  ...secondMessageForm,
-                                  message: e.target.value,
-                                })
-                              }
-                            />
-
-                            <button onClick={() => sendSecondMessage(claim)}>
-                              2차 설렘 보내기
-                            </button>
-
-                            <button
-                              className="white"
-                              onClick={() =>
-                                setSecondMessageForm({
-                                  claimId: null,
-                                  message: "",
-                                })
-                              }
-                            >
-                              취소
-                            </button>
-                          </div>
-                        ) : (
-                          <button
-                            className="white"
-                            onClick={() =>
-                              setSecondMessageForm({
-                                claimId: claim.id,
-                                message: "",
-                              })
-                            }
-                          >
-                            이 사람인 것 같아요, 한 번 더 설렘 보내기
-                          </button>
-                        )}
-                      </>
-                    )}
-
-                    {claim.second_message_sent && (
-                      <div className="noticeBox">
-                        <p>2차 설렘을 이미 보냈어요.</p>
-                        <p>“{claim.second_message}”</p>
-                      </div>
-                    )}
-                  </>
-                )}
-
-                {claim.status === "accepted" && (
-                  <div className="noticeBox">
-                    <p>매칭이 수락됐어요.</p>
-                    <p>
-                      내 인스타: <b>@{profile.instagram_id}</b>
-                    </p>
-                    <p>
-                      상대 인스타: <b>@{claim.claimer_instagram}</b>
-                    </p>
-                  </div>
+                {mySentPostsWithResponses.map((post) =>
+                  renderSentPostCard(post, "answered")
                 )}
               </div>
-            ))}
+
+              <div className="manageSection">
+                <h3 className="manageSectionTitle">
+                  응답 대기 중 {mySentPostsWithoutResponses.length}개
+                </h3>
+
+                {mySentPostsWithoutResponses.length === 0 && (
+                  <p className="noticeBox">
+                    응답을 기다리는 설렘이 없어요.
+                  </p>
+                )}
+
+                {mySentPostsWithoutResponses.map((post) =>
+                  renderSentPostCard(post, "empty")
+                )}
+              </div>
+            </>
+          )}
+
+          {!matchingLoading && matchingMode === "received" && (
+            <>
+              <div className="manageSection">
+                <h3 className="manageSectionTitle">
+                  2차 호감 {receivedSecondClaims.length}개
+                </h3>
+
+                {receivedSecondClaims.length === 0 && (
+                  <p className="noticeBox">
+                    아직 상대가 보낸 2차 호감은 없어요.
+                  </p>
+                )}
+
+                {receivedSecondClaims.map((claim) =>
+                  renderReceivedClaimCard(claim, "second")
+                )}
+              </div>
+
+              <div className="manageSection">
+                <h3 className="manageSectionTitle">
+                  1차 호감 {receivedFirstClaims.length}개
+                </h3>
+
+                {receivedFirstClaims.length === 0 && (
+                  <p className="noticeBox">
+                    아직 내가 응답한 1차 호감이 없어요.
+                  </p>
+                )}
+
+                {receivedFirstClaims.map((claim) =>
+                  renderReceivedClaimCard(claim, "first")
+                )}
+              </div>
+            </>
+          )}
 
           <button onClick={openMatchingPage} className="white">
             새로고침
