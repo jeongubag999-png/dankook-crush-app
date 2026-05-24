@@ -80,19 +80,13 @@ function App() {
 
   const genderOptions = ["여자", "남자"];
 
-  const femaleHairOptions = [
-    "긴 생머리",
-    "긴 웨이브",
-    "중단발",
-    "단발",
-    "묶은 머리",
-    "반묶음",
-    "앞머리 있음",
-    "앞머리 없음",
-    "염색머리",
-    "모자 착용",
-    "잘 모르겠음",
-  ];
+  const femaleHairLengthOptions = ["장발", "중단발", "단발"];
+
+  const femaleHairDyeOptions = ["염색머리", "염색 안 함", "잘 모르겠음"];
+
+  const hatOptions = ["모자 착용", "모자 없음", "잘 모르겠음"];
+
+  const femaleHairOptions = femaleHairLengthOptions;
 
   const maleHairOptions = [
     "짧은 머리",
@@ -115,6 +109,35 @@ function App() {
       ...femaleHairOptions,
       ...maleHairOptions.filter((option) => !femaleHairOptions.includes(option)),
     ];
+  };
+
+  const makeFemaleHairFeature = (length, dye, hat) => {
+    if (!length || !dye || !hat) return "";
+    return `${length} / ${dye} / ${hat}`;
+  };
+
+  const getFinalHairFeature = () => {
+    if (crushPost.target_gender === "여자") {
+      return makeFemaleHairFeature(
+        crushPost.female_hair_length,
+        crushPost.female_hair_dye,
+        crushPost.female_hat
+      );
+    }
+
+    return crushPost.hair_feature;
+  };
+
+  const getFinalSearchHairFeature = () => {
+    if (profile.gender === "여자") {
+      return makeFemaleHairFeature(
+        searchForm.female_hair_length,
+        searchForm.female_hair_dye,
+        searchForm.female_hat
+      );
+    }
+
+    return searchForm.hair_feature;
   };
 
   const topTypeOptions = [
@@ -189,15 +212,7 @@ function App() {
     "잘 모르겠음",
   ];
 
-  const heightFeelingOptions = [
-    "나보다 많이 큼",
-    "나보다 조금 큼",
-    "나와 비슷함",
-    "나보다 작음",
-    "키가 큰 편",
-    "키가 작은 편",
-    "잘 모르겠음",
-  ];
+  const heightFeelingOptions = ["크다", "보통이다", "작다", "잘 모르겠음"];
 
   const shoeOptions = [
     "운동화",
@@ -258,6 +273,9 @@ function App() {
     custom_place: "",
     time_period: "",
     hair_feature: "",
+    female_hair_length: "",
+    female_hair_dye: "",
+    female_hat: "",
     top_type: "",
     top_color: "",
     bottom_type: "",
@@ -274,6 +292,9 @@ function App() {
   const [searchForm, setSearchForm] = useState({
     seen_date: "",
     hair_feature: "",
+    female_hair_length: "",
+    female_hair_dye: "",
+    female_hat: "",
     top_type: "",
     top_color: "",
     bottom_type: "",
@@ -609,6 +630,9 @@ function App() {
       ...prev,
       target_gender: value,
       hair_feature: "",
+      female_hair_length: "",
+      female_hair_dye: "",
+      female_hat: "",
     }));
 
     setTimeout(() => {
@@ -673,6 +697,9 @@ function App() {
       custom_place: "",
       time_period: "",
       hair_feature: "",
+      female_hair_length: "",
+      female_hair_dye: "",
+      female_hat: "",
       top_type: "",
       top_color: "",
       bottom_type: "",
@@ -787,8 +814,10 @@ function App() {
       return;
     }
 
-    if (!crushPost.hair_feature) {
-      alert("머리 특징을 선택해주세요.");
+    const finalHairFeature = getFinalHairFeature();
+
+    if (!finalHairFeature) {
+      alert("머리 정보를 선택해주세요.");
       setCrushStep(4);
       return;
     }
@@ -830,7 +859,7 @@ function App() {
         seen_date: crushPost.seen_date,
         place: getFinalPlace(),
         time_period: crushPost.time_period,
-        hair_feature: crushPost.hair_feature,
+        hair_feature: finalHairFeature,
         clothes_color: crushPost.top_color,
         clothes_style: combinedStyle,
         accessory: combinedAccessory,
@@ -1744,23 +1773,83 @@ function App() {
           {crushStep === 4 && (
             <>
               <h3 className="questionTitle">
-                {crushPost.target_gender || "상대"}의 머리 스타일이 기억나나요?
+                {crushPost.target_gender || "상대"}의 머리 정보가 기억나나요?
               </h3>
               <p className="questionDesc">
-                찾는 사람의 성별에 맞춰 가장 비슷한 머리 특징을 선택해주세요.
+                여자를 찾는 경우에는 머리 길이, 염색 여부, 모자 유무를 순서대로 선택해주세요.
               </p>
 
-              <div className="optionGrid">
-                {getHairOptionsByGender(crushPost.target_gender).map((option) => (
-                  <OptionButton
-                    key={option}
-                    value={option}
-                    selected={crushPost.hair_feature === option}
-                    onClick={() => selectAndNext("hair_feature", option)}
-                    full={option === "잘 모르겠음"}
-                  />
-                ))}
-              </div>
+              {crushPost.target_gender === "여자" ? (
+                <>
+                  <div className="formGroup">
+                    <label className="formLabel">머리 길이</label>
+                    <div className="optionGrid">
+                      {femaleHairLengthOptions.map((option) => (
+                        <OptionButton
+                          key={option}
+                          value={option}
+                          selected={crushPost.female_hair_length === option}
+                          onClick={() => updateCrushPost("female_hair_length", option)}
+                        />
+                      ))}
+                    </div>
+                  </div>
+
+                  <div className="formGroup">
+                    <label className="formLabel">염색머리 여부</label>
+                    <div className="optionGrid">
+                      {femaleHairDyeOptions.map((option) => (
+                        <OptionButton
+                          key={option}
+                          value={option}
+                          selected={crushPost.female_hair_dye === option}
+                          onClick={() => updateCrushPost("female_hair_dye", option)}
+                          full={option === "잘 모르겠음"}
+                        />
+                      ))}
+                    </div>
+                  </div>
+
+                  <div className="formGroup">
+                    <label className="formLabel">모자 유무</label>
+                    <div className="optionGrid">
+                      {hatOptions.map((option) => (
+                        <OptionButton
+                          key={option}
+                          value={option}
+                          selected={crushPost.female_hat === option}
+                          onClick={() => updateCrushPost("female_hat", option)}
+                          full={option === "잘 모르겠음"}
+                        />
+                      ))}
+                    </div>
+                  </div>
+
+                  <button
+                    onClick={() => {
+                      if (!getFinalHairFeature()) {
+                        alert("머리 길이, 염색 여부, 모자 유무를 선택해주세요.");
+                        return;
+                      }
+                      setCrushStep(5);
+                    }}
+                  >
+                    다음
+                  </button>
+                </>
+              ) : (
+                <div className="optionGrid">
+                  {getHairOptionsByGender(crushPost.target_gender).map((option) => (
+                    <OptionButton
+                      key={option}
+                      value={option}
+                      selected={crushPost.hair_feature === option}
+                      onClick={() => selectAndNext("hair_feature", option)}
+                      full={option === "잘 모르겠음"}
+                    />
+                  ))}
+                </div>
+              )}
             </>
           )}
 
@@ -2108,20 +2197,75 @@ function App() {
             />
           </div>
 
-          <div className="formGroup">
-            <label className="formLabel">내 머리는 어땠나요?</label>
-            <select
-              value={searchForm.hair_feature}
-              onChange={(e) =>
-                setSearchForm({ ...searchForm, hair_feature: e.target.value })
-              }
-            >
-              <option value="">머리 특징 선택</option>
-              {getHairOptionsByGender(profile.gender).map((option) => (
-                <option key={option}>{option}</option>
-              ))}
-            </select>
-          </div>
+          {profile.gender === "여자" ? (
+            <>
+              <div className="formGroup">
+                <label className="formLabel">내 머리 길이</label>
+                <select
+                  value={searchForm.female_hair_length}
+                  onChange={(e) =>
+                    setSearchForm({
+                      ...searchForm,
+                      female_hair_length: e.target.value,
+                    })
+                  }
+                >
+                  <option value="">머리 길이 선택</option>
+                  {femaleHairLengthOptions.map((option) => (
+                    <option key={option}>{option}</option>
+                  ))}
+                </select>
+              </div>
+
+              <div className="formGroup">
+                <label className="formLabel">염색머리 여부</label>
+                <select
+                  value={searchForm.female_hair_dye}
+                  onChange={(e) =>
+                    setSearchForm({
+                      ...searchForm,
+                      female_hair_dye: e.target.value,
+                    })
+                  }
+                >
+                  <option value="">염색 여부 선택</option>
+                  {femaleHairDyeOptions.map((option) => (
+                    <option key={option}>{option}</option>
+                  ))}
+                </select>
+              </div>
+
+              <div className="formGroup">
+                <label className="formLabel">모자 유무</label>
+                <select
+                  value={searchForm.female_hat}
+                  onChange={(e) =>
+                    setSearchForm({ ...searchForm, female_hat: e.target.value })
+                  }
+                >
+                  <option value="">모자 유무 선택</option>
+                  {hatOptions.map((option) => (
+                    <option key={option}>{option}</option>
+                  ))}
+                </select>
+              </div>
+            </>
+          ) : (
+            <div className="formGroup">
+              <label className="formLabel">내 머리는 어땠나요?</label>
+              <select
+                value={searchForm.hair_feature}
+                onChange={(e) =>
+                  setSearchForm({ ...searchForm, hair_feature: e.target.value })
+                }
+              >
+                <option value="">머리 특징 선택</option>
+                {getHairOptionsByGender(profile.gender).map((option) => (
+                  <option key={option}>{option}</option>
+                ))}
+              </select>
+            </div>
+          )}
 
           <div className="formGroup">
             <label className="formLabel">상의 종류는 무엇이었나요?</label>
