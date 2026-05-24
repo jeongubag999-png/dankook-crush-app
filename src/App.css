@@ -1491,3 +1491,20 @@ textarea:focus {
     font-size: 15px;
   }
 }
+
+/* 여자 머리 길이 예시 이미지 */
+.hairGuideBox {
+  margin: 14px 0 18px;
+  padding: 10px;
+  background: rgba(255, 255, 255, 0.72);
+  border: 1px solid #dbeeff;
+  border-radius: 22px;
+  overflow: hidden;
+  box-shadow: 0 8px 20px rgba(47, 127, 203, 0.08);
+}
+
+.hairGuideImage {
+  width: 100%;
+  display: block;
+  border-radius: 16px;
+}

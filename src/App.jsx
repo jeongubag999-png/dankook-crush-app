@@ -336,6 +336,8 @@ function App() {
   const [sentClaims, setSentClaims] = useState([]);
   const [receivedClaims, setReceivedClaims] = useState([]);
 
+  const femaleHairGuideImage = "/hair-length-guide.png";
+
 
   const updateCrushPost = (key, value) => {
     setCrushPost((prev) => ({
@@ -1858,6 +1860,14 @@ function App() {
 
               {crushPost.target_gender === "여자" ? (
                 <>
+                  <div className="hairGuideBox">
+                    <img
+                      src={femaleHairGuideImage}
+                      alt="여자 머리 길이 예시"
+                      className="hairGuideImage"
+                    />
+                  </div>
+
                   <div className="formGroup">
                     <label className="formLabel">머리 길이</label>
                     <div className="optionGrid">
@@ -2311,6 +2321,14 @@ function App() {
 
           {profile.gender === "여자" ? (
             <>
+              <div className="hairGuideBox">
+                <img
+                  src={femaleHairGuideImage}
+                  alt="여자 머리 길이 예시"
+                  className="hairGuideImage"
+                />
+              </div>
+
               <div className="formGroup">
                 <label className="formLabel">내 머리 길이</label>
                 <select
