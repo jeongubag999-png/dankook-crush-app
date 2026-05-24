@@ -189,6 +189,53 @@ function App() {
     "잘 모르겠음",
   ];
 
+  const heightFeelingOptions = [
+    "나보다 많이 큼",
+    "나보다 조금 큼",
+    "나와 비슷함",
+    "나보다 작음",
+    "키가 큰 편",
+    "키가 작은 편",
+    "잘 모르겠음",
+  ];
+
+  const shoeOptions = [
+    "운동화",
+    "흰색 운동화",
+    "검정 운동화",
+    "컨버스/반스 느낌",
+    "구두/로퍼",
+    "부츠",
+    "샌들/슬리퍼",
+    "크록스",
+    "잘 모르겠음",
+  ];
+
+  const togetherSituationOptions = [
+    "혼자 있었음",
+    "친구 1명과 있었음",
+    "친구 여러 명과 있었음",
+    "동성 친구와 있었음",
+    "이성 친구와 있었음",
+    "통화 중이었음",
+    "공부/과제 중이었음",
+    "밥/카페 이용 중이었음",
+    "걸어가는 중이었음",
+    "잘 모르겠음",
+  ];
+
+  const moodOptions = [
+    "차분한 분위기",
+    "밝고 활발한 분위기",
+    "귀여운 분위기",
+    "시크한 분위기",
+    "깔끔한 분위기",
+    "힙한 분위기",
+    "따뜻한 분위기",
+    "조용한 분위기",
+    "잘 모르겠음",
+  ];
+
   const matchOptions = ["거의 저 같아요", "조금 비슷해요", "잘 모르겠어요"];
 
   const [profile, setProfile] = useState({
@@ -217,6 +264,10 @@ function App() {
     bottom_color: "",
     bag_type: "",
     earphone_type: "",
+    height_feeling: "",
+    shoe_type: "",
+    together_situation: "",
+    mood: "",
     message: "",
   });
 
@@ -535,7 +586,7 @@ function App() {
         </p>
 
         <p>
-          <strong>소지품:</strong> {post.accessory || "-"}
+          <strong>소지품/상황:</strong> {post.accessory || "-"}
         </p>
       </div>
     );
@@ -549,7 +600,7 @@ function App() {
   const selectAndNext = (key, value) => {
     updateCrushPost(key, value);
     setTimeout(() => {
-      setCrushStep((prev) => Math.min(prev + 1, 8));
+      setCrushStep((prev) => Math.min(prev + 1, 9));
     }, 120);
   };
 
@@ -760,8 +811,19 @@ function App() {
       return;
     }
 
+    if (
+      !crushPost.height_feeling ||
+      !crushPost.shoe_type ||
+      !crushPost.together_situation ||
+      !crushPost.mood
+    ) {
+      alert("키 느낌, 신발, 같이 있었던 상황, 분위기를 선택해주세요.");
+      setCrushStep(8);
+      return;
+    }
+
     const combinedStyle = `상의:${crushPost.top_type} / 하의:${crushPost.bottom_type} ${crushPost.bottom_color}`;
-    const combinedAccessory = `가방:${crushPost.bag_type} / 이어폰:${crushPost.earphone_type}`;
+    const combinedAccessory = `가방:${crushPost.bag_type} / 이어폰:${crushPost.earphone_type} / 키 느낌:${crushPost.height_feeling} / 신발:${crushPost.shoe_type} / 상황:${crushPost.together_situation} / 분위기:${crushPost.mood}`;
 
     const { error } = await supabase.from("crush_posts").insert([
       {
@@ -801,15 +863,17 @@ function App() {
       return;
     }
 
+    if (!searchForm.hair_feature) {
+      alert("머리 스타일을 선택해주세요. 날짜, 성별, 머리 스타일이 모두 맞아야 설렘을 확인할 수 있어요.");
+      return;
+    }
+
     let query = supabase
       .from("crush_posts")
       .select("*")
       .eq("seen_date", searchForm.seen_date)
-      .eq("target_gender", profile.gender);
-
-    if (searchForm.hair_feature && searchForm.hair_feature !== "잘 모르겠음") {
-      query = query.eq("hair_feature", searchForm.hair_feature);
-    }
+      .eq("target_gender", profile.gender)
+      .eq("hair_feature", searchForm.hair_feature);
 
     if (searchForm.top_color && searchForm.top_color !== "잘 모르겠음") {
       query = query.eq("clothes_color", searchForm.top_color);
@@ -1015,12 +1079,12 @@ function App() {
 
   const sendSecondMessage = async (claim) => {
     if (!secondMessageForm.message.trim()) {
-      alert("2차 설렘 메시지를 입력해주세요.");
+      alert("구름 남기기 메시지를 입력해주세요.");
       return;
     }
 
     if (claim.second_message_sent) {
-      alert("이미 2차 설렘을 보냈어요.");
+      alert("이미 구름 남기기를 보냈어요.");
       return;
     }
 
@@ -1034,12 +1098,12 @@ function App() {
       .eq("id", claim.id);
 
     if (error) {
-      alert("2차 설렘 보내기에 실패했어요: " + error.message);
+      alert("구름 남기기에 실패했어요: " + error.message);
       console.log(error);
       return;
     }
 
-    alert("2차 설렘을 보냈어요.");
+    alert("구름을 남겼어요.");
 
     setSecondMessageForm({
       claimId: null,
@@ -1061,7 +1125,7 @@ function App() {
     </button>
   );
 
-  const progressPercent = (crushStep / 8) * 100;
+  const progressPercent = (crushStep / 9) * 100;
 
   const sentClaimsByPostId = sentClaims.reduce((acc, claim) => {
     if (!acc[claim.crush_post_id]) {
@@ -1120,7 +1184,7 @@ function App() {
                 {secondMessageForm.claimId === claim.id ? (
                   <div className="secondMessageBox">
                     <textarea
-                      placeholder="2차 설렘 메시지 예: 혹시 오늘 혜당관 앞에서 파란 상의를 입고 계셨나요? 맞는 것 같아서 한 번 더 설렘을 보내요."
+                      placeholder="구름 남기기 메시지 예: 혹시 오늘 혜당관 앞에서 파란 상의를 입고 계셨나요? 맞는 것 같아서 한 번 더 구름을 남겨요."
                       value={secondMessageForm.message}
                       onChange={(e) =>
                         setSecondMessageForm({
@@ -1131,7 +1195,7 @@ function App() {
                     />
 
                     <button onClick={() => sendSecondMessage(claim)}>
-                      2차 설렘 보내기
+                      구름 남기기
                     </button>
 
                     <button
@@ -1156,7 +1220,7 @@ function App() {
                       })
                     }
                   >
-                    이 사람인 것 같아요, 한 번 더 설렘 보내기
+                    이 사람인 것 같아요, 구름 남기기
                   </button>
                 )}
               </>
@@ -1164,7 +1228,7 @@ function App() {
 
             {claim.second_message_sent && (
               <div className="noticeBox">
-                <p>2차 설렘을 이미 보냈어요.</p>
+                <p>구름 남기기를 이미 보냈어요.</p>
                 <p>“{claim.second_message}”</p>
               </div>
             )}
@@ -1226,7 +1290,7 @@ function App() {
       <div className="post" key={claim.id}>
         <div className="postTopLine">
           <span className={type === "second" ? "statusPill active" : "statusPill"}>
-            {type === "second" ? "2차 호감 도착" : "1차 호감 응답"}
+            {type === "second" ? "구름 남기기 도착" : "구름 띄우기 응답"}
           </span>
         </div>
 
@@ -1264,7 +1328,7 @@ function App() {
 
         {type === "second" && (
           <div className="noticeBox">
-            <p>상대가 한 번 더 설렘을 보냈어요.</p>
+            <p>상대가 구름을 한 번 더 남겼어요.</p>
             <p className="message">“{claim.second_message || "-"}”</p>
           </div>
         )}
@@ -1541,7 +1605,7 @@ function App() {
         <div className="card">
           <h2>설렘 남기기</h2>
 
-          <p className="stepText">{crushStep} / 8</p>
+          <p className="stepText">{crushStep} / 9</p>
 
           <div className="progressBar">
             <div
@@ -1839,6 +1903,89 @@ function App() {
 
           {crushStep === 8 && (
             <>
+              <h3 className="questionTitle">그때의 느낌을 조금 더 알려주세요</h3>
+              <p className="questionDesc">
+                키 느낌, 신발, 같이 있었던 상황, 분위기는 상대가 본인인지
+                알아보는 데 도움이 돼요.
+              </p>
+
+              <div className="formGroup">
+                <label className="formLabel">키 느낌</label>
+                <select
+                  value={crushPost.height_feeling}
+                  onChange={(e) =>
+                    updateCrushPost("height_feeling", e.target.value)
+                  }
+                >
+                  <option value="">키 느낌 선택</option>
+                  {heightFeelingOptions.map((option) => (
+                    <option key={option}>{option}</option>
+                  ))}
+                </select>
+              </div>
+
+              <div className="formGroup">
+                <label className="formLabel">신발</label>
+                <select
+                  value={crushPost.shoe_type}
+                  onChange={(e) => updateCrushPost("shoe_type", e.target.value)}
+                >
+                  <option value="">신발 선택</option>
+                  {shoeOptions.map((option) => (
+                    <option key={option}>{option}</option>
+                  ))}
+                </select>
+              </div>
+
+              <div className="formGroup">
+                <label className="formLabel">같이 있었던 상황</label>
+                <select
+                  value={crushPost.together_situation}
+                  onChange={(e) =>
+                    updateCrushPost("together_situation", e.target.value)
+                  }
+                >
+                  <option value="">상황 선택</option>
+                  {togetherSituationOptions.map((option) => (
+                    <option key={option}>{option}</option>
+                  ))}
+                </select>
+              </div>
+
+              <div className="formGroup">
+                <label className="formLabel">분위기</label>
+                <select
+                  value={crushPost.mood}
+                  onChange={(e) => updateCrushPost("mood", e.target.value)}
+                >
+                  <option value="">분위기 선택</option>
+                  {moodOptions.map((option) => (
+                    <option key={option}>{option}</option>
+                  ))}
+                </select>
+              </div>
+
+              <button
+                onClick={() => {
+                  if (
+                    !crushPost.height_feeling ||
+                    !crushPost.shoe_type ||
+                    !crushPost.together_situation ||
+                    !crushPost.mood
+                  ) {
+                    alert("키 느낌, 신발, 같이 있었던 상황, 분위기를 선택해주세요.");
+                    return;
+                  }
+                  setCrushStep(9);
+                }}
+              >
+                다음
+              </button>
+            </>
+          )}
+
+          {crushStep === 9 && (
+            <>
               <h3 className="questionTitle">마지막으로 확인해주세요</h3>
               <p className="questionDesc">
                 내가 찾는 사람의 성별과 인상착의가 맞는지 확인해주세요.
@@ -1884,6 +2031,18 @@ function App() {
                   <strong>소지품:</strong> {crushPost.bag_type || "-"},{" "}
                   {crushPost.earphone_type || "-"}
                 </p>
+                <p>
+                  <strong>키 느낌:</strong> {crushPost.height_feeling || "-"}
+                </p>
+                <p>
+                  <strong>신발:</strong> {crushPost.shoe_type || "-"}
+                </p>
+                <p>
+                  <strong>상황:</strong> {crushPost.together_situation || "-"}
+                </p>
+                <p>
+                  <strong>분위기:</strong> {crushPost.mood || "-"}
+                </p>
               </div>
 
               <button onClick={saveCrushPost}>그날의 설렘 남기기</button>
@@ -1927,8 +2086,8 @@ function App() {
         <div className="card">
           <h2>나에게 온 설렘 찾기</h2>
           <p className="subtitle">
-            오늘의 착장과 인상착의를 올리면, 나를 찾고 있는 설렘 후보를 확인할
-            수 있어요.
+            날짜, 성별, 머리 스타일이 정확히 맞는 설렘만 먼저 확인해요.
+            그다음 착장 조건을 추가하면 더 좁혀볼 수 있어요.
           </p>
 
           <div className="summaryBox">
@@ -2025,8 +2184,8 @@ function App() {
           </div>
 
           <p className="helperText">
-            날짜는 필수예요. 머리, 상의, 하의 정보는 선택하면 더 정확하게 찾을
-            수 있어요. 장소는 입력하지 않아도 돼요.
+            날짜와 머리 스타일은 필수예요. 성별은 내 프로필 성별로 자동 매칭되고,
+            상의와 하의 정보는 선택하면 더 정확하게 좁혀볼 수 있어요.
           </p>
 
           <button onClick={searchCrushPosts}>나를 찾는 설렘 확인하기</button>
@@ -2044,7 +2203,7 @@ function App() {
           {searchResults.length === 0 && (
             <p className="notice">
               아직 비슷한 설렘이 없어요. 날짜를 다시 확인하거나, 머리와 옷
-              조건을 조금 줄여서 다시 찾아보세요.
+              상의와 하의 조건을 조금 줄여서 다시 찾아보세요.
             </p>
           )}
 
@@ -2143,7 +2302,7 @@ function App() {
           <h2>응답을 보냈어요</h2>
           <p className="subtitle">
             설렘을 남긴 사람이 수락하면 서로의 인스타를 볼 수 있어요. 상대가
-            확신하면 2차 설렘을 보낼 수도 있어요.
+            확신하면 구름 남기기를 보낼 수도 있어요.
           </p>
 
           <button onClick={openMatchingPage}>내 설렘 관리로 가기</button>
@@ -2197,7 +2356,7 @@ function App() {
             </div>
 
             <div className="manageSummaryItem">
-              <span>2차 호감</span>
+              <span>구름 남기기</span>
               <b>{totalReceivedSecondCount}</b>
             </div>
           </div>
@@ -2244,12 +2403,12 @@ function App() {
             <>
               <div className="manageSection">
                 <h3 className="manageSectionTitle">
-                  2차 호감 {receivedSecondClaims.length}개
+                  구름 남기기 {receivedSecondClaims.length}개
                 </h3>
 
                 {receivedSecondClaims.length === 0 && (
                   <p className="noticeBox">
-                    아직 상대가 보낸 2차 호감은 없어요.
+                    아직 상대가 보낸 구름 남기기는 없어요.
                   </p>
                 )}
 
@@ -2260,12 +2419,12 @@ function App() {
 
               <div className="manageSection">
                 <h3 className="manageSectionTitle">
-                  1차 호감 {receivedFirstClaims.length}개
+                  구름 띄우기 {receivedFirstClaims.length}개
                 </h3>
 
                 {receivedFirstClaims.length === 0 && (
                   <p className="noticeBox">
-                    아직 내가 응답한 1차 호감이 없어요.
+                    아직 내가 응답한 구름 띄우기는 없어요.
                   </p>
                 )}
 
