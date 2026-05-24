@@ -762,6 +762,7 @@ textarea {
     font-size: 15px;
   }
 }
+
 /* 내 설렘 관리 확장 화면 */
 
 .manageCard {
@@ -891,5 +892,149 @@ textarea {
   .manageTab {
     font-size: 13px;
     padding: 0 8px;
+  }
+}
+
+/* 마이페이지 / 알림 / 날짜별 활동 기록 추가 */
+
+.fourMenu {
+  grid-template-columns: 1fr 1fr;
+}
+
+.fourTabs {
+  grid-template-columns: repeat(4, 1fr);
+}
+
+.fourTabs .manageTab {
+  font-size: 12px;
+  padding: 0 6px;
+}
+
+.mypageHero {
+  margin: 4px 0 18px;
+  padding: 18px;
+  border-radius: 24px;
+  background: linear-gradient(135deg, #fff7f4 0%, #fff0f3 100%);
+  border: 1px solid #f2e4df;
+  text-align: left;
+}
+
+.mypageHero p {
+  margin: 6px 0 0;
+  color: #8b7872;
+  font-size: 13px;
+  line-height: 1.55;
+  word-break: keep-all;
+}
+
+.mypageGreeting {
+  margin-top: 0 !important;
+  color: #302522 !important;
+  font-size: 17px !important;
+  font-weight: 900;
+}
+
+.mypageStatsGrid {
+  display: grid;
+  grid-template-columns: repeat(4, 1fr);
+  gap: 8px;
+  margin: 14px 0 18px;
+}
+
+.mypageStat {
+  padding: 12px 6px;
+  border-radius: 18px;
+  background: #fff7f4;
+  border: 1px solid #f2e4df;
+  text-align: center;
+}
+
+.mypageStat span {
+  display: block;
+  margin-bottom: 5px;
+  font-size: 11px;
+  line-height: 1.25;
+  color: #9a8580;
+  font-weight: 800;
+  word-break: keep-all;
+}
+
+.mypageStat b {
+  display: block;
+  font-size: 19px;
+  color: #e66f8f;
+  font-weight: 900;
+}
+
+.mypageQuickMenu {
+  display: grid;
+  grid-template-columns: 1fr 1fr;
+  gap: 10px;
+  margin-bottom: 18px;
+}
+
+.mypageQuickMenu button {
+  height: 52px;
+  min-height: 52px;
+  margin-top: 0;
+  font-size: 13px;
+  border-radius: 18px;
+}
+
+.notificationCard {
+  text-align: left;
+  background: #fff7f4;
+  border: 1px solid #f2e4df;
+  border-radius: 22px;
+  padding: 16px;
+  margin: 12px 0;
+  line-height: 1.6;
+  color: #4a3c38;
+}
+
+.notificationCard p {
+  margin: 6px 0;
+}
+
+.activitySummaryBox {
+  display: grid;
+  grid-template-columns: 1fr 1fr;
+  gap: 10px;
+  margin: 16px 0 20px;
+}
+
+.activitySummaryBox div {
+  padding: 16px 10px;
+  border-radius: 20px;
+  background: #fff7f4;
+  border: 1px solid #f2e4df;
+  text-align: center;
+}
+
+.activitySummaryBox span {
+  display: block;
+  margin-bottom: 6px;
+  color: #9a8580;
+  font-size: 12px;
+  font-weight: 900;
+}
+
+.activitySummaryBox b {
+  color: #e66f8f;
+  font-size: 24px;
+  font-weight: 900;
+}
+
+@media (max-width: 480px) {
+  .fourTabs {
+    grid-template-columns: repeat(2, 1fr);
+  }
+
+  .mypageStatsGrid {
+    grid-template-columns: repeat(2, 1fr);
+  }
+
+  .mypageQuickMenu {
+    grid-template-columns: 1fr;
   }
 }

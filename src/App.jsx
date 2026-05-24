@@ -323,6 +323,7 @@ function App() {
 
   const [matchingLoading, setMatchingLoading] = useState(false);
   const [matchingMode, setMatchingMode] = useState("sent");
+  const [activityDate, setActivityDate] = useState("");
 
   const [mySentPosts, setMySentPosts] = useState([]);
   const [sentClaims, setSentClaims] = useState([]);
@@ -628,6 +629,40 @@ function App() {
     return message.replace(/\[찾는 성별:\s*.*?\]\s*/, "");
   };
 
+
+  const formatDateLabel = (dateText) => {
+    if (!dateText) return "날짜 없음";
+
+    const [year, month, day] = dateText.split("-");
+
+    if (!year || !month || !day) return dateText;
+
+    return `${Number(month)}월 ${Number(day)}일`;
+  };
+
+  const formatShortDateTime = (dateTimeText) => {
+    if (!dateTimeText) return "";
+
+    const date = new Date(dateTimeText);
+
+    if (Number.isNaN(date.getTime())) return "";
+
+    return `${date.getMonth() + 1}/${date.getDate()} ${String(
+      date.getHours()
+    ).padStart(2, "0")}:${String(date.getMinutes()).padStart(2, "0")}`;
+  };
+
+  const groupSentPostsByDate = (posts) => {
+    return posts.reduce((acc, post) => {
+      const key = post.seen_date || "날짜 없음";
+
+      if (!acc[key]) acc[key] = [];
+      acc[key].push(post);
+
+      return acc;
+    }, {});
+  };
+
   const selectAndNext = (key, value) => {
     updateCrushPost(key, value);
     setTimeout(() => {
@@ -697,6 +732,13 @@ function App() {
     if (!checkProfileRequired()) return;
 
     setPage("search");
+  };
+
+  const openProfilePage = async () => {
+    if (!checkProfileRequired()) return;
+
+    setPage("profile");
+    await loadMyActivityData();
   };
 
   const resetCrushPost = () => {
@@ -995,11 +1037,10 @@ function App() {
     setPage("claim");
   };
 
-  const openMatchingPage = async () => {
-    if (!checkProfileRequired()) return;
+  const loadMyActivityData = async () => {
+    if (!currentUser) return false;
 
     setMatchingLoading(true);
-    setPage("matching");
 
     setMySentPosts([]);
     setSentClaims([]);
@@ -1012,10 +1053,10 @@ function App() {
       .order("created_at", { ascending: false });
 
     if (postsError) {
-      alert("내가 보낸 설렘을 불러오지 못했어요: " + postsError.message);
+      alert("내가 띄운 구름을 불러오지 못했어요: " + postsError.message);
       console.log(postsError);
       setMatchingLoading(false);
-      return;
+      return false;
     }
 
     const finalMyPosts = myPosts || [];
@@ -1033,10 +1074,10 @@ function App() {
         .order("created_at", { ascending: false });
 
       if (claimsError) {
-        alert("내 설렘에 온 응답을 불러오지 못했어요: " + claimsError.message);
+        alert("내 구름에 온 응답을 불러오지 못했어요: " + claimsError.message);
         console.log(claimsError);
         setMatchingLoading(false);
-        return;
+        return false;
       }
 
       finalSentClaims = (claimsData || []).map((claim) => {
@@ -1058,10 +1099,10 @@ function App() {
       .order("created_at", { ascending: false });
 
     if (receivedError) {
-      alert("내가 받은 설렘 목록을 불러오지 못했어요: " + receivedError.message);
+      alert("내가 받은 구름 목록을 불러오지 못했어요: " + receivedError.message);
       console.log(receivedError);
       setMatchingLoading(false);
-      return;
+      return false;
     }
 
     const finalReceivedClaims = myReceivedClaims || [];
@@ -1082,12 +1123,12 @@ function App() {
 
       if (receivedPostsError) {
         alert(
-          "내가 응답한 설렘 글 정보를 불러오지 못했어요: " +
+          "내가 응답한 구름 글 정보를 불러오지 못했어요: " +
             receivedPostsError.message
         );
         console.log(receivedPostsError);
         setMatchingLoading(false);
-        return;
+        return false;
       }
 
       combinedReceivedClaims = finalReceivedClaims.map((claim) => {
@@ -1104,6 +1145,14 @@ function App() {
 
     setReceivedClaims(combinedReceivedClaims);
     setMatchingLoading(false);
+    return true;
+  };
+
+  const openMatchingPage = async () => {
+    if (!checkProfileRequired()) return;
+
+    setPage("matching");
+    await loadMyActivityData();
   };
 
   const acceptClaim = async (claimId) => {
@@ -1124,12 +1173,12 @@ function App() {
 
   const sendSecondMessage = async (claim) => {
     if (!secondMessageForm.message.trim()) {
-      alert("구름 남기기 메시지를 입력해주세요.");
+      alert("구름 보내기 메시지를 입력해주세요.");
       return;
     }
 
     if (claim.second_message_sent) {
-      alert("이미 구름 남기기를 보냈어요.");
+      alert("이미 구름 보내기를 보냈어요.");
       return;
     }
 
@@ -1143,12 +1192,12 @@ function App() {
       .eq("id", claim.id);
 
     if (error) {
-      alert("구름 남기기에 실패했어요: " + error.message);
+      alert("구름 보내기에 실패했어요: " + error.message);
       console.log(error);
       return;
     }
 
-    alert("구름을 남겼어요.");
+    alert("구름을 보냈어요.");
 
     setSecondMessageForm({
       claimId: null,
@@ -1197,8 +1246,58 @@ function App() {
     (claim) => claim.second_message_sent
   );
 
+
   const totalSentResponseCount = sentClaims.length;
   const totalReceivedSecondCount = receivedSecondClaims.length;
+  const acceptedMatchCount = [...sentClaims, ...receivedClaims].filter(
+    (claim) => claim.status === "accepted"
+  ).length;
+
+  const sentPostsByDate = groupSentPostsByDate(mySentPosts);
+  const sentDateKeys = Object.keys(sentPostsByDate).sort((a, b) =>
+    b.localeCompare(a)
+  );
+
+  const activityDateOptions = [
+    ...new Set([
+      ...mySentPosts.map((post) => post.seen_date).filter(Boolean),
+      ...receivedClaims.map((claim) => claim.post?.seen_date).filter(Boolean),
+    ]),
+  ].sort((a, b) => b.localeCompare(a));
+
+  const selectedActivityDate = activityDate || activityDateOptions[0] || "";
+  const selectedDateSentPosts = mySentPosts.filter(
+    (post) => post.seen_date === selectedActivityDate
+  );
+  const selectedDateReceivedClaims = receivedClaims.filter(
+    (claim) => claim.post?.seen_date === selectedActivityDate
+  );
+
+  const notificationItems = [
+    ...sentClaims.map((claim) => ({
+      id: `sent-${claim.id}`,
+      type: claim.status === "accepted" ? "매칭 수락" : "응답 도착",
+      title:
+        claim.status === "accepted"
+          ? "상대가 인스타 교환까지 연결됐어요"
+          : "내가 띄운 구름에 응답이 도착했어요",
+      description: `${claim.claimer_nickname || "상대"} · ${
+        claim.post?.seen_date || "날짜 없음"
+      }`,
+      created_at: claim.created_at,
+      active: claim.status === "accepted",
+    })),
+    ...receivedClaims
+      .filter((claim) => claim.second_message_sent)
+      .map((claim) => ({
+        id: `received-second-${claim.id}`,
+        type: "구름 보내기 도착",
+        title: "상대가 한 번 더 구름을 보냈어요",
+        description: claim.second_message || "메시지 내용이 없어요.",
+        created_at: claim.second_message_created_at || claim.created_at,
+        active: true,
+      })),
+  ].sort((a, b) => new Date(b.created_at || 0) - new Date(a.created_at || 0));
 
   const renderSentClaimCard = (claim) => {
     return (
@@ -1229,7 +1328,7 @@ function App() {
                 {secondMessageForm.claimId === claim.id ? (
                   <div className="secondMessageBox">
                     <textarea
-                      placeholder="구름 남기기 메시지 예: 혹시 오늘 혜당관 앞에서 파란 상의를 입고 계셨나요? 맞는 것 같아서 한 번 더 구름을 남겨요."
+                      placeholder="구름 보내기 메시지 예: 혹시 오늘 혜당관 앞에서 파란 상의를 입고 계셨나요? 맞는 것 같아서 한 번 더 구름을 남겨요."
                       value={secondMessageForm.message}
                       onChange={(e) =>
                         setSecondMessageForm({
@@ -1240,7 +1339,7 @@ function App() {
                     />
 
                     <button onClick={() => sendSecondMessage(claim)}>
-                      구름 남기기
+                      구름 보내기
                     </button>
 
                     <button
@@ -1265,7 +1364,7 @@ function App() {
                       })
                     }
                   >
-                    이 사람인 것 같아요, 구름 남기기
+                    이 사람인 것 같아요, 구름 보내기
                   </button>
                 )}
               </>
@@ -1273,7 +1372,7 @@ function App() {
 
             {claim.second_message_sent && (
               <div className="noticeBox">
-                <p>구름 남기기를 이미 보냈어요.</p>
+                <p>구름 보내기를 이미 보냈어요.</p>
                 <p>“{claim.second_message}”</p>
               </div>
             )}
@@ -1318,7 +1417,7 @@ function App() {
 
         {mode === "empty" && (
           <div className="noticeBox">
-            <p>아직 이 설렘에 응답한 사람이 없어요.</p>
+            <p>아직 이 구름에 응답한 사람이 없어요.</p>
             <p>상대가 본인 착장과 날짜를 올리고 응답하면 여기에 표시돼요.</p>
           </div>
         )}
@@ -1335,7 +1434,7 @@ function App() {
       <div className="post" key={claim.id}>
         <div className="postTopLine">
           <span className={type === "second" ? "statusPill active" : "statusPill"}>
-            {type === "second" ? "구름 남기기 도착" : "구름 띄우기 응답"}
+            {type === "second" ? "구름 보내기 도착" : "구름 띄우기 응답"}
           </span>
         </div>
 
@@ -1350,7 +1449,7 @@ function App() {
             {renderPostQuestionAnswer(post)}
 
             <p className="message">
-              상대가 남긴 설렘: “
+              상대가 띄운 구름: “
               {cleanMessage(post.message) || "남긴 메시지가 없어요."}”
             </p>
           </>
@@ -1373,7 +1472,7 @@ function App() {
 
         {type === "second" && (
           <div className="noticeBox">
-            <p>상대가 구름을 한 번 더 남겼어요.</p>
+            <p>상대가 구름을 한 번 더 보냈어요.</p>
             <p className="message">“{claim.second_message || "-"}”</p>
           </div>
         )}
@@ -1540,13 +1639,33 @@ function App() {
             </button>
           </div>
 
-          <div className="homeMiniMenu">
+          <div className="homeMiniMenu fourMenu">
             <button onClick={openMatchingPage} className="miniMenuButton">
-              내 설렘 관리
+              내 구름 관리
             </button>
 
-            <button onClick={() => setPage("profile")} className="miniMenuButton">
-              내 프로필
+            <button onClick={openProfilePage} className="miniMenuButton">
+              마이페이지
+            </button>
+
+            <button
+              onClick={() => {
+                setMatchingMode("notifications");
+                openMatchingPage();
+              }}
+              className="miniMenuButton"
+            >
+              알림
+            </button>
+
+            <button
+              onClick={() => {
+                setMatchingMode("calendar");
+                openMatchingPage();
+              }}
+              className="miniMenuButton"
+            >
+              날짜별 기록
             </button>
           </div>
 
@@ -1562,7 +1681,54 @@ function App() {
 
       {page === "profile" && (
         <div className="card">
-          <h2>내 프로필</h2>
+          <h2>마이페이지</h2>
+
+          <div className="mypageHero">
+            <p className="mypageGreeting">
+              {profile.nickname || "단꿈러"}님의 구름 보관함
+            </p>
+            <p>프로필, 내가 띄운 구름, 받은 알림을 한곳에서 관리해요.</p>
+          </div>
+
+          <div className="mypageStatsGrid">
+            <div className="mypageStat">
+              <span>띄운 구름</span>
+              <b>{mySentPosts.length}</b>
+            </div>
+            <div className="mypageStat">
+              <span>도착 응답</span>
+              <b>{totalSentResponseCount}</b>
+            </div>
+            <div className="mypageStat">
+              <span>받은 구름</span>
+              <b>{receivedClaims.length}</b>
+            </div>
+            <div className="mypageStat">
+              <span>매칭</span>
+              <b>{acceptedMatchCount}</b>
+            </div>
+          </div>
+
+          <div className="mypageQuickMenu">
+            <button
+              className="white"
+              onClick={() => {
+                setMatchingMode("sent");
+                openMatchingPage();
+              }}
+            >
+              내가 보낸 구름 관리
+            </button>
+            <button
+              className="white"
+              onClick={() => {
+                setMatchingMode("notifications");
+                openMatchingPage();
+              }}
+            >
+              알림 보기
+            </button>
+          </div>
 
           <div className="profileImageBox">
             {profileImagePreview || profile.profile_image_url ? (
@@ -2122,7 +2288,7 @@ function App() {
                   <strong>장소:</strong> {getFinalPlace() || "-"}
                 </p>
                 <p>
-                  <strong>머리:</strong> {crushPost.hair_feature || "-"}
+                  <strong>머리:</strong> {getFinalHairFeature() || "-"}
                 </p>
                 <p>
                   <strong>상의:</strong> {crushPost.top_color || "-"}{" "}
@@ -2179,7 +2345,7 @@ function App() {
             상대가 자신의 날짜와 착장을 올리면, 당신의 설렘을 발견할 수 있어요.
           </p>
 
-          <button onClick={openMatchingPage}>내 설렘 관리로 가기</button>
+          <button onClick={openMatchingPage}>내 구름 관리로 가기</button>
 
           <button onClick={() => setPage("home")} className="white">
             홈으로
@@ -2462,10 +2628,10 @@ function App() {
           <h2>응답을 보냈어요</h2>
           <p className="subtitle">
             설렘을 남긴 사람이 수락하면 서로의 인스타를 볼 수 있어요. 상대가
-            확신하면 구름 남기기를 보낼 수도 있어요.
+            확신하면 구름 보내기를 보낼 수도 있어요.
           </p>
 
-          <button onClick={openMatchingPage}>내 설렘 관리로 가기</button>
+          <button onClick={openMatchingPage}>내 구름 관리로 가기</button>
 
           <button onClick={() => setPage("home")} className="white">
             홈으로
@@ -2475,18 +2641,18 @@ function App() {
 
       {page === "matching" && (
         <div className="card manageCard">
-          <h2>내 설렘 관리</h2>
+          <h2>내 구름 관리</h2>
 
           <p className="subtitle">
-            내가 보낸 설렘과 내가 받은 설렘을 한눈에 확인할 수 있어요.
+            내가 띄운 구름, 받은 구름, 알림, 날짜별 활동 기록을 한눈에 확인할 수 있어요.
           </p>
 
-          <div className="manageTabs">
+          <div className="manageTabs fourTabs">
             <button
               className={matchingMode === "sent" ? "manageTab active" : "manageTab"}
               onClick={() => setMatchingMode("sent")}
             >
-              내가 보낸 설렘
+              보낸 구름
             </button>
 
             <button
@@ -2495,13 +2661,31 @@ function App() {
               }
               onClick={() => setMatchingMode("received")}
             >
-              내가 받은 설렘
+              받은 구름
+            </button>
+
+            <button
+              className={
+                matchingMode === "notifications" ? "manageTab active" : "manageTab"
+              }
+              onClick={() => setMatchingMode("notifications")}
+            >
+              알림
+            </button>
+
+            <button
+              className={
+                matchingMode === "calendar" ? "manageTab active" : "manageTab"
+              }
+              onClick={() => setMatchingMode("calendar")}
+            >
+              날짜별 기록
             </button>
           </div>
 
           <div className="manageSummaryGrid">
             <div className="manageSummaryItem">
-              <span>보낸 설렘</span>
+              <span>띄운 구름</span>
               <b>{mySentPosts.length}</b>
             </div>
 
@@ -2511,12 +2695,12 @@ function App() {
             </div>
 
             <div className="manageSummaryItem">
-              <span>받은 설렘</span>
+              <span>받은 구름</span>
               <b>{receivedClaims.length}</b>
             </div>
 
             <div className="manageSummaryItem">
-              <span>구름 남기기</span>
+              <span>구름 보내기</span>
               <b>{totalReceivedSecondCount}</b>
             </div>
           </div>
@@ -2532,7 +2716,7 @@ function App() {
 
                 {mySentPostsWithResponses.length === 0 && (
                   <p className="noticeBox">
-                    아직 응답이 도착한 설렘이 없어요.
+                    아직 응답이 도착한 구름이 없어요.
                   </p>
                 )}
 
@@ -2548,7 +2732,7 @@ function App() {
 
                 {mySentPostsWithoutResponses.length === 0 && (
                   <p className="noticeBox">
-                    응답을 기다리는 설렘이 없어요.
+                    응답을 기다리는 구름이 없어요.
                   </p>
                 )}
 
@@ -2563,12 +2747,12 @@ function App() {
             <>
               <div className="manageSection">
                 <h3 className="manageSectionTitle">
-                  구름 남기기 {receivedSecondClaims.length}개
+                  구름 보내기 {receivedSecondClaims.length}개
                 </h3>
 
                 {receivedSecondClaims.length === 0 && (
                   <p className="noticeBox">
-                    아직 상대가 보낸 구름 남기기는 없어요.
+                    아직 상대가 보낸 구름 보내기는 없어요.
                   </p>
                 )}
 
@@ -2593,6 +2777,104 @@ function App() {
                 )}
               </div>
             </>
+          )}
+
+
+
+          {!matchingLoading && matchingMode === "notifications" && (
+            <div className="manageSection">
+              <h3 className="manageSectionTitle">알림 {notificationItems.length}개</h3>
+
+              {notificationItems.length === 0 && (
+                <p className="noticeBox">
+                  아직 새 알림이 없어요. 응답이 오거나 구름 보내기가 도착하면 여기에 표시돼요.
+                </p>
+              )}
+
+              {notificationItems.map((item) => (
+                <div className="notificationCard" key={item.id}>
+                  <div className="postTopLine">
+                    <span className={item.active ? "statusPill active" : "statusPill"}>
+                      {item.type}
+                    </span>
+                  </div>
+                  <p>
+                    <b>{item.title}</b>
+                  </p>
+                  <p>{item.description}</p>
+                  <p className="helperText">{formatShortDateTime(item.created_at)}</p>
+                </div>
+              ))}
+            </div>
+          )}
+
+          {!matchingLoading && matchingMode === "calendar" && (
+            <div className="manageSection">
+              <h3 className="manageSectionTitle">날짜별 활동 기록</h3>
+
+              {activityDateOptions.length === 0 ? (
+                <p className="noticeBox">
+                  아직 날짜별로 보여줄 활동이 없어요.
+                </p>
+              ) : (
+                <>
+                  <div className="formGroup">
+                    <label className="formLabel">확인할 날짜</label>
+                    <select
+                      value={selectedActivityDate}
+                      onChange={(e) => setActivityDate(e.target.value)}
+                    >
+                      {activityDateOptions.map((date) => (
+                        <option key={date} value={date}>
+                          {formatDateLabel(date)} · {date}
+                        </option>
+                      ))}
+                    </select>
+                  </div>
+
+                  <div className="activitySummaryBox">
+                    <div>
+                      <span>띄운 구름</span>
+                      <b>{selectedDateSentPosts.length}</b>
+                    </div>
+                    <div>
+                      <span>받은 구름</span>
+                      <b>{selectedDateReceivedClaims.length}</b>
+                    </div>
+                  </div>
+
+                  <div className="manageSection">
+                    <h3 className="manageSectionTitle">
+                      {formatDateLabel(selectedActivityDate)}에 내가 띄운 구름
+                    </h3>
+                    {selectedDateSentPosts.length === 0 && (
+                      <p className="noticeBox">이 날짜에 내가 띄운 구름은 없어요.</p>
+                    )}
+                    {selectedDateSentPosts.map((post) =>
+                      renderSentPostCard(
+                        post,
+                        sentClaimsByPostId[post.id]?.length ? "answered" : "empty"
+                      )
+                    )}
+                  </div>
+
+                  <div className="manageSection">
+                    <h3 className="manageSectionTitle">
+                      {formatDateLabel(selectedActivityDate)}에 내가 받은 구름
+                    </h3>
+                    {selectedDateReceivedClaims.length === 0 && (
+                      <p className="noticeBox">이 날짜에 내가 받은 구름은 없어요.</p>
+                    )}
+                    {selectedDateReceivedClaims.map((claim) =>
+                      renderReceivedClaimCard(
+                        claim,
+                        claim.second_message_sent ? "second" : "first"
+                      )
+                    )}
+                  </div>
+                </>
+              )}
+            </div>
           )}
 
           <button onClick={openMatchingPage} className="white">
