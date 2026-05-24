@@ -1374,22 +1374,24 @@ body {
 }
 
 .skyHome .logoutTextButton {
-  height: auto;
-  min-height: auto;
-  width: auto;
+  width: 100%;
+  height: 46px;
+  min-height: 46px;
   margin: 18px auto 0;
-  padding: 0;
-  background: transparent;
-  color: rgba(255, 255, 255, 0.76);
+  padding: 0 16px;
+  border-radius: 18px;
+  background: rgba(255, 255, 255, 0.72);
+  color: #24649f;
+  border: 1px solid rgba(255, 255, 255, 0.7);
   box-shadow: none;
-  font-size: 13px;
-  font-weight: 800;
+  font-size: 14px;
+  font-weight: 900;
 }
 
 .skyHome .logoutTextButton:hover {
-  background: transparent;
-  box-shadow: none;
-  color: white;
+  background: rgba(255, 255, 255, 0.9);
+  box-shadow: 0 10px 24px rgba(38, 107, 168, 0.12);
+  color: #175f9f;
 }
 
 .skyHome .floatingHeart {
