@@ -84,13 +84,12 @@ function App() {
 
   const femaleHairColorOptions = [
     "검정/흑발",
-    "갈색/브라운",
-    "밝은 갈색",
-    "금발",
-    "레드/와인",
-    "애쉬/회색",
+    "갈색 계열",
+    "금발/탈색",
+    "빨강/와인",
+    "회색/애쉬",
     "핑크/보라",
-    "블루/그린",
+    "파랑/초록",
     "잘 모르겠음",
   ];
 
@@ -329,10 +328,6 @@ function App() {
   const [sentClaims, setSentClaims] = useState([]);
   const [receivedClaims, setReceivedClaims] = useState([]);
 
-  const [secondMessageForm, setSecondMessageForm] = useState({
-    claimId: null,
-    message: "",
-  });
 
   const updateCrushPost = (key, value) => {
     setCrushPost((prev) => ({
@@ -925,7 +920,6 @@ function App() {
         sender_instagram: cleanInstagram(profile.instagram_id),
         sender_gender: profile.gender,
         target_gender: crushPost.target_gender,
-        second_message_count: 0,
       },
     ]);
 
@@ -1171,42 +1165,6 @@ function App() {
     openMatchingPage();
   };
 
-  const sendSecondMessage = async (claim) => {
-    if (!secondMessageForm.message.trim()) {
-      alert("구름 보내기 메시지를 입력해주세요.");
-      return;
-    }
-
-    if (claim.second_message_sent) {
-      alert("이미 구름 보내기를 보냈어요.");
-      return;
-    }
-
-    const { error } = await supabase
-      .from("claims")
-      .update({
-        second_message: secondMessageForm.message.trim(),
-        second_message_sent: true,
-        second_message_created_at: new Date().toISOString(),
-      })
-      .eq("id", claim.id);
-
-    if (error) {
-      alert("구름 보내기에 실패했어요: " + error.message);
-      console.log(error);
-      return;
-    }
-
-    alert("구름을 보냈어요.");
-
-    setSecondMessageForm({
-      claimId: null,
-      message: "",
-    });
-
-    openMatchingPage();
-  };
-
   const OptionButton = ({ value, selected, onClick, full }) => (
     <button
       type="button"
@@ -1238,17 +1196,7 @@ function App() {
     (post) => !sentClaimsByPostId[post.id]?.length
   );
 
-  const receivedFirstClaims = receivedClaims.filter(
-    (claim) => !claim.second_message_sent
-  );
-
-  const receivedSecondClaims = receivedClaims.filter(
-    (claim) => claim.second_message_sent
-  );
-
-
   const totalSentResponseCount = sentClaims.length;
-  const totalReceivedSecondCount = receivedSecondClaims.length;
   const acceptedMatchCount = [...sentClaims, ...receivedClaims].filter(
     (claim) => claim.status === "accepted"
   ).length;
@@ -1287,16 +1235,6 @@ function App() {
       created_at: claim.created_at,
       active: claim.status === "accepted",
     })),
-    ...receivedClaims
-      .filter((claim) => claim.second_message_sent)
-      .map((claim) => ({
-        id: `received-second-${claim.id}`,
-        type: "구름 보내기 도착",
-        title: "상대가 한 번 더 구름을 보냈어요",
-        description: claim.second_message || "메시지 내용이 없어요.",
-        created_at: claim.second_message_created_at || claim.created_at,
-        active: true,
-      })),
   ].sort((a, b) => new Date(b.created_at || 0) - new Date(a.created_at || 0));
 
   const renderSentClaimCard = (claim) => {
@@ -1318,65 +1256,9 @@ function App() {
         </p>
 
         {claim.status === "pending" && (
-          <>
-            <button onClick={() => acceptClaim(claim.id)}>
-              이 사람 맞아요, 인스타 교환하기
-            </button>
-
-            {!claim.second_message_sent && (
-              <>
-                {secondMessageForm.claimId === claim.id ? (
-                  <div className="secondMessageBox">
-                    <textarea
-                      placeholder="구름 보내기 메시지 예: 혹시 오늘 혜당관 앞에서 파란 상의를 입고 계셨나요? 맞는 것 같아서 한 번 더 구름을 남겨요."
-                      value={secondMessageForm.message}
-                      onChange={(e) =>
-                        setSecondMessageForm({
-                          ...secondMessageForm,
-                          message: e.target.value,
-                        })
-                      }
-                    />
-
-                    <button onClick={() => sendSecondMessage(claim)}>
-                      구름 보내기
-                    </button>
-
-                    <button
-                      className="white"
-                      onClick={() =>
-                        setSecondMessageForm({
-                          claimId: null,
-                          message: "",
-                        })
-                      }
-                    >
-                      취소
-                    </button>
-                  </div>
-                ) : (
-                  <button
-                    className="white"
-                    onClick={() =>
-                      setSecondMessageForm({
-                        claimId: claim.id,
-                        message: "",
-                      })
-                    }
-                  >
-                    이 사람인 것 같아요, 구름 보내기
-                  </button>
-                )}
-              </>
-            )}
-
-            {claim.second_message_sent && (
-              <div className="noticeBox">
-                <p>구름 보내기를 이미 보냈어요.</p>
-                <p>“{claim.second_message}”</p>
-              </div>
-            )}
-          </>
+          <button onClick={() => acceptClaim(claim.id)}>
+            이 사람 맞아요, 인스타 교환하기
+          </button>
         )}
 
         {claim.status === "accepted" && (
@@ -1427,15 +1309,13 @@ function App() {
     );
   };
 
-  const renderReceivedClaimCard = (claim, type) => {
+  const renderReceivedClaimCard = (claim) => {
     const post = claim.post;
 
     return (
       <div className="post" key={claim.id}>
         <div className="postTopLine">
-          <span className={type === "second" ? "statusPill active" : "statusPill"}>
-            {type === "second" ? "구름 보내기 도착" : "구름 띄우기 응답"}
-          </span>
+          <span className="statusPill">구름 확인 응답</span>
         </div>
 
         {post ? (
@@ -1470,12 +1350,6 @@ function App() {
           </b>
         </p>
 
-        {type === "second" && (
-          <div className="noticeBox">
-            <p>상대가 구름을 한 번 더 보냈어요.</p>
-            <p className="message">“{claim.second_message || "-"}”</p>
-          </div>
-        )}
 
         {claim.status === "pending" && (
           <div className="noticeBox">
@@ -1639,16 +1513,8 @@ function App() {
       <button onClick={openSearchPage} className="secondaryHomeButton cloudSecondaryButton">
         <span className="buttonEmoji">🔔</span>
         <span>
-          <b>후보 확인</b>
-          <small>나와 비슷한 상황에 있었던 구름을 확인해요.</small>
-        </span>
-      </button>
-
-      <button onClick={openMatchingPage} className="secondaryHomeButton cloudSendButton">
-        <span className="buttonEmoji">✈</span>
-        <span>
-          <b>구름 보내기</b>
-          <small>응답이 온 인연에게 한 번 더 마음을 전해요.</small>
+          <b>구름 확인하기</b>
+          <small>내 날짜와 머리 정보에 맞는 구름을 확인해요.</small>
         </span>
       </button>
     </div>
@@ -2369,7 +2235,7 @@ function App() {
 
       {page === "search" && (
         <div className="card">
-          <h2>나에게 온 설렘 찾기</h2>
+          <h2>구름 확인하기</h2>
           <p className="subtitle">
             날짜, 성별, 머리 스타일이 정확히 맞는 설렘만 먼저 확인해요.
             그다음 착장 조건을 추가하면 더 좁혀볼 수 있어요.
@@ -2379,7 +2245,7 @@ function App() {
             <p>
               <strong>내 성별:</strong> {profile.gender || "-"}
             </p>
-            <p>프로필 성별 기준으로 나를 찾는 설렘만 자동으로 확인해요.</p>
+            <p>프로필 성별 기준으로 나를 찾는 구름만 자동으로 확인해요.</p>
           </div>
 
           <div className="formGroup">
@@ -2528,7 +2394,7 @@ function App() {
             상의와 하의 정보는 선택하면 더 정확하게 좁혀볼 수 있어요.
           </p>
 
-          <button onClick={searchCrushPosts}>나를 찾는 설렘 확인하기</button>
+          <button onClick={searchCrushPosts}>구름 확인하기</button>
 
           <button onClick={() => setPage("home")} className="white">
             홈으로
@@ -2538,7 +2404,7 @@ function App() {
 
       {page === "result" && (
         <div className="card">
-          <h2>나를 찾는 설렘 {searchResults.length}개</h2>
+          <h2>나를 찾는 구름 {searchResults.length}개</h2>
 
           {searchResults.length === 0 && (
             <p className="notice">
@@ -2641,8 +2507,7 @@ function App() {
         <div className="card">
           <h2>응답을 보냈어요</h2>
           <p className="subtitle">
-            설렘을 남긴 사람이 수락하면 서로의 인스타를 볼 수 있어요. 상대가
-            확신하면 구름 보내기를 보낼 수도 있어요.
+            설렘을 남긴 사람이 수락하면 서로의 인스타를 볼 수 있어요.
           </p>
 
           <button onClick={openMatchingPage}>내 구름 관리로 가기</button>
@@ -2713,10 +2578,6 @@ function App() {
               <b>{receivedClaims.length}</b>
             </div>
 
-            <div className="manageSummaryItem">
-              <span>구름 보내기</span>
-              <b>{totalReceivedSecondCount}</b>
-            </div>
           </div>
 
           {matchingLoading && <p className="notice">불러오는 중이에요...</p>}
@@ -2758,40 +2619,21 @@ function App() {
           )}
 
           {!matchingLoading && matchingMode === "received" && (
-            <>
-              <div className="manageSection">
-                <h3 className="manageSectionTitle">
-                  구름 보내기 {receivedSecondClaims.length}개
-                </h3>
+            <div className="manageSection">
+              <h3 className="manageSectionTitle">
+                구름 확인 응답 {receivedClaims.length}개
+              </h3>
 
-                {receivedSecondClaims.length === 0 && (
-                  <p className="noticeBox">
-                    아직 상대가 보낸 구름 보내기는 없어요.
-                  </p>
-                )}
+              {receivedClaims.length === 0 && (
+                <p className="noticeBox">
+                  아직 내가 응답한 구름이 없어요.
+                </p>
+              )}
 
-                {receivedSecondClaims.map((claim) =>
-                  renderReceivedClaimCard(claim, "second")
-                )}
-              </div>
-
-              <div className="manageSection">
-                <h3 className="manageSectionTitle">
-                  구름 띄우기 {receivedFirstClaims.length}개
-                </h3>
-
-                {receivedFirstClaims.length === 0 && (
-                  <p className="noticeBox">
-                    아직 내가 응답한 구름 띄우기는 없어요.
-                  </p>
-                )}
-
-                {receivedFirstClaims.map((claim) =>
-                  renderReceivedClaimCard(claim, "first")
-                )}
-              </div>
-            </>
+              {receivedClaims.map((claim) => renderReceivedClaimCard(claim))}
+            </div>
           )}
+
 
 
 
@@ -2801,7 +2643,7 @@ function App() {
 
               {notificationItems.length === 0 && (
                 <p className="noticeBox">
-                  아직 새 알림이 없어요. 응답이 오거나 구름 보내기가 도착하면 여기에 표시돼요.
+                  아직 새 알림이 없어요. 응답이 오거나 매칭이 수락되면 여기에 표시돼요.
                 </p>
               )}
 
@@ -2880,10 +2722,7 @@ function App() {
                       <p className="noticeBox">이 날짜에 내가 받은 구름은 없어요.</p>
                     )}
                     {selectedDateReceivedClaims.map((claim) =>
-                      renderReceivedClaimCard(
-                        claim,
-                        claim.second_message_sent ? "second" : "first"
-                      )
+                      renderReceivedClaimCard(claim)
                     )}
                   </div>
                 </>
