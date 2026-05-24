@@ -1038,3 +1038,452 @@ textarea {
     grid-template-columns: 1fr;
   }
 }
+/* 포스터 분위기 홈 화면 리디자인 */
+
+body {
+  background:
+    radial-gradient(circle at 15% 15%, rgba(255, 255, 255, 0.9), transparent 18%),
+    radial-gradient(circle at 85% 20%, rgba(255, 255, 255, 0.75), transparent 22%),
+    linear-gradient(180deg, #69b9ff 0%, #9ed7ff 42%, #dff3ff 100%);
+  color: #183b63;
+}
+
+.app {
+  background:
+    radial-gradient(circle at 12% 18%, rgba(255, 255, 255, 0.85), transparent 8%),
+    radial-gradient(circle at 82% 12%, rgba(255, 255, 255, 0.75), transparent 10%),
+    radial-gradient(circle at 90% 70%, rgba(255, 255, 255, 0.65), transparent 12%);
+}
+
+.skyHome {
+  position: relative;
+  width: 100%;
+  max-width: 430px;
+  min-height: 720px;
+  padding: 34px 22px 24px;
+  border-radius: 38px;
+  overflow: hidden;
+  text-align: center;
+  background:
+    linear-gradient(rgba(78, 165, 244, 0.08), rgba(255, 255, 255, 0.4)),
+    radial-gradient(circle at 20% 16%, rgba(255, 255, 255, 0.95), transparent 16%),
+    radial-gradient(circle at 78% 24%, rgba(255, 255, 255, 0.72), transparent 18%),
+    linear-gradient(180deg, #4da5f4 0%, #8ed1ff 45%, #eaf8ff 100%);
+  border: 1px solid rgba(255, 255, 255, 0.88);
+  box-shadow: 0 34px 90px rgba(34, 103, 170, 0.26);
+  backdrop-filter: blur(18px);
+}
+
+.skyHome::before {
+  content: "";
+  position: absolute;
+  left: -40px;
+  bottom: -20px;
+  width: 520px;
+  height: 210px;
+  background:
+    radial-gradient(circle at 12% 54%, rgba(255, 255, 255, 0.96) 0 38px, transparent 40px),
+    radial-gradient(circle at 28% 44%, rgba(255, 255, 255, 0.96) 0 58px, transparent 60px),
+    radial-gradient(circle at 48% 50%, rgba(255, 255, 255, 0.96) 0 48px, transparent 50px),
+    radial-gradient(circle at 66% 42%, rgba(255, 255, 255, 0.96) 0 62px, transparent 64px),
+    radial-gradient(circle at 86% 54%, rgba(255, 255, 255, 0.96) 0 44px, transparent 46px);
+  opacity: 0.92;
+  filter: blur(1px);
+  z-index: 0;
+}
+
+.skyHome::after {
+  content: "";
+  position: absolute;
+  left: 50%;
+  bottom: 124px;
+  transform: translateX(-50%);
+  width: 1px;
+  height: 128px;
+  background: rgba(43, 103, 160, 0.18);
+  box-shadow:
+    -42px 12px 0 rgba(43, 103, 160, 0.1),
+    42px 12px 0 rgba(43, 103, 160, 0.1);
+  z-index: 0;
+}
+
+.skyDecor {
+  position: absolute;
+  z-index: 0;
+  user-select: none;
+  pointer-events: none;
+}
+
+.cloudA {
+  top: 58px;
+  left: 28px;
+  color: rgba(255, 255, 255, 0.78);
+  font-size: 42px;
+  animation: cloudFloat 5.6s ease-in-out infinite;
+}
+
+.cloudB {
+  top: 112px;
+  right: 28px;
+  color: rgba(255, 255, 255, 0.7);
+  font-size: 36px;
+  animation: cloudFloat 6.4s ease-in-out infinite;
+  animation-delay: 1s;
+}
+
+.starA {
+  top: 36px;
+  right: 82px;
+  color: rgba(255, 255, 255, 0.8);
+  font-size: 18px;
+  animation: twinkle 2.8s ease-in-out infinite;
+}
+
+.starB {
+  top: 158px;
+  left: 64px;
+  color: rgba(255, 255, 255, 0.7);
+  font-size: 15px;
+  animation: twinkle 3.2s ease-in-out infinite;
+  animation-delay: 0.7s;
+}
+
+@keyframes cloudFloat {
+  0% {
+    transform: translateY(0);
+  }
+
+  50% {
+    transform: translateY(-9px);
+  }
+
+  100% {
+    transform: translateY(0);
+  }
+}
+
+@keyframes twinkle {
+  0% {
+    opacity: 0.35;
+    transform: scale(0.9);
+  }
+
+  50% {
+    opacity: 1;
+    transform: scale(1.12);
+  }
+
+  100% {
+    opacity: 0.35;
+    transform: scale(0.9);
+  }
+}
+
+.skyHome .homeTop,
+.skyHome .homeMainAction,
+.skyHome .homeMiniMenu,
+.skyHome .homeBottomNotice,
+.skyHome .logoutTextButton {
+  position: relative;
+  z-index: 2;
+}
+
+.skyHome .homeTop {
+  padding: 10px 4px 24px;
+}
+
+.skyHome .brandBadge {
+  height: 32px;
+  padding: 0 14px;
+  margin-bottom: 18px;
+  border-radius: 999px;
+  background: rgba(255, 255, 255, 0.48);
+  border: 1px solid rgba(255, 255, 255, 0.64);
+  color: #ffffff;
+  font-size: 11px;
+  font-weight: 900;
+  letter-spacing: 0.4px;
+  box-shadow: 0 12px 30px rgba(47, 111, 177, 0.14);
+  backdrop-filter: blur(12px);
+}
+
+.cloudLogo {
+  width: 76px;
+  height: 54px;
+  margin: 0 auto 4px;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  color: white;
+  font-size: 52px;
+  text-shadow: 0 14px 24px rgba(41, 111, 181, 0.18);
+}
+
+.skyHome .homeLogo {
+  margin: 0;
+  font-size: 62px;
+  line-height: 1;
+  letter-spacing: -4px;
+  color: white;
+  font-weight: 900;
+  text-shadow: 0 12px 30px rgba(37, 98, 164, 0.28);
+}
+
+.skyHome .homeSlogan {
+  margin: 20px 0 14px;
+  font-size: 23px;
+  line-height: 1.46;
+  letter-spacing: -1.1px;
+  color: rgba(255, 255, 255, 0.96);
+  font-weight: 800;
+  word-break: keep-all;
+  text-shadow: 0 8px 22px rgba(29, 87, 150, 0.2);
+}
+
+.skyHome .homeDescription {
+  margin: 0 auto;
+  max-width: 340px;
+  font-size: 14px;
+  line-height: 1.7;
+  color: rgba(255, 255, 255, 0.88);
+  word-break: keep-all;
+}
+
+.cloudActionBox {
+  display: grid;
+  gap: 12px;
+  margin-top: 10px;
+}
+
+.cloudPrimaryButton,
+.cloudSecondaryButton,
+.cloudSendButton {
+  height: auto;
+  min-height: 78px;
+  padding: 16px 17px;
+  margin-top: 0;
+  border-radius: 26px;
+  justify-content: flex-start;
+  gap: 14px;
+  text-align: left;
+  backdrop-filter: blur(16px);
+}
+
+.cloudPrimaryButton {
+  background: rgba(255, 255, 255, 0.94);
+  color: #1f68ad;
+  border: 1px solid rgba(255, 255, 255, 0.78);
+  box-shadow: 0 18px 38px rgba(30, 96, 163, 0.2);
+}
+
+.cloudSecondaryButton,
+.cloudSendButton {
+  background: rgba(255, 255, 255, 0.68);
+  color: #245f9a;
+  border: 1px solid rgba(255, 255, 255, 0.62);
+  box-shadow: 0 14px 30px rgba(30, 96, 163, 0.12);
+}
+
+.cloudPrimaryButton:hover,
+.cloudSecondaryButton:hover,
+.cloudSendButton:hover {
+  transform: translateY(-2px);
+  box-shadow: 0 22px 42px rgba(30, 96, 163, 0.22);
+}
+
+.skyHome .buttonEmoji {
+  width: 48px;
+  height: 48px;
+  min-width: 48px;
+  border-radius: 18px;
+  align-items: center;
+  justify-content: center;
+  background: linear-gradient(180deg, #eaf7ff 0%, #ffffff 100%);
+  color: #347fca;
+  font-size: 24px;
+  box-shadow: inset 0 -4px 12px rgba(89, 158, 220, 0.12);
+}
+
+.skyHome .primaryHomeButton span,
+.skyHome .secondaryHomeButton span {
+  display: flex;
+  flex-direction: column;
+  gap: 4px;
+}
+
+.skyHome .primaryHomeButton b,
+.skyHome .secondaryHomeButton b {
+  font-size: 16px;
+  line-height: 1.25;
+  letter-spacing: -0.4px;
+  color: #175f9f;
+}
+
+.skyHome .primaryHomeButton small,
+.skyHome .secondaryHomeButton small {
+  font-size: 12px;
+  line-height: 1.35;
+  font-weight: 700;
+  color: rgba(38, 91, 141, 0.72);
+  word-break: keep-all;
+}
+
+.cloudMiniMenu {
+  display: grid;
+  grid-template-columns: 1fr 1fr;
+  gap: 10px;
+  margin-top: 14px;
+}
+
+.cloudMiniMenu .miniMenuButton {
+  height: 52px;
+  min-height: 52px;
+  margin-top: 0;
+  border-radius: 19px;
+  background: rgba(255, 255, 255, 0.58);
+  color: #266ba8;
+  border: 1px solid rgba(255, 255, 255, 0.62);
+  box-shadow: none;
+  font-size: 14px;
+  font-weight: 900;
+  backdrop-filter: blur(12px);
+}
+
+.cloudMiniMenu .miniMenuButton:hover {
+  background: rgba(255, 255, 255, 0.78);
+  color: #175f9f;
+  box-shadow: 0 12px 26px rgba(38, 107, 168, 0.12);
+}
+
+.cloudNotice {
+  margin-top: 20px;
+  padding: 15px 16px;
+  border-radius: 22px;
+  background: rgba(255, 255, 255, 0.64);
+  border: 1px solid rgba(255, 255, 255, 0.68);
+  backdrop-filter: blur(12px);
+}
+
+.cloudNotice p {
+  margin: 0;
+  color: #24649f;
+  font-size: 13px;
+  line-height: 1.5;
+  font-weight: 800;
+  word-break: keep-all;
+}
+
+.skyHome .logoutTextButton {
+  height: auto;
+  min-height: auto;
+  width: auto;
+  margin: 18px auto 0;
+  padding: 0;
+  background: transparent;
+  color: rgba(255, 255, 255, 0.76);
+  box-shadow: none;
+  font-size: 13px;
+  font-weight: 800;
+}
+
+.skyHome .logoutTextButton:hover {
+  background: transparent;
+  box-shadow: none;
+  color: white;
+}
+
+.skyHome .floatingHeart {
+  display: none;
+}
+
+/* 전체 서비스 색감도 포스터 톤으로 살짝 통일 */
+
+button {
+  background: linear-gradient(135deg, #4aa3f0 0%, #2f7fcb 100%);
+  box-shadow: 0 12px 26px rgba(47, 127, 203, 0.24);
+}
+
+button:hover {
+  box-shadow: 0 16px 32px rgba(47, 127, 203, 0.3);
+}
+
+button.white {
+  background: #eef8ff;
+  color: #24649f;
+}
+
+button.white:hover {
+  background: #dff2ff;
+}
+
+input:focus,
+select:focus,
+textarea:focus {
+  border-color: #5eb4f4;
+  box-shadow: 0 0 0 4px rgba(74, 163, 240, 0.14);
+}
+
+.progressFill {
+  background: linear-gradient(135deg, #4aa3f0 0%, #2f7fcb 100%);
+}
+
+.optionGrid button.selected,
+.optionGrid .optionButton.selected {
+  background: linear-gradient(135deg, #4aa3f0 0%, #2f7fcb 100%);
+  box-shadow: 0 10px 24px rgba(47, 127, 203, 0.22);
+}
+
+.message,
+.qaTitle,
+.summaryBox strong,
+.manageSummaryItem b,
+.mypageStat b,
+.activitySummaryBox b,
+.miniTitle {
+  color: #2f7fcb;
+}
+
+.statusPill.active {
+  background: #e4f4ff;
+  color: #2f7fcb;
+}
+
+.manageTab.active {
+  background: linear-gradient(135deg, #4aa3f0 0%, #2f7fcb 100%);
+  box-shadow: 0 12px 26px rgba(47, 127, 203, 0.24);
+}
+
+@media (max-width: 480px) {
+  .skyHome {
+    min-height: auto;
+    padding: 30px 18px 22px;
+    border-radius: 32px;
+  }
+
+  .skyHome .homeLogo {
+    font-size: 56px;
+  }
+
+  .skyHome .homeSlogan {
+    font-size: 21px;
+  }
+
+  .cloudPrimaryButton,
+  .cloudSecondaryButton,
+  .cloudSendButton {
+    min-height: 76px;
+    padding: 15px;
+  }
+
+  .skyHome .buttonEmoji {
+    width: 44px;
+    height: 44px;
+    min-width: 44px;
+    font-size: 22px;
+  }
+
+  .skyHome .primaryHomeButton b,
+  .skyHome .secondaryHomeButton b {
+    font-size: 15px;
+  }
+}

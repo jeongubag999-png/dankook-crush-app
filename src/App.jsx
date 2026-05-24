@@ -1600,84 +1600,98 @@ function App() {
   return (
     <div className="app">
       {page === "home" && (
-        <div className="homeCard">
-          <div className="homeTop">
-            <div className="floatingHeart heartOne">♡</div>
-            <div className="floatingHeart heartTwo">♡</div>
+  <div className="homeCard skyHome">
+    <div className="skyDecor cloudA">☁</div>
+    <div className="skyDecor cloudB">☁</div>
+    <div className="skyDecor starA">✦</div>
+    <div className="skyDecor starB">✧</div>
 
-            <div className="brandBadge">Dankook crush matching</div>
+    <div className="homeTop">
+      <div className="brandBadge">DKU CLOUD MATCHING</div>
 
-            <h1 className="homeLogo">단꿈</h1>
+      <div className="cloudLogo">☁</div>
 
-            <p className="homeSlogan">
-              오늘 스쳐간 그 사람,
-              <br />
-              어쩌면 나를 찾고 있을지도 몰라요.
-            </p>
+      <h1 className="homeLogo">단꿈</h1>
 
-            <p className="homeDescription">
-              단국대 안에서 마주친 설렘을 조심스럽게 남기고, 서로가 원할 때만
-              이어지는 익명 설렘 매칭 서비스
-            </p>
-          </div>
+      <p className="homeSlogan">
+        스쳐간 인연,
+        <br />
+        기억은 남기고
+        <br />
+        용기는 구름에 담아
+      </p>
 
-          <div className="homeMainAction">
-            <button onClick={openSendPage} className="primaryHomeButton">
-              <span className="buttonEmoji">💌</span>
-              <span>
-                <b>그날의 설렘 남기기</b>
-                <small>마주친 사람에게 조심스럽게 마음 남기기</small>
-              </span>
-            </button>
+      <p className="homeDescription">
+        단국대 캠퍼스에서 우연히 마주친 사람에게 조심스럽게 구름을 띄우고,
+        서로가 원할 때만 이어지는 익명 인연 서비스
+      </p>
+    </div>
 
-            <button onClick={openSearchPage} className="secondaryHomeButton">
-              <span className="buttonEmoji">🔍</span>
-              <span>
-                <b>나에게 온 설렘 찾기</b>
-                <small>내 착장과 비슷한 설렘 확인하기</small>
-              </span>
-            </button>
-          </div>
+    <div className="homeMainAction cloudActionBox">
+      <button onClick={openSendPage} className="primaryHomeButton cloudPrimaryButton">
+        <span className="buttonEmoji">☁</span>
+        <span>
+          <b>구름 띄우기</b>
+          <small>시간, 장소, 착장을 선택해 스쳐간 사람을 떠올려요.</small>
+        </span>
+      </button>
 
-          <div className="homeMiniMenu fourMenu">
-            <button onClick={openMatchingPage} className="miniMenuButton">
-              내 구름 관리
-            </button>
+      <button onClick={openSearchPage} className="secondaryHomeButton cloudSecondaryButton">
+        <span className="buttonEmoji">🔔</span>
+        <span>
+          <b>후보 확인</b>
+          <small>나와 비슷한 상황에 있었던 구름을 확인해요.</small>
+        </span>
+      </button>
 
-            <button onClick={openProfilePage} className="miniMenuButton">
-              마이페이지
-            </button>
+      <button onClick={openMatchingPage} className="secondaryHomeButton cloudSendButton">
+        <span className="buttonEmoji">✈</span>
+        <span>
+          <b>구름 보내기</b>
+          <small>응답이 온 인연에게 한 번 더 마음을 전해요.</small>
+        </span>
+      </button>
+    </div>
 
-            <button
-              onClick={() => {
-                setMatchingMode("notifications");
-                openMatchingPage();
-              }}
-              className="miniMenuButton"
-            >
-              알림
-            </button>
+    <div className="homeMiniMenu fourMenu cloudMiniMenu">
+      <button onClick={openMatchingPage} className="miniMenuButton">
+        내 구름
+      </button>
 
-            <button
-              onClick={() => {
-                setMatchingMode("calendar");
-                openMatchingPage();
-              }}
-              className="miniMenuButton"
-            >
-              날짜별 기록
-            </button>
-          </div>
+      <button onClick={openProfilePage} className="miniMenuButton">
+        마이페이지
+      </button>
 
-          <div className="homeBottomNotice">
-            <p>서로 응답하기 전까지 인스타 아이디는 공개되지 않아요.</p>
-          </div>
+      <button
+        onClick={() => {
+          setMatchingMode("notifications");
+          openMatchingPage();
+        }}
+        className="miniMenuButton"
+      >
+        알림
+      </button>
 
-          <button onClick={handleLogout} className="logoutTextButton">
-            로그아웃
-          </button>
-        </div>
-      )}
+      <button
+        onClick={() => {
+          setMatchingMode("calendar");
+          openMatchingPage();
+        }}
+        className="miniMenuButton"
+      >
+        기록
+      </button>
+    </div>
+
+    <div className="homeBottomNotice cloudNotice">
+      <p>우리의 캠퍼스에서, 특별한 우연이 시작됩니다.</p>
+    </div>
+
+    <button onClick={handleLogout} className="logoutTextButton">
+      로그아웃
+    </button>
+  </div>
+)}
 
       {page === "profile" && (
         <div className="card">
