@@ -2031,3 +2031,15 @@ textarea {
     font-size: 19px;
   }
 }
+/* 매칭 수락 후 프로필 사진 표시 */
+.matchProfileImage {
+  width: 76px;
+  height: 76px;
+  border-radius: 50%;
+  object-fit: cover;
+  display: block;
+  margin: 12px auto 14px;
+  border: 3px solid #e4f4ff;
+  box-shadow: 0 10px 24px rgba(47, 127, 203, 0.18);
+  background: #eef8ff;
+}

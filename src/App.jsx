@@ -1080,6 +1080,7 @@ function App() {
         sender_user_id: currentUser.id,
         sender_nickname: profile.nickname,
         sender_instagram: cleanInstagram(profile.instagram_id),
+        sender_profile_image_url: profile.profile_image_url,
         sender_gender: profile.gender,
         target_gender: crushPost.target_gender,
       },
@@ -1184,6 +1185,7 @@ function App() {
         claimer_user_id: currentUser.id,
         claimer_nickname: profile.nickname,
         claimer_instagram: cleanInstagram(profile.instagram_id),
+        claimer_profile_image_url: profile.profile_image_url,
         claimer_message: finalMessage,
         status: "pending",
       },
@@ -1452,43 +1454,53 @@ function App() {
   ].sort((a, b) => new Date(b.created_at || 0) - new Date(a.created_at || 0));
 
   const renderSentClaimCard = (claim) => {
-    return (
-      <div className="responseBox" key={claim.id}>
-        <p className="miniTitle">도착한 응답</p>
+  return (
+    <div className="responseBox" key={claim.id}>
+      <p className="miniTitle">도착한 응답</p>
 
-        <p>
-          응답한 사람 닉네임: <b>{claim.claimer_nickname || "-"}</b>
-        </p>
+      <p>
+        응답한 사람 닉네임: <b>{claim.claimer_nickname || "-"}</b>
+      </p>
 
-        <p className="message">“{claim.claimer_message || "-"}”</p>
+      <p className="message">“{claim.claimer_message || "-"}”</p>
 
-        <p>
-          상태:{" "}
-          <b>
-            {claim.status === "accepted" ? "매칭 수락됨" : "응답 대기 중"}
-          </b>
-        </p>
+      <p>
+        상태:{" "}
+        <b>
+          {claim.status === "accepted" ? "매칭 수락됨" : "응답 대기 중"}
+        </b>
+      </p>
 
-        {claim.status === "pending" && (
-          <button onClick={() => acceptClaim(claim.id)}>
-            이 사람 맞아요, 인스타 교환하기
-          </button>
-        )}
+      {claim.status === "pending" && (
+        <button onClick={() => acceptClaim(claim.id)}>
+          이 사람 맞아요, 인스타 교환하기
+        </button>
+      )}
 
-        {claim.status === "accepted" && (
-          <div className="noticeBox">
-            <p>매칭이 수락됐어요.</p>
-            <p>
-              내 인스타: <b>@{profile.instagram_id}</b>
-            </p>
-            <p>
-              상대 인스타: <b>@{claim.claimer_instagram}</b>
-            </p>
-          </div>
-        )}
-      </div>
-    );
-  };
+      {claim.status === "accepted" && (
+        <div className="noticeBox">
+          <p>매칭이 수락됐어요.</p>
+
+          {claim.claimer_profile_image_url && (
+            <img
+              src={claim.claimer_profile_image_url}
+              alt="상대 프로필"
+              className="matchProfileImage"
+            />
+          )}
+
+          <p>
+            내 인스타: <b>@{profile.instagram_id}</b>
+          </p>
+
+          <p>
+            상대 인스타: <b>@{claim.claimer_instagram}</b>
+          </p>
+        </div>
+      )}
+    </div>
+  );
+};
 
   const renderSentPostCard = (post, mode) => {
     const claims = sentClaimsByPostId[post.id] || [];
@@ -1582,16 +1594,26 @@ function App() {
         )}
 
         {claim.status === "accepted" && (
-          <div className="noticeBox">
-            <p>매칭이 수락됐어요.</p>
-            <p>
-              내 인스타: <b>@{profile.instagram_id}</b>
-            </p>
-            <p>
-              상대 인스타: <b>@{post?.sender_instagram || "-"}</b>
-            </p>
-          </div>
-        )}
+  <div className="noticeBox">
+    <p>매칭이 수락됐어요.</p>
+
+    {post?.sender_profile_image_url && (
+      <img
+        src={post.sender_profile_image_url}
+        alt="상대 프로필"
+        className="matchProfileImage"
+      />
+    )}
+
+    <p>
+      내 인스타: <b>@{profile.instagram_id}</b>
+    </p>
+
+    <p>
+      상대 인스타: <b>@{post?.sender_instagram || "-"}</b>
+    </p>
+  </div>
+)}
       </div>
     );
   };
