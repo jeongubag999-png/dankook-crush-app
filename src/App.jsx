@@ -315,13 +315,17 @@ function App() {
     male_bangs: "",
     top_type: "",
     top_color: "",
+    top_detail: "",
     bottom_type: "",
     bottom_color: "",
     bottom_custom: "",
+    bottom_detail: "",
     bag_type: "",
     earphone_type: "",
+    item_detail: "",
     height_feeling: "",
     shoe_type: "",
+    shoe_detail: "",
     together_situation: "",
     situation_detail: "",
     mood: "",
@@ -731,6 +735,19 @@ function App() {
   };
 
   const renderPostQuestionAnswer = (post) => {
+    const clothesStyleText = post.clothes_style || "";
+    const accessoryText = post.accessory || "";
+
+    const topText =
+      clothesStyleText && clothesStyleText.includes("하의:")
+        ? clothesStyleText.split("하의:")[0].replace("상의:", "").trim()
+        : clothesStyleText.replace("상의:", "").trim();
+
+    const bottomText =
+      clothesStyleText && clothesStyleText.includes("하의:")
+        ? clothesStyleText.split("하의:")[1].trim()
+        : "-";
+
     return (
       <div className="qaBox">
         <p className="qaTitle">상대가 기억한 정보</p>
@@ -756,19 +773,15 @@ function App() {
         </p>
 
         <p>
-          <strong>상의:</strong> {post.clothes_color || "-"}{" "}
-          {post.clothes_style?.replace("상의:", "").split("/")[0] || "-"}
+          <strong>상의:</strong> {topText || "-"}
         </p>
 
         <p>
-          <strong>하의:</strong>{" "}
-          {post.clothes_style?.includes("하의:")
-            ? post.clothes_style.split("하의:")[1]
-            : "-"}
+          <strong>하의:</strong> {bottomText || "-"}
         </p>
 
         <p>
-          <strong>소지품/상황:</strong> {post.accessory || "-"}
+          <strong>소지품/상황:</strong> {accessoryText || "-"}
         </p>
       </div>
     );
@@ -1035,8 +1048,24 @@ function App() {
       return;
     }
 
-    const combinedStyle = `상의:${crushPost.top_type} / 하의:${getFinalBottomType()} ${crushPost.bottom_color}`;
-    const combinedAccessory = `가방:${crushPost.bag_type} / 이어폰:${crushPost.earphone_type} / 키 느낌:${crushPost.height_feeling} / 신발:${crushPost.shoe_type} / 상황:${getFinalSituation()} / 분위기:${getFinalMood()}`;
+    const topDetailText = crushPost.top_detail.trim()
+      ? ` / 상의 설명:${crushPost.top_detail.trim()}`
+      : "";
+
+    const bottomDetailText = crushPost.bottom_detail.trim()
+      ? ` / 하의 설명:${crushPost.bottom_detail.trim()}`
+      : "";
+
+    const itemDetailText = crushPost.item_detail.trim()
+      ? ` / 소지품 설명:${crushPost.item_detail.trim()}`
+      : "";
+
+    const shoeDetailText = crushPost.shoe_detail.trim()
+      ? ` / 신발 설명:${crushPost.shoe_detail.trim()}`
+      : "";
+
+    const combinedStyle = `상의:${crushPost.top_type} ${crushPost.top_color}${topDetailText} / 하의:${getFinalBottomType()} ${crushPost.bottom_color}${bottomDetailText}`;
+    const combinedAccessory = `가방:${crushPost.bag_type} / 이어폰:${crushPost.earphone_type}${itemDetailText} / 키 느낌:${crushPost.height_feeling} / 신발:${crushPost.shoe_type}${shoeDetailText} / 상황:${getFinalSituation()} / 분위기:${getFinalMood()}`;
 
     const { error } = await supabase.from("crush_posts").insert([
       {
@@ -2280,6 +2309,18 @@ function App() {
                 </select>
               </div>
 
+              <div className="formGroup">
+                <label className="formLabel">상의 추가 설명 선택사항</label>
+                <input
+                  placeholder="예: 흰 셔츠 안에 검정 반팔, 하늘색 스트라이프 셔츠, 로고 있는 후드티"
+                  value={crushPost.top_detail}
+                  onChange={(e) => updateCrushPost("top_detail", e.target.value)}
+                />
+                <p className="helperText">
+                  필수는 아니지만, 정확히 기억나는 특징이 있으면 적어주세요.
+                </p>
+              </div>
+
               <button
                 onClick={() => {
                   if (!crushPost.top_type || !crushPost.top_color) {
@@ -2342,6 +2383,18 @@ function App() {
                 </select>
               </div>
 
+              <div className="formGroup">
+                <label className="formLabel">하의 추가 설명 선택사항</label>
+                <input
+                  placeholder="예: 연청 와이드 청바지, 검정 카고바지, 무릎 위 반바지"
+                  value={crushPost.bottom_detail}
+                  onChange={(e) => updateCrushPost("bottom_detail", e.target.value)}
+                />
+                <p className="helperText">
+                  바지 핏, 길이, 무늬처럼 기억나는 특징이 있으면 적어주세요.
+                </p>
+              </div>
+
               <button
                 onClick={() => {
                   if (!getFinalBottomType() || !crushPost.bottom_color) {
@@ -2387,6 +2440,18 @@ function App() {
                     <option key={option}>{option}</option>
                   ))}
                 </select>
+              </div>
+
+              <div className="formGroup">
+                <label className="formLabel">소지품 추가 설명 선택사항</label>
+                <input
+                  placeholder="예: 검정 백팩에 키링, 노트북 파우치, 에어팟 맥스 느낌"
+                  value={crushPost.item_detail}
+                  onChange={(e) => updateCrushPost("item_detail", e.target.value)}
+                />
+                <p className="helperText">
+                  가방 색, 키링, 들고 있던 물건처럼 기억나는 특징이 있으면 적어주세요.
+                </p>
               </div>
 
               <button
@@ -2437,6 +2502,18 @@ function App() {
                     <option key={option}>{option}</option>
                   ))}
                 </select>
+              </div>
+
+              <div className="formGroup">
+                <label className="formLabel">신발 추가 설명 선택사항</label>
+                <input
+                  placeholder="예: 흰색 나이키 운동화 느낌, 검정 컨버스, 크록스에 지비츠"
+                  value={crushPost.shoe_detail}
+                  onChange={(e) => updateCrushPost("shoe_detail", e.target.value)}
+                />
+                <p className="helperText">
+                  브랜드를 몰라도 색, 모양, 느낌만 적어도 괜찮아요.
+                </p>
               </div>
 
               <div className="formGroup">
@@ -2545,20 +2622,40 @@ function App() {
                   <strong>상의:</strong> {crushPost.top_color || "-"}{" "}
                   {crushPost.top_type || "-"}
                 </p>
+                {crushPost.top_detail.trim() && (
+                  <p>
+                    <strong>상의 추가 설명:</strong> {crushPost.top_detail.trim()}
+                  </p>
+                )}
                 <p>
                   <strong>하의:</strong> {crushPost.bottom_color || "-"}{" "}
                   {getFinalBottomType() || "-"}
                 </p>
+                {crushPost.bottom_detail.trim() && (
+                  <p>
+                    <strong>하의 추가 설명:</strong> {crushPost.bottom_detail.trim()}
+                  </p>
+                )}
                 <p>
                   <strong>소지품:</strong> {crushPost.bag_type || "-"},{" "}
                   {crushPost.earphone_type || "-"}
                 </p>
+                {crushPost.item_detail.trim() && (
+                  <p>
+                    <strong>소지품 추가 설명:</strong> {crushPost.item_detail.trim()}
+                  </p>
+                )}
                 <p>
                   <strong>키 느낌:</strong> {crushPost.height_feeling || "-"}
                 </p>
                 <p>
                   <strong>신발:</strong> {crushPost.shoe_type || "-"}
                 </p>
+                {crushPost.shoe_detail.trim() && (
+                  <p>
+                    <strong>신발 추가 설명:</strong> {crushPost.shoe_detail.trim()}
+                  </p>
+                )}
                 <p>
                   <strong>상황:</strong> {getFinalSituation() || "-"}
                 </p>

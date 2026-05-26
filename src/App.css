@@ -1883,3 +1883,151 @@ textarea {
     min-height: 128px;
   }
 }
+/* 버튼/탭/통계 박스 최종 정렬 보정 - 2026-05-26 */
+
+/* 내 구름 관리 탭 4개 균등 정렬 */
+.manageTabs.fourTabs {
+  display: grid;
+  grid-template-columns: repeat(4, minmax(0, 1fr));
+  gap: 10px;
+  align-items: stretch;
+}
+
+.manageTabs.fourTabs .manageTab {
+  width: 100%;
+  height: 56px;
+  min-height: 56px;
+  max-height: 56px;
+  margin: 0 !important;
+  padding: 0 8px;
+  border-radius: 18px;
+  font-size: 13px;
+  line-height: 1.2;
+
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  text-align: center;
+  word-break: keep-all;
+}
+
+/* 내 구름 관리 통계는 현재 3개라서 3등분 */
+.manageSummaryGrid {
+  display: grid;
+  grid-template-columns: repeat(3, minmax(0, 1fr));
+  gap: 10px;
+  align-items: stretch;
+}
+
+.manageSummaryItem {
+  min-height: 86px;
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  justify-content: center;
+}
+
+/* 마이페이지 통계는 4개라서 4등분 */
+.mypageStatsGrid {
+  display: grid;
+  grid-template-columns: repeat(4, minmax(0, 1fr));
+  gap: 8px;
+  align-items: stretch;
+}
+
+.mypageStat {
+  min-height: 86px;
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  justify-content: center;
+}
+
+/* 마이페이지 빠른 메뉴 버튼 정렬 */
+.mypageQuickMenu {
+  display: grid;
+  grid-template-columns: repeat(2, minmax(0, 1fr));
+  gap: 10px;
+  align-items: stretch;
+}
+
+.mypageQuickMenu button {
+  width: 100%;
+  height: 56px;
+  min-height: 56px;
+  max-height: 56px;
+  margin: 0 !important;
+}
+
+/* 일반 카드 아래 버튼 간격 통일 */
+.card > button,
+.manageCard > button {
+  margin-top: 12px;
+}
+
+/* 알림 카드 안쪽 배지 위치 안정화 */
+.notificationCard .postTopLine {
+  display: flex;
+  justify-content: flex-end;
+  align-items: center;
+  margin-bottom: 10px;
+}
+
+/* 알림 카드 높이 너무 들쭉날쭉하지 않게 */
+.notificationCard {
+  min-height: 140px;
+}
+
+/* 선택 입력칸 설명문 여백 보정 */
+.formGroup .helperText {
+  margin: 8px 0 0;
+}
+
+/* 선택사항 주관식 입력칸은 일반 input과 같은 기준 유지 */
+.formGroup input {
+  width: 100%;
+}
+
+/* 모바일 정렬 */
+@media (max-width: 700px) {
+  .manageTabs.fourTabs {
+    grid-template-columns: repeat(2, minmax(0, 1fr));
+  }
+
+  .manageSummaryGrid {
+    grid-template-columns: repeat(3, minmax(0, 1fr));
+  }
+
+  .mypageStatsGrid {
+    grid-template-columns: repeat(2, minmax(0, 1fr));
+  }
+
+  .mypageQuickMenu {
+    grid-template-columns: 1fr;
+  }
+}
+
+@media (max-width: 480px) {
+  .manageTabs.fourTabs .manageTab {
+    font-size: 12px;
+    padding: 0 6px;
+  }
+
+  .manageSummaryItem,
+  .mypageStat {
+    min-height: 82px;
+  }
+
+  .manageSummaryGrid {
+    grid-template-columns: repeat(3, minmax(0, 1fr));
+    gap: 8px;
+  }
+
+  .manageSummaryItem span {
+    font-size: 10px;
+  }
+
+  .manageSummaryItem b {
+    font-size: 19px;
+  }
+}
