@@ -5,6 +5,7 @@ import { supabase } from "./supabase";
 function App() {
   const [page, setPage] = useState("home");
   const [crushStep, setCrushStep] = useState(1);
+  const [searchStep, setSearchStep] = useState(1);
 
   const [session, setSession] = useState(null);
   const [currentUser, setCurrentUser] = useState(null);
@@ -58,6 +59,7 @@ function App() {
     "학교 앞 상권/거리",
     "죽전역 근처",
     "보정동 카페거리",
+    "잘 모르겠음",
     "기타/직접 입력",
   ];
 
@@ -97,6 +99,7 @@ function App() {
     "스포츠머리",
     "장발",
     "묶음머리",
+    "포니테일",
     "잘 모르겠음",
   ];
 
@@ -168,8 +171,7 @@ function App() {
   const topTypeOptions = [
     "반팔 티셔츠",
     "긴팔 티셔츠",
-    "셔츠",
-    "블라우스",
+    "셔츠/블라우스",
     "후드티",
     "맨투맨",
     "니트",
@@ -183,12 +185,12 @@ function App() {
   ];
 
   const topColorOptions = [
-    "흰색", 
+    "흰색",
     "검정",
     "회색",
     "네이비",
     "파랑",
-    "하능",
+    "하늘",
     "분홍",
     "빨강",
     "베이지",
@@ -256,15 +258,14 @@ function App() {
   ];
 
   const togetherSituationOptions = [
-    "혼자 있었음",
-    "친구랑 있었음",
-    "여러 명이랑 있었음",
-    "술자리/술 상황",
-    "밥 먹는 중",
-    "카페 이용 중",
-    "공부/과제 중",
-    "이동 중",
-    "통화 중",
+    "이동 중이었음",
+    "공부/과제 중이었음",
+    "밥 먹는 중이었음",
+    "카페에 있었음",
+    "기다리는 중이었음",
+    "통화 중이었음",
+    "대화 중이었음",
+    "술자리/모임 중이었음",
     "잘 모르겠음",
   ];
 
@@ -540,6 +541,28 @@ function App() {
     return () => {
       mounted = false;
       subscription.unsubscribe();
+    };
+  }, []);
+
+  useEffect(() => {
+    const scrollFocusedInputIntoView = (event) => {
+      const target = event.target;
+      const tagName = target?.tagName;
+
+      if (!["INPUT", "TEXTAREA", "SELECT"].includes(tagName)) return;
+
+      setTimeout(() => {
+        target.scrollIntoView({
+          behavior: "smooth",
+          block: "center",
+        });
+      }, 260);
+    };
+
+    window.addEventListener("focusin", scrollFocusedInputIntoView);
+
+    return () => {
+      window.removeEventListener("focusin", scrollFocusedInputIntoView);
     };
   }, []);
 
@@ -855,6 +878,7 @@ function App() {
   const openSearchPage = () => {
     if (!checkProfileRequired()) return;
 
+    setSearchStep(1);
     setPage("search");
   };
 
@@ -1066,8 +1090,19 @@ function App() {
       .from("crush_posts")
       .select("*")
       .eq("seen_date", searchForm.seen_date)
-      .eq("target_gender", profile.gender)
-      .eq("hair_feature", finalSearchHairFeature);
+      .eq("target_gender", profile.gender);
+
+    const searchableHairParts = finalSearchHairFeature
+      .split(" / ")
+      .filter((part) => part && part !== "잘 모르겠음");
+
+    if (searchableHairParts.length === 4) {
+      query = query.eq("hair_feature", finalSearchHairFeature);
+    } else {
+      searchableHairParts.forEach((part) => {
+        query = query.ilike("hair_feature", `%${part}%`);
+      });
+    }
 
     if (searchForm.top_color && searchForm.top_color !== "잘 모르겠음") {
       query = query.eq("clothes_color", searchForm.top_color);
@@ -1327,6 +1362,7 @@ function App() {
   );
 
   const progressPercent = (crushStep / 9) * 100;
+  const searchProgressPercent = (searchStep / 5) * 100;
 
   const sentClaimsByPostId = sentClaims.reduce((acc, claim) => {
     if (!acc[claim.crush_post_id]) {
@@ -1567,8 +1603,7 @@ function App() {
               확인할 수 있어요.
             </p>
             <p>
-              <b>마이페이지</b>에서는 닉네임, 성별, 학과, 인스타, 프로필 사진을
-              관리해요.
+              <b>마이페이지</b>에서는 닉네임과 프로필 정보를 관리해요.
             </p>
           </div>
 
@@ -1698,7 +1733,7 @@ function App() {
               <b>내 구름 관리</b> · 내가 남긴 구름과 도착한 응답을 관리해요.
             </p>
             <p>
-              <b>마이페이지</b> · 내 닉네임, 성별, 학과, 인스타를 수정해요.
+              <b>마이페이지</b> · 닉네임과 프로필 정보를 관리해요.
             </p>
           </div>
 
@@ -2213,7 +2248,11 @@ function App() {
           {crushStep === 5 && (
             <>
               <h3 className="questionTitle">상의가 기억나나요?</h3>
-              <p className="questionDesc">상의 종류와 색상을 각각 선택해주세요.</p>
+              <p className="questionDesc">
+                상의 종류와 색상을 각각 선택해주세요. 정확히 몰라도 가장 가까운
+                항목을 고르면 돼요. 예: 블라우스나 셔츠는 “셔츠/블라우스”로
+                선택해주세요.
+              </p>
 
               <div className="formGroup">
                 <label className="formLabel">상의 종류</label>
@@ -2258,7 +2297,11 @@ function App() {
           {crushStep === 6 && (
             <>
               <h3 className="questionTitle">하의가 기억나나요?</h3>
-              <p className="questionDesc">하의 종류와 색상을 각각 선택해주세요.</p>
+              <p className="questionDesc">
+                하의 종류와 색상을 각각 선택해주세요. 정확히 몰라도 가장 가까운
+                항목을 고르면 돼요. 예: 청반바지, 면반바지처럼 재질이 달라도
+                짧은 바지면 “반바지”를 선택하면 돼요.
+              </p>
 
               <div className="formGroup">
                 <label className="formLabel">하의 종류</label>
@@ -2414,7 +2457,7 @@ function App() {
               <div className="formGroup">
                 <label className="formLabel">상황 자세히 적기</label>
                 <input
-                  placeholder="예: 친구 2명이랑 학식 먹는 중, 술집 앞에서 대화 중"
+                  placeholder="예: 학식 먹는 중, 술집 앞에서 대화 중, 친구 기다리는 중"
                   value={crushPost.situation_detail}
                   onChange={(e) =>
                     updateCrushPost("situation_detail", e.target.value)
@@ -2564,9 +2607,19 @@ function App() {
       {page === "search" && (
         <div className="card">
           <h2>구름 확인하기</h2>
+
+          <p className="stepText">{searchStep} / 5</p>
+
+          <div className="progressBar">
+            <div
+              className="progressFill"
+              style={{ width: `${searchProgressPercent}%` }}
+            />
+          </div>
+
           <p className="subtitle">
-            날짜, 성별, 머리스타일이 정확히 맞는 구름만 먼저 확인해요. 그다음
-            착장 조건을 추가하면 더 좁혀볼 수 있어요.
+            한 번에 전부 고르지 않고, 구름 띄우기처럼 한 단계씩 확인해요.
+            날짜와 머리 정보는 필수이고, 착장은 기억나는 만큼만 골라주세요.
           </p>
 
           <div className="summaryBox">
@@ -2576,236 +2629,355 @@ function App() {
             <p>프로필 성별 기준으로 나를 찾는 구름만 자동으로 확인해요.</p>
           </div>
 
-          <div className="formGroup">
-            <label className="formLabel">언제 있었나요?</label>
-            <input
-              type="date"
-              value={searchForm.seen_date}
-              onChange={(e) =>
-                setSearchForm({ ...searchForm, seen_date: e.target.value })
-              }
-            />
-          </div>
-
-          {profile.gender === "여자" ? (
+          {searchStep === 1 && (
             <>
-              <div className="hairGuideBox">
-                <img
-                  src={femaleHairGuideImage}
-                  alt="여자 머리스타일 예시"
-                  className="hairGuideImage"
+              <h3 className="questionTitle">언제 있었나요?</h3>
+              <p className="questionDesc">
+                상대가 구름을 남긴 날짜와 내가 그 사람을 마주쳤던 날짜가 맞아야
+                확인할 수 있어요. 정확하지 않다면 가장 가까운 날짜를 선택해보세요.
+              </p>
+
+              <div className="formGroup">
+                <label className="formLabel">날짜</label>
+                <input
+                  type="date"
+                  value={searchForm.seen_date}
+                  onChange={(e) =>
+                    setSearchForm({ ...searchForm, seen_date: e.target.value })
+                  }
                 />
               </div>
 
-              <div className="formGroup">
-                <label className="formLabel">내 머리스타일</label>
-                <select
-                  value={searchForm.female_hair_style}
-                  onChange={(e) =>
-                    setSearchForm({
-                      ...searchForm,
-                      female_hair_style: e.target.value,
-                    })
+              <button
+                onClick={() => {
+                  if (!searchForm.seen_date) {
+                    alert("날짜를 선택해주세요.");
+                    return;
                   }
-                >
-                  <option value="">머리스타일 선택</option>
-                  {femaleHairStyleOptions.map((option) => (
-                    <option key={option}>{option}</option>
-                  ))}
-                </select>
-              </div>
-
-              <div className="formGroup">
-                <label className="formLabel">머리 색깔</label>
-                <select
-                  value={searchForm.female_hair_color}
-                  onChange={(e) =>
-                    setSearchForm({
-                      ...searchForm,
-                      female_hair_color: e.target.value,
-                    })
-                  }
-                >
-                  <option value="">머리 색깔 선택</option>
-                  {hairColorOptions.map((option) => (
-                    <option key={option}>{option}</option>
-                  ))}
-                </select>
-              </div>
-
-              <div className="formGroup">
-                <label className="formLabel">모자 유무</label>
-                <select
-                  value={searchForm.female_hat}
-                  onChange={(e) =>
-                    setSearchForm({ ...searchForm, female_hat: e.target.value })
-                  }
-                >
-                  <option value="">모자 유무 선택</option>
-                  {hatOptions.map((option) => (
-                    <option key={option}>{option}</option>
-                  ))}
-                </select>
-              </div>
-
-              <div className="formGroup">
-                <label className="formLabel">앞머리 유무</label>
-                <select
-                  value={searchForm.female_bangs}
-                  onChange={(e) =>
-                    setSearchForm({
-                      ...searchForm,
-                      female_bangs: e.target.value,
-                    })
-                  }
-                >
-                  <option value="">앞머리 유무 선택</option>
-                  {bangsOptions.map((option) => (
-                    <option key={option}>{option}</option>
-                  ))}
-                </select>
-              </div>
-            </>
-          ) : (
-            <>
-              <div className="formGroup">
-                <label className="formLabel">내 머리스타일</label>
-                <select
-                  value={searchForm.male_hair_style}
-                  onChange={(e) =>
-                    setSearchForm({
-                      ...searchForm,
-                      male_hair_style: e.target.value,
-                    })
-                  }
-                >
-                  <option value="">머리스타일 선택</option>
-                  {maleHairStyleOptions.map((option) => (
-                    <option key={option}>{option}</option>
-                  ))}
-                </select>
-              </div>
-
-              <div className="formGroup">
-                <label className="formLabel">머리 색깔</label>
-                <select
-                  value={searchForm.male_hair_color}
-                  onChange={(e) =>
-                    setSearchForm({
-                      ...searchForm,
-                      male_hair_color: e.target.value,
-                    })
-                  }
-                >
-                  <option value="">머리 색깔 선택</option>
-                  {hairColorOptions.map((option) => (
-                    <option key={option}>{option}</option>
-                  ))}
-                </select>
-              </div>
-
-              <div className="formGroup">
-                <label className="formLabel">모자 유무</label>
-                <select
-                  value={searchForm.male_hat}
-                  onChange={(e) =>
-                    setSearchForm({ ...searchForm, male_hat: e.target.value })
-                  }
-                >
-                  <option value="">모자 유무 선택</option>
-                  {hatOptions.map((option) => (
-                    <option key={option}>{option}</option>
-                  ))}
-                </select>
-              </div>
-
-              <div className="formGroup">
-                <label className="formLabel">앞머리 유무</label>
-                <select
-                  value={searchForm.male_bangs}
-                  onChange={(e) =>
-                    setSearchForm({ ...searchForm, male_bangs: e.target.value })
-                  }
-                >
-                  <option value="">앞머리 유무 선택</option>
-                  {bangsOptions.map((option) => (
-                    <option key={option}>{option}</option>
-                  ))}
-                </select>
-              </div>
+                  setSearchStep(2);
+                }}
+              >
+                다음
+              </button>
             </>
           )}
 
-          <div className="formGroup">
-            <label className="formLabel">상의 종류는 무엇이었나요?</label>
-            <select
-              value={searchForm.top_type}
-              onChange={(e) =>
-                setSearchForm({ ...searchForm, top_type: e.target.value })
-              }
+          {searchStep === 2 && (
+            <>
+              <h3 className="questionTitle">내 머리 정보가 기억나나요?</h3>
+              <p className="questionDesc">
+                머리스타일, 머리 색깔, 모자 유무, 앞머리 유무를 골라주세요.
+                잘 모르겠는 항목은 “잘 모르겠음”을 선택해도 돼요.
+              </p>
+
+              {profile.gender === "여자" ? (
+                <>
+                  <div className="hairGuideBox">
+                    <img
+                      src={femaleHairGuideImage}
+                      alt="여자 머리스타일 예시"
+                      className="hairGuideImage"
+                    />
+                  </div>
+
+                  <div className="formGroup">
+                    <label className="formLabel">내 머리스타일</label>
+                    <div className="optionGrid">
+                      {femaleHairStyleOptions.map((option) => (
+                        <OptionButton
+                          key={option}
+                          value={option}
+                          selected={searchForm.female_hair_style === option}
+                          onClick={() =>
+                            setSearchForm({
+                              ...searchForm,
+                              female_hair_style: option,
+                            })
+                          }
+                          full={option === "잘 모르겠음"}
+                        />
+                      ))}
+                    </div>
+                  </div>
+
+                  <div className="formGroup">
+                    <label className="formLabel">머리 색깔</label>
+                    <div className="optionGrid">
+                      {hairColorOptions.map((option) => (
+                        <OptionButton
+                          key={option}
+                          value={option}
+                          selected={searchForm.female_hair_color === option}
+                          onClick={() =>
+                            setSearchForm({
+                              ...searchForm,
+                              female_hair_color: option,
+                            })
+                          }
+                          full={option === "잘 모르겠음"}
+                        />
+                      ))}
+                    </div>
+                  </div>
+
+                  <div className="formGroup">
+                    <label className="formLabel">모자 유무</label>
+                    <div className="optionGrid">
+                      {hatOptions.map((option) => (
+                        <OptionButton
+                          key={option}
+                          value={option}
+                          selected={searchForm.female_hat === option}
+                          onClick={() =>
+                            setSearchForm({ ...searchForm, female_hat: option })
+                          }
+                          full={option === "잘 모르겠음"}
+                        />
+                      ))}
+                    </div>
+                  </div>
+
+                  <div className="formGroup">
+                    <label className="formLabel">앞머리 유무</label>
+                    <div className="optionGrid">
+                      {bangsOptions.map((option) => (
+                        <OptionButton
+                          key={option}
+                          value={option}
+                          selected={searchForm.female_bangs === option}
+                          onClick={() =>
+                            setSearchForm({
+                              ...searchForm,
+                              female_bangs: option,
+                            })
+                          }
+                          full={option === "잘 모르겠음"}
+                        />
+                      ))}
+                    </div>
+                  </div>
+                </>
+              ) : (
+                <>
+                  <div className="formGroup">
+                    <label className="formLabel">내 머리스타일</label>
+                    <div className="optionGrid">
+                      {maleHairStyleOptions.map((option) => (
+                        <OptionButton
+                          key={option}
+                          value={option}
+                          selected={searchForm.male_hair_style === option}
+                          onClick={() =>
+                            setSearchForm({ ...searchForm, male_hair_style: option })
+                          }
+                          full={option === "잘 모르겠음"}
+                        />
+                      ))}
+                    </div>
+                  </div>
+
+                  <div className="formGroup">
+                    <label className="formLabel">머리 색깔</label>
+                    <div className="optionGrid">
+                      {hairColorOptions.map((option) => (
+                        <OptionButton
+                          key={option}
+                          value={option}
+                          selected={searchForm.male_hair_color === option}
+                          onClick={() =>
+                            setSearchForm({ ...searchForm, male_hair_color: option })
+                          }
+                          full={option === "잘 모르겠음"}
+                        />
+                      ))}
+                    </div>
+                  </div>
+
+                  <div className="formGroup">
+                    <label className="formLabel">모자 유무</label>
+                    <div className="optionGrid">
+                      {hatOptions.map((option) => (
+                        <OptionButton
+                          key={option}
+                          value={option}
+                          selected={searchForm.male_hat === option}
+                          onClick={() =>
+                            setSearchForm({ ...searchForm, male_hat: option })
+                          }
+                          full={option === "잘 모르겠음"}
+                        />
+                      ))}
+                    </div>
+                  </div>
+
+                  <div className="formGroup">
+                    <label className="formLabel">앞머리 유무</label>
+                    <div className="optionGrid">
+                      {bangsOptions.map((option) => (
+                        <OptionButton
+                          key={option}
+                          value={option}
+                          selected={searchForm.male_bangs === option}
+                          onClick={() =>
+                            setSearchForm({ ...searchForm, male_bangs: option })
+                          }
+                          full={option === "잘 모르겠음"}
+                        />
+                      ))}
+                    </div>
+                  </div>
+                </>
+              )}
+
+              <button
+                onClick={() => {
+                  if (!getFinalSearchHairFeature()) {
+                    alert("머리 정보를 선택해주세요.");
+                    return;
+                  }
+                  setSearchStep(3);
+                }}
+              >
+                다음
+              </button>
+            </>
+          )}
+
+          {searchStep === 3 && (
+            <>
+              <h3 className="questionTitle">상의가 기억나나요?</h3>
+              <p className="questionDesc">
+                정확히 몰라도 가장 가까운 걸 골라주세요. 예: 블라우스나 셔츠는
+                “셔츠/블라우스”를 선택하면 돼요. 기억이 안 나면 “잘 모르겠음”을
+                선택해주세요.
+              </p>
+
+              <div className="formGroup">
+                <label className="formLabel">상의 종류</label>
+                <select
+                  value={searchForm.top_type}
+                  onChange={(e) =>
+                    setSearchForm({ ...searchForm, top_type: e.target.value })
+                  }
+                >
+                  <option value="">상의 종류 선택</option>
+                  {topTypeOptions.map((option) => (
+                    <option key={option}>{option}</option>
+                  ))}
+                </select>
+              </div>
+
+              <div className="formGroup">
+                <label className="formLabel">상의 색상</label>
+                <select
+                  value={searchForm.top_color}
+                  onChange={(e) =>
+                    setSearchForm({ ...searchForm, top_color: e.target.value })
+                  }
+                >
+                  <option value="">상의 색상 선택</option>
+                  {topColorOptions.map((option) => (
+                    <option key={option}>{option}</option>
+                  ))}
+                </select>
+              </div>
+
+              <button onClick={() => setSearchStep(4)}>다음</button>
+            </>
+          )}
+
+          {searchStep === 4 && (
+            <>
+              <h3 className="questionTitle">하의가 기억나나요?</h3>
+              <p className="questionDesc">
+                청반바지, 면반바지처럼 재질이 달라도 짧은 바지면 “반바지”를
+                선택하면 돼요. 기억이 안 나면 “잘 모르겠음”을 선택해주세요.
+              </p>
+
+              <div className="formGroup">
+                <label className="formLabel">하의 종류</label>
+                <select
+                  value={searchForm.bottom_type}
+                  onChange={(e) =>
+                    setSearchForm({ ...searchForm, bottom_type: e.target.value })
+                  }
+                >
+                  <option value="">하의 종류 선택</option>
+                  {bottomTypeOptions.map((option) => (
+                    <option key={option}>{option}</option>
+                  ))}
+                </select>
+              </div>
+
+              <div className="formGroup">
+                <label className="formLabel">하의 색상</label>
+                <select
+                  value={searchForm.bottom_color}
+                  onChange={(e) =>
+                    setSearchForm({ ...searchForm, bottom_color: e.target.value })
+                  }
+                >
+                  <option value="">하의 색상 선택</option>
+                  {bottomColorOptions.map((option) => (
+                    <option key={option}>{option}</option>
+                  ))}
+                </select>
+              </div>
+
+              <button onClick={() => setSearchStep(5)}>다음</button>
+            </>
+          )}
+
+          {searchStep === 5 && (
+            <>
+              <h3 className="questionTitle">마지막으로 확인해주세요</h3>
+              <p className="questionDesc">
+                아래 정보로 나를 찾는 구름을 확인해요. 상의와 하의는 선택하지
+                않았거나 “잘 모르겠음”이면 검색 조건에서 제외돼요.
+              </p>
+
+              <div className="summaryBox">
+                <p>
+                  <strong>날짜:</strong> {searchForm.seen_date || "-"}
+                </p>
+                <p>
+                  <strong>내 성별:</strong> {profile.gender || "-"}
+                </p>
+                <p>
+                  <strong>머리:</strong> {getFinalSearchHairFeature() || "-"}
+                </p>
+                <p>
+                  <strong>상의:</strong> {searchForm.top_color || "-"}{" "}
+                  {searchForm.top_type || "-"}
+                </p>
+                <p>
+                  <strong>하의:</strong> {searchForm.bottom_color || "-"}{" "}
+                  {searchForm.bottom_type || "-"}
+                </p>
+              </div>
+
+              <button onClick={searchCrushPosts}>구름 확인하기</button>
+            </>
+          )}
+
+          <div className="stepActions">
+            <button
+              onClick={() => {
+                if (searchStep === 1) {
+                  setPage("home");
+                  return;
+                }
+                setSearchStep((prev) => prev - 1);
+              }}
+              className="white"
             >
-              <option value="">상의 종류 선택</option>
-              {topTypeOptions.map((option) => (
-                <option key={option}>{option}</option>
-              ))}
-            </select>
+              {searchStep === 1 ? "홈으로" : "이전"}
+            </button>
+
+            <button onClick={() => setPage("home")} className="white">
+              취소
+            </button>
           </div>
-
-          <div className="formGroup">
-            <label className="formLabel">상의 색상은 무엇이었나요?</label>
-            <select
-              value={searchForm.top_color}
-              onChange={(e) =>
-                setSearchForm({ ...searchForm, top_color: e.target.value })
-              }
-            >
-              <option value="">상의 색상 선택</option>
-              {topColorOptions.map((option) => (
-                <option key={option}>{option}</option>
-              ))}
-            </select>
-          </div>
-
-          <div className="formGroup">
-            <label className="formLabel">하의 종류는 무엇이었나요?</label>
-            <select
-              value={searchForm.bottom_type}
-              onChange={(e) =>
-                setSearchForm({ ...searchForm, bottom_type: e.target.value })
-              }
-            >
-              <option value="">하의 종류 선택</option>
-              {bottomTypeOptions.map((option) => (
-                <option key={option}>{option}</option>
-              ))}
-            </select>
-          </div>
-
-          <div className="formGroup">
-            <label className="formLabel">하의 색상은 무엇이었나요?</label>
-            <select
-              value={searchForm.bottom_color}
-              onChange={(e) =>
-                setSearchForm({ ...searchForm, bottom_color: e.target.value })
-              }
-            >
-              <option value="">하의 색상 선택</option>
-              {bottomColorOptions.map((option) => (
-                <option key={option}>{option}</option>
-              ))}
-            </select>
-          </div>
-
-          <p className="helperText">
-            날짜와 머리 정보는 필수예요. 성별은 내 프로필 성별로 자동 매칭되고,
-            상의와 하의 정보는 선택하면 더 정확하게 좁혀볼 수 있어요.
-          </p>
-
-          <button onClick={searchCrushPosts}>구름 확인하기</button>
-
-          <button onClick={() => setPage("home")} className="white">
-            홈으로
-          </button>
         </div>
       )}
 
@@ -2843,7 +3015,13 @@ function App() {
             </div>
           ))}
 
-          <button onClick={() => setPage("search")} className="white">
+          <button
+            onClick={() => {
+              setSearchStep(1);
+              setPage("search");
+            }}
+            className="white"
+          >
             다시 찾아보기
           </button>
 

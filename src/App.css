@@ -1850,3 +1850,36 @@ button.white,
     padding: 15px;
   }
 }
+
+/* 모바일 키보드 입력 UX 보완 */
+html {
+  scroll-behavior: smooth;
+}
+
+body {
+  overflow-x: hidden;
+}
+
+input,
+select,
+textarea {
+  scroll-margin-top: 120px;
+  scroll-margin-bottom: 180px;
+}
+
+.card,
+.homeCard,
+.skyHome {
+  scroll-margin-top: 24px;
+}
+
+@media (max-width: 480px) {
+  .app {
+    min-height: 100dvh;
+    padding-bottom: max(28px, env(safe-area-inset-bottom));
+  }
+
+  textarea {
+    min-height: 128px;
+  }
+}
