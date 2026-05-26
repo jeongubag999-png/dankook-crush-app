@@ -1666,9 +1666,9 @@ textarea:focus {
     -webkit-backdrop-filter: none;
   }
 }
-/* 버튼 크기 정리: 커야 할 버튼은 크게, 일반 버튼은 통일 */
+/* 버튼 크기 최종 정리: 기존 스타일은 유지하고 높이만 안정화 */
 
-/* 일반 버튼 기본값 */
+/* 일반 버튼은 56px */
 button,
 button.white,
 .dangerButton {
@@ -1677,14 +1677,18 @@ button.white,
   max-height: 56px;
   padding: 0 14px;
   border-radius: 18px;
+
   display: flex;
   align-items: center;
   justify-content: center;
+
   text-align: center;
   line-height: 1.25;
+  white-space: normal;
+  word-break: keep-all;
 }
 
-/* 선택지 버튼 통일 */
+/* 선택지 버튼 */
 .optionGrid button,
 .optionGrid .optionButton {
   height: 56px;
@@ -1695,7 +1699,7 @@ button.white,
   border-radius: 18px;
 }
 
-/* 이전 / 취소 버튼 통일 */
+/* 이전 / 취소 버튼 */
 .stepActions button {
   height: 56px;
   min-height: 56px;
@@ -1703,7 +1707,39 @@ button.white,
   margin: 0 !important;
 }
 
-/* 홈 아래 작은 메뉴 버튼 통일 */
+/* 임시저장 / 불러오기 / 임시저장 삭제 */
+.draftActionRow {
+  display: grid;
+  grid-template-columns: repeat(3, minmax(0, 1fr));
+  gap: 8px;
+  align-items: stretch;
+  margin: 0 0 20px;
+}
+
+.draftActionRow button,
+.draftActionRow .smallButton,
+.smallButton {
+  width: 100%;
+  height: 56px;
+  min-height: 56px;
+  max-height: 56px;
+  margin: 0 !important;
+  padding: 0 8px;
+  border-radius: 18px;
+  font-size: 12px;
+  font-weight: 900;
+
+  display: flex;
+  align-items: center;
+  justify-content: center;
+
+  text-align: center;
+  line-height: 1.25;
+  white-space: normal;
+  word-break: keep-all;
+}
+
+/* 홈 아래 작은 메뉴 */
 .miniMenuButton,
 .cloudMiniMenu .miniMenuButton {
   height: 56px;
@@ -1713,7 +1749,7 @@ button.white,
   border-radius: 18px;
 }
 
-/* 내 구름 관리 탭 버튼 통일 */
+/* 내 구름 관리 탭 */
 .manageTab,
 .fourTabs .manageTab {
   height: 56px;
@@ -1723,7 +1759,7 @@ button.white,
   border-radius: 18px;
 }
 
-/* 마이페이지 빠른 메뉴 버튼 통일 */
+/* 마이페이지 빠른 메뉴 */
 .mypageQuickMenu button {
   height: 56px;
   min-height: 56px;
@@ -1732,18 +1768,7 @@ button.white,
   border-radius: 18px;
 }
 
-/* 임시저장 / 불러오기 / 임시저장 삭제 버튼은 작지만 너무 낮지 않게 */
-.smallButton {
-  height: 50px;
-  min-height: 50px;
-  max-height: 50px;
-  margin-top: 0;
-  padding: 0 8px;
-  border-radius: 16px;
-  font-size: 12px;
-}
-
-/* 비밀번호 보기 버튼은 입력창 높이와 맞추기 */
+/* 비밀번호 보기 버튼은 input 높이에 맞춤 */
 .passwordToggleButton {
   height: 58px;
   min-height: 58px;
@@ -1764,7 +1789,7 @@ button.white,
   border-radius: 26px;
 }
 
-/* 홈 로그아웃 버튼은 일반 버튼과 같은 높이 */
+/* 홈 로그아웃 버튼 */
 .skyHome .logoutTextButton {
   width: 100%;
   height: 56px;
@@ -1775,7 +1800,7 @@ button.white,
   border-radius: 20px;
 }
 
-/* 모바일에서도 동일하게 유지 */
+/* 모바일에서도 같은 기준 유지 */
 @media (max-width: 480px) {
   button,
   button.white,
@@ -1793,10 +1818,19 @@ button.white,
     max-height: 56px;
   }
 
+  .draftActionRow {
+    grid-template-columns: repeat(3, minmax(0, 1fr));
+    gap: 8px;
+  }
+
+  .draftActionRow button,
+  .draftActionRow .smallButton,
   .smallButton {
-    height: 50px;
-    min-height: 50px;
-    max-height: 50px;
+    height: 56px;
+    min-height: 56px;
+    max-height: 56px;
+    font-size: 11px;
+    padding: 0 6px;
   }
 
   .passwordToggleButton {
