@@ -1557,3 +1557,112 @@ textarea:focus {
     scroll-behavior: auto !important;
   }
 }
+/* 앱 설명 박스 */
+.appIntroBox {
+  margin: 18px 0 22px;
+  padding: 16px;
+  border-radius: 22px;
+  background: rgba(238, 248, 255, 0.86);
+  border: 1px solid rgba(188, 224, 252, 0.9);
+  text-align: left;
+  color: #24649f;
+  font-size: 13px;
+  line-height: 1.6;
+  word-break: keep-all;
+}
+
+.appIntroBox p {
+  margin: 7px 0;
+}
+
+.appIntroBox b {
+  color: #175f9f;
+  font-weight: 900;
+}
+
+.homeIntroBox {
+  position: relative;
+  z-index: 2;
+  margin: 0 0 16px;
+  background: rgba(255, 255, 255, 0.56);
+  border: 1px solid rgba(255, 255, 255, 0.66);
+  color: #24649f;
+  backdrop-filter: blur(12px);
+}
+
+/* 비밀번호 보기 */
+.passwordRow {
+  display: grid;
+  grid-template-columns: 1fr 82px;
+  gap: 8px;
+  align-items: center;
+}
+
+.passwordRow input {
+  margin-top: 0;
+}
+
+.passwordToggleButton {
+  height: 58px;
+  min-height: 58px;
+  margin-top: 0;
+  border-radius: 18px;
+  padding: 0 10px;
+  font-size: 13px;
+  background: #eef8ff;
+  color: #24649f;
+  box-shadow: none;
+}
+
+/* 임시저장 버튼 */
+.draftActionRow {
+  display: grid;
+  grid-template-columns: 1fr 1fr 1fr;
+  gap: 8px;
+  margin: 0 0 20px;
+}
+
+.smallButton {
+  height: 46px;
+  min-height: 46px;
+  margin-top: 0;
+  padding: 0 8px;
+  border-radius: 16px;
+  font-size: 12px;
+  font-weight: 900;
+}
+
+/* 삭제 버튼 */
+.dangerButton {
+  margin-top: 14px;
+  background: #fff0f0;
+  color: #d94a4a;
+  border: 1px solid #ffd0d0;
+  box-shadow: none;
+}
+
+.dangerButton:hover {
+  background: #ffe3e3;
+  color: #c93131;
+  box-shadow: none;
+}
+
+/* 모바일에서 임시저장 버튼 줄바꿈 */
+@media (max-width: 480px) {
+  .draftActionRow {
+    grid-template-columns: 1fr;
+  }
+
+  .passwordRow {
+    grid-template-columns: 1fr 74px;
+  }
+
+  .passwordToggleButton {
+    font-size: 12px;
+  }
+
+  .homeIntroBox {
+    backdrop-filter: none;
+    -webkit-backdrop-filter: none;
+  }
+}

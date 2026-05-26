@@ -10,6 +10,7 @@ function App() {
   const [currentUser, setCurrentUser] = useState(null);
   const [authMode, setAuthMode] = useState("login");
   const [authLoading, setAuthLoading] = useState(true);
+  const [showPassword, setShowPassword] = useState(false);
   const profileLoadedUserIdRef = useRef(null);
 
   const [authForm, setAuthForm] = useState({
@@ -61,27 +62,31 @@ function App() {
   ];
 
   const timeOptions = [
-    "08:00~09:00",
-    "09:00~10:00",
-    "10:00~11:00",
-    "11:00~12:00",
-    "12:00~13:00",
-    "13:00~14:00",
-    "14:00~15:00",
-    "15:00~16:00",
-    "16:00~17:00",
-    "17:00~18:00",
-    "18:00~19:00",
-    "19:00~20:00",
-    "20:00~21:00",
-    "21:00~22:00",
-    "22:00~08:00",
+    "00:00~02:00",
+    "02:00~04:00",
+    "04:00~06:00",
+    "06:00~08:00",
+    "08:00~10:00",
+    "10:00~12:00",
+    "12:00~14:00",
+    "14:00~16:00",
+    "16:00~18:00",
+    "18:00~20:00",
+    "20:00~22:00",
+    "22:00~24:00",
     "잘 모르겠음",
   ];
 
   const genderOptions = ["여자", "남자"];
 
-  const femaleHairLengthOptions = ["장발", "중단발", "단발"];
+  const femaleHairStyleOptions = [
+    "장발",
+    "중단발",
+    "단발",
+    "묶음머리",
+    "포니테일",
+    "잘 모르겠음",
+  ];
 
   const maleHairStyleOptions = [
     "짧은 머리",
@@ -91,6 +96,8 @@ function App() {
     "리젠트컷",
     "스포츠머리",
     "장발",
+    "묶음머리",
+    "포니테일",
     "잘 모르겠음",
   ];
 
@@ -108,17 +115,20 @@ function App() {
 
   const hatOptions = ["모자 착용", "모자 없음", "잘 모르겠음"];
 
-  const makeHairFeature = (style, color, hat) => {
-    if (!style || !color || !hat) return "";
-    return `${style} / ${color} / ${hat}`;
+  const bangsOptions = ["앞머리 있음", "앞머리 없음", "잘 모르겠음"];
+
+  const makeHairFeature = (style, color, hat, bangs) => {
+    if (!style || !color || !hat || !bangs) return "";
+    return `${style} / ${color} / ${hat} / ${bangs}`;
   };
 
   const getFinalHairFeature = () => {
     if (crushPost.target_gender === "여자") {
       return makeHairFeature(
-        crushPost.female_hair_length,
+        crushPost.female_hair_style,
         crushPost.female_hair_color,
-        crushPost.female_hat
+        crushPost.female_hat,
+        crushPost.female_bangs
       );
     }
 
@@ -126,7 +136,8 @@ function App() {
       return makeHairFeature(
         crushPost.male_hair_style,
         crushPost.male_hair_color,
-        crushPost.male_hat
+        crushPost.male_hat,
+        crushPost.male_bangs
       );
     }
 
@@ -136,9 +147,10 @@ function App() {
   const getFinalSearchHairFeature = () => {
     if (profile.gender === "여자") {
       return makeHairFeature(
-        searchForm.female_hair_length,
+        searchForm.female_hair_style,
         searchForm.female_hair_color,
-        searchForm.female_hat
+        searchForm.female_hat,
+        searchForm.female_bangs
       );
     }
 
@@ -146,7 +158,8 @@ function App() {
       return makeHairFeature(
         searchForm.male_hair_style,
         searchForm.male_hair_color,
-        searchForm.male_hat
+        searchForm.male_hat,
+        searchForm.male_bangs
       );
     }
 
@@ -157,12 +170,16 @@ function App() {
     "반팔 티셔츠",
     "긴팔 티셔츠",
     "셔츠",
+    "블라우스",
     "후드티",
     "맨투맨",
     "니트",
+    "가디건",
     "자켓",
     "코트/패딩",
+    "학잠/과잠",
     "원피스",
+    "군복",
     "잘 모르겠음",
   ];
 
@@ -172,7 +189,7 @@ function App() {
     "회색",
     "네이비",
     "파랑",
-    "하늘색",
+    "하능",
     "분홍",
     "빨강",
     "베이지",
@@ -191,6 +208,7 @@ function App() {
     "치마",
     "트레이닝 바지",
     "레깅스",
+    "기타",
     "잘 모르겠음",
   ];
 
@@ -213,6 +231,7 @@ function App() {
     "크로스백",
     "토트백",
     "작은 가방",
+    "헬스가방",
     "가방 없음",
     "잘 모르겠음",
   ];
@@ -229,8 +248,6 @@ function App() {
 
   const shoeOptions = [
     "운동화",
-    "흰색 운동화",
-    "검정 운동화",
     "컨버스/반스 느낌",
     "구두/로퍼",
     "부츠",
@@ -241,18 +258,20 @@ function App() {
 
   const togetherSituationOptions = [
     "혼자 있었음",
-    "친구 1명과 있었음",
-    "친구 여러 명과 있었음",
-    "동성 친구와 있었음",
-    "이성 친구와 있었음",
-    "통화 중이었음",
-    "공부/과제 중이었음",
-    "밥/카페 이용 중이었음",
-    "걸어가는 중이었음",
+    "친구랑 있었음",
+    "여러 명이랑 있었음",
+    "술자리/술 상황",
+    "밥 먹는 중",
+    "카페 이용 중",
+    "공부/과제 중",
+    "이동 중",
+    "통화 중",
     "잘 모르겠음",
   ];
 
   const moodOptions = [
+    "강아지상 느낌",
+    "고양이상 느낌",
     "차분한 분위기",
     "밝고 활발한 분위기",
     "귀여운 분위기",
@@ -279,41 +298,50 @@ function App() {
   const [profileImageFile, setProfileImageFile] = useState(null);
   const [profileImagePreview, setProfileImagePreview] = useState("");
 
-  const [crushPost, setCrushPost] = useState({
+  const emptyCrushPost = {
     target_gender: "",
     seen_date: "",
     place: "",
     custom_place: "",
     time_period: "",
     hair_feature: "",
-    female_hair_length: "",
+    female_hair_style: "",
     female_hair_color: "",
     female_hat: "",
+    female_bangs: "",
     male_hair_style: "",
     male_hair_color: "",
     male_hat: "",
+    male_bangs: "",
     top_type: "",
     top_color: "",
     bottom_type: "",
     bottom_color: "",
+    bottom_custom: "",
     bag_type: "",
     earphone_type: "",
     height_feeling: "",
     shoe_type: "",
     together_situation: "",
+    situation_detail: "",
     mood: "",
+    mood_detail: "",
     message: "",
-  });
+  };
+
+  const [crushPost, setCrushPost] = useState(emptyCrushPost);
 
   const [searchForm, setSearchForm] = useState({
     seen_date: "",
     hair_feature: "",
-    female_hair_length: "",
+    female_hair_style: "",
     female_hair_color: "",
     female_hat: "",
+    female_bangs: "",
     male_hair_style: "",
     male_hair_color: "",
     male_hat: "",
+    male_bangs: "",
     top_type: "",
     top_color: "",
     bottom_type: "",
@@ -340,6 +368,10 @@ function App() {
 
   const femaleHairGuideImage = "/hair-length-guide.png";
 
+  const getDraftKey = () => {
+    if (!currentUser?.id) return "dankum_crush_draft_guest";
+    return `dankum_crush_draft_${currentUser.id}`;
+  };
 
   const updateCrushPost = (key, value) => {
     setCrushPost((prev) => ({
@@ -379,6 +411,30 @@ function App() {
     }
 
     return mainPlace;
+  };
+
+  const getFinalBottomType = () => {
+    if (crushPost.bottom_type === "기타" && crushPost.bottom_custom.trim()) {
+      return `기타:${crushPost.bottom_custom.trim()}`;
+    }
+
+    return crushPost.bottom_type;
+  };
+
+  const getFinalSituation = () => {
+    if (crushPost.situation_detail.trim()) {
+      return `${crushPost.together_situation} / 자세히:${crushPost.situation_detail.trim()}`;
+    }
+
+    return crushPost.together_situation;
+  };
+
+  const getFinalMood = () => {
+    if (crushPost.mood_detail.trim()) {
+      return `${crushPost.mood} / 자세히:${crushPost.mood_detail.trim()}`;
+    }
+
+    return crushPost.mood;
   };
 
   const resetProfile = () => {
@@ -492,7 +548,7 @@ function App() {
     const loginId = authForm.login_id.trim();
 
     if (!authForm.name.trim()) {
-      alert("이름을 입력해주세요.");
+      alert("닉네임 또는 이름을 입력해주세요.");
       return;
     }
 
@@ -603,6 +659,55 @@ function App() {
     setPage("home");
   };
 
+  const saveDraft = () => {
+    if (!currentUser) {
+      alert("로그인 후 임시저장을 사용할 수 있어요.");
+      return;
+    }
+
+    localStorage.setItem(
+      getDraftKey(),
+      JSON.stringify({
+        crushPost,
+        crushStep,
+        savedAt: new Date().toISOString(),
+      })
+    );
+
+    alert("작성 중인 구름을 임시저장했어요.");
+  };
+
+  const loadDraft = () => {
+    const saved = localStorage.getItem(getDraftKey());
+
+    if (!saved) {
+      alert("불러올 임시저장이 없어요.");
+      return;
+    }
+
+    try {
+      const parsed = JSON.parse(saved);
+
+      setCrushPost({
+        ...emptyCrushPost,
+        ...(parsed.crushPost || {}),
+      });
+
+      setCrushStep(parsed.crushStep || 1);
+      setPage("send");
+
+      alert("임시저장한 구름을 불러왔어요.");
+    } catch (error) {
+      console.log(error);
+      alert("임시저장을 불러오지 못했어요.");
+    }
+  };
+
+  const clearDraft = () => {
+    localStorage.removeItem(getDraftKey());
+    alert("임시저장을 삭제했어요.");
+  };
+
   const renderPostQuestionAnswer = (post) => {
     return (
       <div className="qaBox">
@@ -652,7 +757,6 @@ function App() {
     return message.replace(/\[찾는 성별:\s*.*?\]\s*/, "");
   };
 
-
   const formatDateLabel = (dateText) => {
     if (!dateText) return "날짜 없음";
 
@@ -686,24 +790,19 @@ function App() {
     }, {});
   };
 
-  const selectAndNext = (key, value) => {
-    updateCrushPost(key, value);
-    setTimeout(() => {
-      setCrushStep((prev) => Math.min(prev + 1, 9));
-    }, 120);
-  };
-
   const selectTargetGenderAndNext = (value) => {
     setCrushPost((prev) => ({
       ...prev,
       target_gender: value,
       hair_feature: "",
-      female_hair_length: "",
+      female_hair_style: "",
       female_hair_color: "",
       female_hat: "",
+      female_bangs: "",
       male_hair_style: "",
       male_hair_color: "",
       male_hat: "",
+      male_bangs: "",
     }));
 
     setTimeout(() => {
@@ -768,32 +867,7 @@ function App() {
   };
 
   const resetCrushPost = () => {
-    setCrushPost({
-      target_gender: "",
-      seen_date: "",
-      place: "",
-      custom_place: "",
-      time_period: "",
-      hair_feature: "",
-      female_hair_length: "",
-      female_hair_color: "",
-      female_hat: "",
-      male_hair_style: "",
-      male_hair_color: "",
-      male_hat: "",
-      top_type: "",
-      top_color: "",
-      bottom_type: "",
-      bottom_color: "",
-      bag_type: "",
-      earphone_type: "",
-      height_feeling: "",
-      shoe_type: "",
-      together_situation: "",
-      mood: "",
-      message: "",
-    });
-
+    setCrushPost(emptyCrushPost);
     setCrushStep(1);
   };
 
@@ -904,7 +978,7 @@ function App() {
     const finalHairFeature = getFinalHairFeature();
 
     if (!finalHairFeature) {
-      alert("머리 정보를 선택해주세요.");
+      alert("머리스타일, 머리 색깔, 모자 유무, 앞머리 유무를 선택해주세요.");
       setCrushStep(4);
       return;
     }
@@ -915,7 +989,7 @@ function App() {
       return;
     }
 
-    if (!crushPost.bottom_type || !crushPost.bottom_color) {
+    if (!getFinalBottomType() || !crushPost.bottom_color) {
       alert("하의 종류와 색상을 선택해주세요.");
       setCrushStep(6);
       return;
@@ -938,8 +1012,8 @@ function App() {
       return;
     }
 
-    const combinedStyle = `상의:${crushPost.top_type} / 하의:${crushPost.bottom_type} ${crushPost.bottom_color}`;
-    const combinedAccessory = `가방:${crushPost.bag_type} / 이어폰:${crushPost.earphone_type} / 키 느낌:${crushPost.height_feeling} / 신발:${crushPost.shoe_type} / 상황:${crushPost.together_situation} / 분위기:${crushPost.mood}`;
+    const combinedStyle = `상의:${crushPost.top_type} / 하의:${getFinalBottomType()} ${crushPost.bottom_color}`;
+    const combinedAccessory = `가방:${crushPost.bag_type} / 이어폰:${crushPost.earphone_type} / 키 느낌:${crushPost.height_feeling} / 신발:${crushPost.shoe_type} / 상황:${getFinalSituation()} / 분위기:${getFinalMood()}`;
 
     const { error } = await supabase.from("crush_posts").insert([
       {
@@ -965,6 +1039,8 @@ function App() {
       return;
     }
 
+    localStorage.removeItem(getDraftKey());
+
     alert("구름을 남겼어요!");
     resetCrushPost();
     setPage("sent");
@@ -981,7 +1057,9 @@ function App() {
     const finalSearchHairFeature = getFinalSearchHairFeature();
 
     if (!finalSearchHairFeature) {
-      alert("머리 정보를 선택해주세요. 날짜, 성별, 머리 정보가 모두 맞아야 구름을 확인할 수 있어요.");
+      alert(
+        "머리 정보를 선택해주세요. 날짜, 성별, 머리스타일, 머리 색깔, 모자, 앞머리가 맞아야 구름을 확인할 수 있어요."
+      );
       return;
     }
 
@@ -1201,6 +1279,42 @@ function App() {
     openMatchingPage();
   };
 
+  const deleteMyPost = async (postId) => {
+    if (!currentUser) return;
+
+    const ok = window.confirm(
+      "이 구름을 정말 삭제할까요? 삭제하면 이 구름에 달린 응답도 함께 정리될 수 있어요."
+    );
+
+    if (!ok) return;
+
+    const { error: claimsError } = await supabase
+      .from("claims")
+      .delete()
+      .eq("crush_post_id", postId);
+
+    if (claimsError) {
+      alert("구름에 연결된 응답 삭제에 실패했어요: " + claimsError.message);
+      console.log(claimsError);
+      return;
+    }
+
+    const { error } = await supabase
+      .from("crush_posts")
+      .delete()
+      .eq("id", postId)
+      .eq("sender_user_id", currentUser.id);
+
+    if (error) {
+      alert("구름 삭제에 실패했어요: " + error.message);
+      console.log(error);
+      return;
+    }
+
+    alert("구름을 삭제했어요.");
+    await loadMyActivityData();
+  };
+
   const OptionButton = ({ value, selected, onClick, full }) => (
     <button
       type="button"
@@ -1331,7 +1445,9 @@ function App() {
 
         {renderPostQuestionAnswer(post)}
 
-        <p className="message">“{cleanMessage(post.message) || "남긴 메시지가 없어요."}”</p>
+        <p className="message">
+          “{cleanMessage(post.message) || "남긴 메시지가 없어요."}”
+        </p>
 
         {mode === "empty" && (
           <div className="noticeBox">
@@ -1341,6 +1457,14 @@ function App() {
         )}
 
         {mode === "answered" && claims.map((claim) => renderSentClaimCard(claim))}
+
+        <button
+          type="button"
+          className="dangerButton"
+          onClick={() => deleteMyPost(post.id)}
+        >
+          이 구름 삭제하기
+        </button>
       </div>
     );
   };
@@ -1386,7 +1510,6 @@ function App() {
           </b>
         </p>
 
-
         {claim.status === "pending" && (
           <div className="noticeBox">
             <p>아직 상대가 인스타 교환을 수락하지 않았어요.</p>
@@ -1427,16 +1550,35 @@ function App() {
           <h1>단꿈</h1>
 
           <p className="subtitle">
-            단꿈은 로그인 또는 회원가입 후 이용할 수 있어요. 구름을 남기거나
-            나에게 온 구름을 확인하려면 먼저 계정을 만들어주세요.
+            단꿈은 단국대 캠퍼스에서 우연히 스쳐간 사람에게 조심스럽게 구름을
+            띄우고, 상대가 본인이라고 느낄 때만 이어지는 익명 인연 서비스예요.
           </p>
+
+          <div className="appIntroBox">
+            <p>
+              <b>구름 띄우기</b>는 내가 마주친 사람의 날짜, 시간, 장소, 착장을
+              남기는 기능이에요.
+            </p>
+            <p>
+              <b>구름 확인하기</b>는 내 날짜와 인상착의에 맞는 구름을 찾아보는
+              기능이에요.
+            </p>
+            <p>
+              <b>내 구름 관리</b>에서는 내가 남긴 구름, 받은 응답, 매칭 상태를
+              확인할 수 있어요.
+            </p>
+            <p>
+              <b>마이페이지</b>에서는 닉네임, 성별, 학과, 인스타, 프로필 사진을
+              관리해요.
+            </p>
+          </div>
 
           {authMode === "signup" && (
             <>
               <div className="formGroup">
-                <label className="formLabel">이름</label>
+                <label className="formLabel">닉네임 또는 이름</label>
                 <input
-                  placeholder="이름 예: 박정우"
+                  placeholder="본명이 부담스러우면 닉네임으로 입력해도 돼요"
                   value={authForm.name}
                   onChange={(e) =>
                     setAuthForm({ ...authForm, name: e.target.value })
@@ -1470,14 +1612,23 @@ function App() {
 
           <div className="formGroup">
             <label className="formLabel">비밀번호</label>
-            <input
-              type="password"
-              placeholder="비밀번호 6자리 이상"
-              value={authForm.password}
-              onChange={(e) =>
-                setAuthForm({ ...authForm, password: e.target.value })
-              }
-            />
+            <div className="passwordRow">
+              <input
+                type={showPassword ? "text" : "password"}
+                placeholder="비밀번호 6자리 이상"
+                value={authForm.password}
+                onChange={(e) =>
+                  setAuthForm({ ...authForm, password: e.target.value })
+                }
+              />
+              <button
+                type="button"
+                className="passwordToggleButton"
+                onClick={() => setShowPassword((prev) => !prev)}
+              >
+                {showPassword ? "숨기기" : "보기"}
+              </button>
+            </div>
           </div>
 
           {authMode === "login" ? (
@@ -1510,90 +1661,111 @@ function App() {
   return (
     <div className="app">
       {page === "home" && (
-  <div className="homeCard skyHome">
-    <div className="skyDecor cloudA">☁</div>
-    <div className="skyDecor cloudB">☁</div>
-    <div className="skyDecor starA">✦</div>
-    <div className="skyDecor starB">✧</div>
+        <div className="homeCard skyHome">
+          <div className="skyDecor cloudA">☁</div>
+          <div className="skyDecor cloudB">☁</div>
+          <div className="skyDecor starA">✦</div>
+          <div className="skyDecor starB">✧</div>
 
-    <div className="homeTop">
-      <div className="brandBadge">DKU CLOUD MATCHING</div>
+          <div className="homeTop">
+            <div className="brandBadge">DKU CLOUD MATCHING</div>
 
-      <div className="cloudLogo">☁</div>
+            <div className="cloudLogo">☁</div>
 
-      <h1 className="homeLogo">단꿈</h1>
+            <h1 className="homeLogo">단꿈</h1>
 
-      <p className="homeSlogan">
-        스쳐간 인연,
-        <br />
-        기억은 남기고
-        <br />
-        용기는 구름에 담아
-      </p>
+            <p className="homeSlogan">
+              스쳐간 인연,
+              <br />
+              기억은 남기고
+              <br />
+              용기는 구름에 담아
+            </p>
 
-      <p className="homeDescription">
-        단국대 캠퍼스에서 우연히 마주친 사람에게 조심스럽게 구름을 띄우고,
-        서로가 원할 때만 이어지는 익명 인연 서비스
-      </p>
-    </div>
+            <p className="homeDescription">
+              단꿈은 단국대 캠퍼스에서 우연히 마주친 사람에게 조심스럽게 구름을
+              띄우고, 서로가 원할 때만 이어지는 익명 인연 서비스예요.
+            </p>
+          </div>
 
-    <div className="homeMainAction cloudActionBox">
-      <button onClick={openSendPage} className="primaryHomeButton cloudPrimaryButton">
-        <span className="buttonEmoji">☁</span>
-        <span>
-          <b>구름 띄우기</b>
-          <small>시간, 장소, 착장을 선택해 스쳐간 사람을 떠올려요.</small>
-        </span>
-      </button>
+          <div className="appIntroBox homeIntroBox">
+            <p>
+              <b>구름 띄우기</b> · 내가 본 사람의 날짜, 시간, 장소, 착장을 남겨요.
+            </p>
+            <p>
+              <b>구름 확인하기</b> · 나를 찾는 것 같은 구름을 확인하고 응답해요.
+            </p>
+            <p>
+              <b>내 구름 관리</b> · 내가 남긴 구름과 도착한 응답을 관리해요.
+            </p>
+            <p>
+              <b>마이페이지</b> · 내 닉네임, 성별, 학과, 인스타를 수정해요.
+            </p>
+          </div>
 
-      <button onClick={openSearchPage} className="secondaryHomeButton cloudSecondaryButton">
-        <span className="buttonEmoji">🔔</span>
-        <span>
-          <b>구름 확인하기</b>
-          <small>내 날짜와 머리 정보에 맞는 구름을 확인해요.</small>
-        </span>
-      </button>
-    </div>
+          <div className="homeMainAction cloudActionBox">
+            <button
+              onClick={openSendPage}
+              className="primaryHomeButton cloudPrimaryButton"
+            >
+              <span className="buttonEmoji">☁</span>
+              <span>
+                <b>구름 띄우기</b>
+                <small>시간, 장소, 착장을 선택해 스쳐간 사람을 떠올려요.</small>
+              </span>
+            </button>
 
-    <div className="homeMiniMenu fourMenu cloudMiniMenu">
-      <button onClick={openMatchingPage} className="miniMenuButton">
-        내 구름
-      </button>
+            <button
+              onClick={openSearchPage}
+              className="secondaryHomeButton cloudSecondaryButton"
+            >
+              <span className="buttonEmoji">🔔</span>
+              <span>
+                <b>구름 확인하기</b>
+                <small>내 날짜와 머리 정보에 맞는 구름을 확인해요.</small>
+              </span>
+            </button>
+          </div>
 
-      <button onClick={openProfilePage} className="miniMenuButton">
-        마이페이지
-      </button>
+          <div className="homeMiniMenu fourMenu cloudMiniMenu">
+            <button onClick={openMatchingPage} className="miniMenuButton">
+              내 구름
+            </button>
 
-      <button
-        onClick={() => {
-          setMatchingMode("notifications");
-          openMatchingPage();
-        }}
-        className="miniMenuButton"
-      >
-        알림
-      </button>
+            <button onClick={openProfilePage} className="miniMenuButton">
+              마이페이지
+            </button>
 
-      <button
-        onClick={() => {
-          setMatchingMode("calendar");
-          openMatchingPage();
-        }}
-        className="miniMenuButton"
-      >
-        기록
-      </button>
-    </div>
+            <button
+              onClick={() => {
+                setMatchingMode("notifications");
+                openMatchingPage();
+              }}
+              className="miniMenuButton"
+            >
+              알림
+            </button>
 
-    <div className="homeBottomNotice cloudNotice">
-      <p>우리의 캠퍼스에서, 특별한 우연이 시작됩니다.</p>
-    </div>
+            <button
+              onClick={() => {
+                setMatchingMode("calendar");
+                openMatchingPage();
+              }}
+              className="miniMenuButton"
+            >
+              기록
+            </button>
+          </div>
 
-    <button onClick={handleLogout} className="logoutTextButton">
-      로그아웃
-    </button>
-  </div>
-)}
+          <div className="homeBottomNotice cloudNotice">
+            <p>우리의 캠퍼스에서, 특별한 우연이 시작됩니다.</p>
+          </div>
+
+          <button onClick={handleLogout} className="logoutTextButton">
+            로그아웃
+          </button>
+        </div>
+      )}
 
       {page === "profile" && (
         <div className="card">
@@ -1741,12 +1913,24 @@ function App() {
             />
           </div>
 
+          <div className="draftActionRow">
+            <button type="button" className="white smallButton" onClick={saveDraft}>
+              임시저장
+            </button>
+            <button type="button" className="white smallButton" onClick={loadDraft}>
+              불러오기
+            </button>
+            <button type="button" className="white smallButton" onClick={clearDraft}>
+              임시저장 삭제
+            </button>
+          </div>
+
           {crushStep === 1 && (
             <>
               <h3 className="questionTitle">누구를 찾고 있나요?</h3>
               <p className="questionDesc">
                 구름을 남기고 싶은 사람이 남자인지 여자인지 선택해주세요. 선택한
-                성별에 맞춰 머리 스타일과 인상착의 질문이 달라져요.
+                성별에 맞춰 머리스타일과 인상착의 질문이 달라져요.
               </p>
 
               <div className="optionGrid">
@@ -1766,8 +1950,8 @@ function App() {
             <>
               <h3 className="questionTitle">언제 마주쳤나요?</h3>
               <p className="questionDesc">
-                시간은 1시간 단위로 선택해주세요. 나중에 상대가 날짜와 착장을
-                올리면 비슷한 구름으로 보여져요.
+                시간은 24시간을 2시간 단위로 나누었어요. 기억나는 시간대를
+                골라주세요.
               </p>
 
               <div className="formGroup">
@@ -1850,8 +2034,7 @@ function App() {
               </div>
 
               <p className="helperText">
-                구체적인 위치는 선택사항이지만, 적을수록 상대가 알아보기
-                쉬워요.
+                구체적인 위치는 선택사항이지만, 적을수록 상대가 알아보기 쉬워요.
               </p>
 
               <button
@@ -1874,8 +2057,8 @@ function App() {
                 {crushPost.target_gender || "상대"}의 머리 정보가 기억나나요?
               </h3>
               <p className="questionDesc">
-                머리 스타일, 머리 색깔, 모자 유무를 순서대로 선택해주세요.
-                남자에게 구름을 남길 때도 여자와 같은 방식으로 확인해요.
+                머리스타일, 머리 색깔, 모자 유무, 앞머리 유무를 순서대로
+                선택해주세요.
               </p>
 
               {crushPost.target_gender === "여자" ? (
@@ -1883,20 +2066,21 @@ function App() {
                   <div className="hairGuideBox">
                     <img
                       src={femaleHairGuideImage}
-                      alt="여자 머리 길이 예시"
+                      alt="여자 머리스타일 예시"
                       className="hairGuideImage"
                     />
                   </div>
 
                   <div className="formGroup">
-                    <label className="formLabel">머리 길이</label>
+                    <label className="formLabel">머리스타일</label>
                     <div className="optionGrid">
-                      {femaleHairLengthOptions.map((option) => (
+                      {femaleHairStyleOptions.map((option) => (
                         <OptionButton
                           key={option}
                           value={option}
-                          selected={crushPost.female_hair_length === option}
-                          onClick={() => updateCrushPost("female_hair_length", option)}
+                          selected={crushPost.female_hair_style === option}
+                          onClick={() => updateCrushPost("female_hair_style", option)}
+                          full={option === "잘 모르겠음"}
                         />
                       ))}
                     </div>
@@ -1931,11 +2115,26 @@ function App() {
                       ))}
                     </div>
                   </div>
+
+                  <div className="formGroup">
+                    <label className="formLabel">앞머리 유무</label>
+                    <div className="optionGrid">
+                      {bangsOptions.map((option) => (
+                        <OptionButton
+                          key={option}
+                          value={option}
+                          selected={crushPost.female_bangs === option}
+                          onClick={() => updateCrushPost("female_bangs", option)}
+                          full={option === "잘 모르겠음"}
+                        />
+                      ))}
+                    </div>
+                  </div>
                 </>
               ) : (
                 <>
                   <div className="formGroup">
-                    <label className="formLabel">머리 스타일</label>
+                    <label className="formLabel">머리스타일</label>
                     <div className="optionGrid">
                       {maleHairStyleOptions.map((option) => (
                         <OptionButton
@@ -1978,13 +2177,30 @@ function App() {
                       ))}
                     </div>
                   </div>
+
+                  <div className="formGroup">
+                    <label className="formLabel">앞머리 유무</label>
+                    <div className="optionGrid">
+                      {bangsOptions.map((option) => (
+                        <OptionButton
+                          key={option}
+                          value={option}
+                          selected={crushPost.male_bangs === option}
+                          onClick={() => updateCrushPost("male_bangs", option)}
+                          full={option === "잘 모르겠음"}
+                        />
+                      ))}
+                    </div>
+                  </div>
                 </>
               )}
 
               <button
                 onClick={() => {
                   if (!getFinalHairFeature()) {
-                    alert("머리 스타일, 머리 색깔, 모자 유무를 선택해주세요.");
+                    alert(
+                      "머리스타일, 머리 색깔, 모자 유무, 앞머리 유무를 선택해주세요."
+                    );
                     return;
                   }
                   setCrushStep(5);
@@ -2058,6 +2274,19 @@ function App() {
                 </select>
               </div>
 
+              {crushPost.bottom_type === "기타" && (
+                <div className="formGroup">
+                  <label className="formLabel">하의 기타 설명</label>
+                  <input
+                    placeholder="예: 카고바지, 와이드 팬츠, 독특한 바지"
+                    value={crushPost.bottom_custom}
+                    onChange={(e) =>
+                      updateCrushPost("bottom_custom", e.target.value)
+                    }
+                  />
+                </div>
+              )}
+
               <div className="formGroup">
                 <label className="formLabel">하의 색상</label>
                 <select
@@ -2073,7 +2302,7 @@ function App() {
 
               <button
                 onClick={() => {
-                  if (!crushPost.bottom_type || !crushPost.bottom_color) {
+                  if (!getFinalBottomType() || !crushPost.bottom_color) {
                     alert("하의 종류와 색상을 선택해주세요.");
                     return;
                   }
@@ -2184,6 +2413,17 @@ function App() {
               </div>
 
               <div className="formGroup">
+                <label className="formLabel">상황 자세히 적기</label>
+                <input
+                  placeholder="예: 친구 2명이랑 학식 먹는 중, 술집 앞에서 대화 중"
+                  value={crushPost.situation_detail}
+                  onChange={(e) =>
+                    updateCrushPost("situation_detail", e.target.value)
+                  }
+                />
+              </div>
+
+              <div className="formGroup">
                 <label className="formLabel">분위기</label>
                 <select
                   value={crushPost.mood}
@@ -2194,6 +2434,15 @@ function App() {
                     <option key={option}>{option}</option>
                   ))}
                 </select>
+              </div>
+
+              <div className="formGroup">
+                <label className="formLabel">분위기 자세히 적기</label>
+                <input
+                  placeholder="예: 웃는 모습이 밝았음, 차분하고 조용한 느낌"
+                  value={crushPost.mood_detail}
+                  onChange={(e) => updateCrushPost("mood_detail", e.target.value)}
+                />
               </div>
 
               <button
@@ -2256,7 +2505,7 @@ function App() {
                 </p>
                 <p>
                   <strong>하의:</strong> {crushPost.bottom_color || "-"}{" "}
-                  {crushPost.bottom_type || "-"}
+                  {getFinalBottomType() || "-"}
                 </p>
                 <p>
                   <strong>소지품:</strong> {crushPost.bag_type || "-"},{" "}
@@ -2269,10 +2518,10 @@ function App() {
                   <strong>신발:</strong> {crushPost.shoe_type || "-"}
                 </p>
                 <p>
-                  <strong>상황:</strong> {crushPost.together_situation || "-"}
+                  <strong>상황:</strong> {getFinalSituation() || "-"}
                 </p>
                 <p>
-                  <strong>분위기:</strong> {crushPost.mood || "-"}
+                  <strong>분위기:</strong> {getFinalMood() || "-"}
                 </p>
               </div>
 
@@ -2317,8 +2566,8 @@ function App() {
         <div className="card">
           <h2>구름 확인하기</h2>
           <p className="subtitle">
-            날짜, 성별, 머리 스타일이 정확히 맞는 구름만 먼저 확인해요.
-            그다음 착장 조건을 추가하면 더 좁혀볼 수 있어요.
+            날짜, 성별, 머리스타일이 정확히 맞는 구름만 먼저 확인해요. 그다음
+            착장 조건을 추가하면 더 좁혀볼 수 있어요.
           </p>
 
           <div className="summaryBox">
@@ -2344,24 +2593,24 @@ function App() {
               <div className="hairGuideBox">
                 <img
                   src={femaleHairGuideImage}
-                  alt="여자 머리 길이 예시"
+                  alt="여자 머리스타일 예시"
                   className="hairGuideImage"
                 />
               </div>
 
               <div className="formGroup">
-                <label className="formLabel">내 머리 길이</label>
+                <label className="formLabel">내 머리스타일</label>
                 <select
-                  value={searchForm.female_hair_length}
+                  value={searchForm.female_hair_style}
                   onChange={(e) =>
                     setSearchForm({
                       ...searchForm,
-                      female_hair_length: e.target.value,
+                      female_hair_style: e.target.value,
                     })
                   }
                 >
-                  <option value="">머리 길이 선택</option>
-                  {femaleHairLengthOptions.map((option) => (
+                  <option value="">머리스타일 선택</option>
+                  {femaleHairStyleOptions.map((option) => (
                     <option key={option}>{option}</option>
                   ))}
                 </select>
@@ -2399,11 +2648,29 @@ function App() {
                   ))}
                 </select>
               </div>
+
+              <div className="formGroup">
+                <label className="formLabel">앞머리 유무</label>
+                <select
+                  value={searchForm.female_bangs}
+                  onChange={(e) =>
+                    setSearchForm({
+                      ...searchForm,
+                      female_bangs: e.target.value,
+                    })
+                  }
+                >
+                  <option value="">앞머리 유무 선택</option>
+                  {bangsOptions.map((option) => (
+                    <option key={option}>{option}</option>
+                  ))}
+                </select>
+              </div>
             </>
           ) : (
             <>
               <div className="formGroup">
-                <label className="formLabel">내 머리 스타일</label>
+                <label className="formLabel">내 머리스타일</label>
                 <select
                   value={searchForm.male_hair_style}
                   onChange={(e) =>
@@ -2413,7 +2680,7 @@ function App() {
                     })
                   }
                 >
-                  <option value="">머리 스타일 선택</option>
+                  <option value="">머리스타일 선택</option>
                   {maleHairStyleOptions.map((option) => (
                     <option key={option}>{option}</option>
                   ))}
@@ -2448,6 +2715,21 @@ function App() {
                 >
                   <option value="">모자 유무 선택</option>
                   {hatOptions.map((option) => (
+                    <option key={option}>{option}</option>
+                  ))}
+                </select>
+              </div>
+
+              <div className="formGroup">
+                <label className="formLabel">앞머리 유무</label>
+                <select
+                  value={searchForm.male_bangs}
+                  onChange={(e) =>
+                    setSearchForm({ ...searchForm, male_bangs: e.target.value })
+                  }
+                >
+                  <option value="">앞머리 유무 선택</option>
+                  {bangsOptions.map((option) => (
                     <option key={option}>{option}</option>
                   ))}
                 </select>
@@ -2516,7 +2798,7 @@ function App() {
           </div>
 
           <p className="helperText">
-            날짜와 머리 스타일은 필수예요. 성별은 내 프로필 성별로 자동 매칭되고,
+            날짜와 머리 정보는 필수예요. 성별은 내 프로필 성별로 자동 매칭되고,
             상의와 하의 정보는 선택하면 더 정확하게 좁혀볼 수 있어요.
           </p>
 
@@ -2649,7 +2931,8 @@ function App() {
           <h2>내 구름 관리</h2>
 
           <p className="subtitle">
-            내가 띄운 구름, 받은 구름, 알림, 날짜별 활동 기록을 한눈에 확인할 수 있어요.
+            내가 띄운 구름, 받은 구름, 알림, 날짜별 활동 기록을 한눈에 확인할 수
+            있어요.
           </p>
 
           <div className="manageTabs fourTabs">
@@ -2703,7 +2986,6 @@ function App() {
               <span>받은 구름</span>
               <b>{receivedClaims.length}</b>
             </div>
-
           </div>
 
           {matchingLoading && <p className="notice">불러오는 중이에요...</p>}
@@ -2716,9 +2998,7 @@ function App() {
                 </h3>
 
                 {mySentPostsWithResponses.length === 0 && (
-                  <p className="noticeBox">
-                    아직 응답이 도착한 구름이 없어요.
-                  </p>
+                  <p className="noticeBox">아직 응답이 도착한 구름이 없어요.</p>
                 )}
 
                 {mySentPostsWithResponses.map((post) =>
@@ -2732,9 +3012,7 @@ function App() {
                 </h3>
 
                 {mySentPostsWithoutResponses.length === 0 && (
-                  <p className="noticeBox">
-                    응답을 기다리는 구름이 없어요.
-                  </p>
+                  <p className="noticeBox">응답을 기다리는 구름이 없어요.</p>
                 )}
 
                 {mySentPostsWithoutResponses.map((post) =>
@@ -2751,17 +3029,12 @@ function App() {
               </h3>
 
               {receivedClaims.length === 0 && (
-                <p className="noticeBox">
-                  아직 내가 응답한 구름이 없어요.
-                </p>
+                <p className="noticeBox">아직 내가 응답한 구름이 없어요.</p>
               )}
 
               {receivedClaims.map((claim) => renderReceivedClaimCard(claim))}
             </div>
           )}
-
-
-
 
           {!matchingLoading && matchingMode === "notifications" && (
             <div className="manageSection">
@@ -2769,7 +3042,8 @@ function App() {
 
               {notificationItems.length === 0 && (
                 <p className="noticeBox">
-                  아직 새 알림이 없어요. 응답이 오거나 매칭이 수락되면 여기에 표시돼요.
+                  아직 새 알림이 없어요. 응답이 오거나 매칭이 수락되면 여기에
+                  표시돼요.
                 </p>
               )}
 
@@ -2795,9 +3069,7 @@ function App() {
               <h3 className="manageSectionTitle">날짜별 활동 기록</h3>
 
               {activityDateOptions.length === 0 ? (
-                <p className="noticeBox">
-                  아직 날짜별로 보여줄 활동이 없어요.
-                </p>
+                <p className="noticeBox">아직 날짜별로 보여줄 활동이 없어요.</p>
               ) : (
                 <>
                   <div className="formGroup">
