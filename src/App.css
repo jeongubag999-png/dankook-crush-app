@@ -1666,3 +1666,153 @@ textarea:focus {
     -webkit-backdrop-filter: none;
   }
 }
+/* 버튼 크기 정리: 커야 할 버튼은 크게, 일반 버튼은 통일 */
+
+/* 일반 버튼 기본값 */
+button,
+button.white,
+.dangerButton {
+  height: 56px;
+  min-height: 56px;
+  max-height: 56px;
+  padding: 0 14px;
+  border-radius: 18px;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  text-align: center;
+  line-height: 1.25;
+}
+
+/* 선택지 버튼 통일 */
+.optionGrid button,
+.optionGrid .optionButton {
+  height: 56px;
+  min-height: 56px;
+  max-height: 56px;
+  margin: 0 !important;
+  padding: 0 10px;
+  border-radius: 18px;
+}
+
+/* 이전 / 취소 버튼 통일 */
+.stepActions button {
+  height: 56px;
+  min-height: 56px;
+  max-height: 56px;
+  margin: 0 !important;
+}
+
+/* 홈 아래 작은 메뉴 버튼 통일 */
+.miniMenuButton,
+.cloudMiniMenu .miniMenuButton {
+  height: 56px;
+  min-height: 56px;
+  max-height: 56px;
+  margin-top: 0;
+  border-radius: 18px;
+}
+
+/* 내 구름 관리 탭 버튼 통일 */
+.manageTab,
+.fourTabs .manageTab {
+  height: 56px;
+  min-height: 56px;
+  max-height: 56px;
+  margin-top: 0;
+  border-radius: 18px;
+}
+
+/* 마이페이지 빠른 메뉴 버튼 통일 */
+.mypageQuickMenu button {
+  height: 56px;
+  min-height: 56px;
+  max-height: 56px;
+  margin-top: 0;
+  border-radius: 18px;
+}
+
+/* 임시저장 / 불러오기 / 임시저장 삭제 버튼은 작지만 너무 낮지 않게 */
+.smallButton {
+  height: 50px;
+  min-height: 50px;
+  max-height: 50px;
+  margin-top: 0;
+  padding: 0 8px;
+  border-radius: 16px;
+  font-size: 12px;
+}
+
+/* 비밀번호 보기 버튼은 입력창 높이와 맞추기 */
+.passwordToggleButton {
+  height: 58px;
+  min-height: 58px;
+  max-height: 58px;
+  margin-top: 0;
+}
+
+/* 홈 메인 CTA 버튼은 크게 유지 */
+.primaryHomeButton,
+.secondaryHomeButton,
+.cloudPrimaryButton,
+.cloudSecondaryButton,
+.cloudSendButton {
+  height: auto;
+  min-height: 78px;
+  max-height: none;
+  padding: 16px 17px;
+  border-radius: 26px;
+}
+
+/* 홈 로그아웃 버튼은 일반 버튼과 같은 높이 */
+.skyHome .logoutTextButton {
+  width: 100%;
+  height: 56px;
+  min-height: 56px;
+  max-height: 56px;
+  margin-top: 18px;
+  padding: 0 16px;
+  border-radius: 20px;
+}
+
+/* 모바일에서도 동일하게 유지 */
+@media (max-width: 480px) {
+  button,
+  button.white,
+  .dangerButton,
+  .optionGrid button,
+  .optionGrid .optionButton,
+  .stepActions button,
+  .miniMenuButton,
+  .cloudMiniMenu .miniMenuButton,
+  .manageTab,
+  .fourTabs .manageTab,
+  .mypageQuickMenu button {
+    height: 56px;
+    min-height: 56px;
+    max-height: 56px;
+  }
+
+  .smallButton {
+    height: 50px;
+    min-height: 50px;
+    max-height: 50px;
+  }
+
+  .passwordToggleButton {
+    height: 58px;
+    min-height: 58px;
+    max-height: 58px;
+  }
+
+  .primaryHomeButton,
+  .secondaryHomeButton,
+  .cloudPrimaryButton,
+  .cloudSecondaryButton,
+  .cloudSendButton {
+    height: auto;
+    min-height: 78px;
+    max-height: none;
+    padding: 15px;
+  }
+}
