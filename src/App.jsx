@@ -353,6 +353,7 @@ function App() {
   });
 
   const [searchResults, setSearchResults] = useState([]);
+  const [hiddenResultIds, setHiddenResultIds] = useState([]);
   const [selectedPost, setSelectedPost] = useState(null);
 
   const [claimForm, setClaimForm] = useState({
@@ -733,7 +734,82 @@ function App() {
     localStorage.removeItem(getDraftKey());
     alert("임시저장을 삭제했어요.");
   };
+const cleanTagText = (text) => {
+  if (!text) return "";
 
+  return text
+    .replace(/\/\s*상의 설명:.*/g, "")
+    .replace(/\/\s*하의 설명:.*/g, "")
+    .replace(/\/\s*소지품 설명:.*/g, "")
+    .replace(/\/\s*신발 설명:.*/g, "")
+    .replace(/\/\s*자세히:.*/g, "")
+    .trim();
+};
+
+const getPostTopText = (post) => {
+  const clothesStyleText = post.clothes_style || "";
+
+  if (!clothesStyleText) return "";
+
+  if (clothesStyleText.includes("하의:")) {
+    return cleanTagText(
+      clothesStyleText.split("하의:")[0].replace("상의:", "").trim()
+    );
+  }
+
+  return cleanTagText(clothesStyleText.replace("상의:", "").trim());
+};
+
+const getPostBottomText = (post) => {
+  const clothesStyleText = post.clothes_style || "";
+
+  if (!clothesStyleText || !clothesStyleText.includes("하의:")) return "";
+
+  return cleanTagText(clothesStyleText.split("하의:")[1].trim());
+};
+
+const getAccessoryValue = (post, label) => {
+  const accessoryText = post.accessory || "";
+
+  if (!accessoryText.includes(`${label}:`)) return "";
+
+  const afterLabel = accessoryText.split(`${label}:`)[1] || "";
+  return cleanTagText(afterLabel.split(" / ")[0].trim());
+};
+
+const makeCloudTags = (post) => {
+  const tags = [];
+
+  const mainPlace = post.place ? post.place.split(" - ")[0] : "";
+  const hairParts = (post.hair_feature || "")
+    .split(" / ")
+    .map((item) => item.trim())
+    .filter((item) => item && item !== "잘 모르겠음");
+
+  const topText = getPostTopText(post);
+  const bottomText = getPostBottomText(post);
+  const bagText = getAccessoryValue(post, "가방");
+  const moodText = getAccessoryValue(post, "분위기");
+
+  if (mainPlace) tags.push(mainPlace);
+  if (post.time_period) tags.push(post.time_period);
+
+  hairParts.slice(0, 2).forEach((item) => tags.push(item));
+
+  if (topText && topText !== "-") tags.push(topText);
+  if (bottomText && bottomText !== "-") tags.push(bottomText);
+  if (bagText && bagText !== "잘 모르겠음") tags.push(bagText);
+  if (moodText && moodText !== "잘 모르겠음") tags.push(moodText);
+
+  return [...new Set(tags)].slice(0, 8);
+};
+
+const hideSearchResult = (postId) => {
+  setHiddenResultIds((prev) => {
+    if (prev.includes(postId)) return prev;
+    return [...prev, postId];
+  });
+};
   const renderPostQuestionAnswer = (post) => {
     const clothesStyleText = post.clothes_style || "";
     const accessoryText = post.accessory || "";
@@ -1123,6 +1199,7 @@ function App() {
   }
 
   setSearchResults(data || []);
+  setHiddenResultIds([]);
   setPage("result");
 };
     if (!checkProfileRequired()) return;
@@ -1461,6 +1538,10 @@ function App() {
   const selectedDateReceivedClaims = receivedClaims.filter(
     (claim) => claim.post?.seen_date === selectedActivityDate
   );
+
+  const visibleSearchResults = searchResults.filter(
+  (post) => !hiddenResultIds.includes(post.id)
+);
 
   const notificationItems = [
     ...sentClaims.map((claim) => ({
@@ -3126,54 +3207,92 @@ function App() {
       )}
 
       {page === "result" && (
-        <div className="card">
-          <h2>나를 찾는 구름 {searchResults.length}개</h2>
+  <div className="card">
+    <h2>나를 찾는 구름 {visibleSearchResults.length}개</h2>
 
-          {searchResults.length === 0 && (
-            <p className="notice">
-              아직 비슷한 구름이 없어요. 날짜를 다시 확인하거나, 머리와 옷
-              상의와 하의 조건을 조금 줄여서 다시 찾아보세요.
-            </p>
+    {searchResults.length > 0 && hiddenResultIds.length > 0 && (
+      <p className="notice">
+        아닌 것 같은 구름 {hiddenResultIds.length}개를 숨겼어요.
+      </p>
+    )}
+
+    {visibleSearchResults.length === 0 && (
+      <p className="notice">
+        지금 화면에 보이는 구름이 없어요. 날짜를 다시 확인하거나 다시 찾아보기를
+        눌러주세요.
+      </p>
+    )}
+
+    {visibleSearchResults.map((post) => {
+      const tags = makeCloudTags(post);
+
+      return (
+        <div className="post resultPost" key={post.id}>
+          <div className="postTopLine">
+            <span className="statusPill active">
+              ☁ 나를 찾는 구름일 수도 있어요
+            </span>
+          </div>
+
+          {tags.length > 0 && (
+            <div className="cloudTagBox">
+              {tags.map((tag) => (
+                <span className="cloudTag" key={`${post.id}-${tag}`}>
+                  #{tag}
+                </span>
+              ))}
+            </div>
           )}
 
-          {searchResults.map((post) => (
-            <div className="post" key={post.id}>
-              <p>
-                <b>
-                  {post.seen_date}, {post.time_period}, {post.place}
-                </b>
-              </p>
+          <p>
+            <b>
+              {post.seen_date}, {post.time_period}, {post.place}
+            </b>
+          </p>
 
-              {renderPostQuestionAnswer(post)}
+          {renderPostQuestionAnswer(post)}
 
-              <p className="message">“{cleanMessage(post.message)}”</p>
+          <p className="message">
+            “{cleanMessage(post.message) || "남긴 메시지가 없어요."}”
+          </p>
 
-              <button
-                onClick={() => {
-                  setSelectedPost(post);
-                  setPage("claimForm");
-                }}
-              >
-                이거 나인 것 같아요
-              </button>
-            </div>
-          ))}
+          <div className="resultActionRow">
+            <button
+              onClick={() => {
+                setSelectedPost(post);
+                setPage("claimForm");
+              }}
+            >
+              이거 나인 것 같아요
+            </button>
 
-          <button
-            onClick={() => {
-              setSearchStep(1);
-              setPage("search");
-            }}
-            className="white"
-          >
-            다시 찾아보기
-          </button>
-
-          <button onClick={() => setPage("home")} className="white">
-            홈으로
-          </button>
+            <button
+              type="button"
+              className="white dismissResultButton"
+              onClick={() => hideSearchResult(post.id)}
+            >
+              이건 아닌 것 같아요
+            </button>
+          </div>
         </div>
-      )}
+      );
+    })}
+
+    <button
+      onClick={() => {
+        setSearchStep(1);
+        setPage("search");
+      }}
+      className="white"
+    >
+      다시 찾아보기
+    </button>
+
+    <button onClick={() => setPage("home")} className="white">
+      홈으로
+    </button>
+  </div>
+)}
 
       {page === "claimForm" && (
         <div className="card">
