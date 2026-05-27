@@ -1100,6 +1100,31 @@ function App() {
   };
 
   const searchCrushPosts = async () => {
+  if (!checkProfileRequired()) return;
+
+  if (!searchForm.seen_date) {
+    alert("날짜를 선택해주세요.");
+    return;
+  }
+
+  const { data, error } = await supabase
+    .from("crush_posts")
+    .select("*")
+    .eq("seen_date", searchForm.seen_date)
+    .eq("target_gender", profile.gender)
+    .order("created_at", {
+      ascending: false,
+    });
+
+  if (error) {
+    alert("검색에 실패했어요: " + error.message);
+    console.log(error);
+    return;
+  }
+
+  setSearchResults(data || []);
+  setPage("result");
+};
     if (!checkProfileRequired()) return;
 
     if (!searchForm.seen_date) {
