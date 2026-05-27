@@ -1202,69 +1202,6 @@ const hideSearchResult = (postId) => {
   setHiddenResultIds([]);
   setPage("result");
 };
-    if (!checkProfileRequired()) return;
-
-    if (!searchForm.seen_date) {
-      alert("날짜를 선택해주세요.");
-      return;
-    }
-
-    const finalSearchHairFeature = getFinalSearchHairFeature();
-
-    if (!finalSearchHairFeature) {
-      alert(
-        "머리 정보를 선택해주세요. 날짜, 성별, 머리스타일, 머리 색깔, 모자, 앞머리가 맞아야 구름을 확인할 수 있어요."
-      );
-      return;
-    }
-
-    let query = supabase
-      .from("crush_posts")
-      .select("*")
-      .eq("seen_date", searchForm.seen_date)
-      .eq("target_gender", profile.gender);
-
-    const searchableHairParts = finalSearchHairFeature
-      .split(" / ")
-      .filter((part) => part && part !== "잘 모르겠음");
-
-    if (searchableHairParts.length === 4) {
-      query = query.eq("hair_feature", finalSearchHairFeature);
-    } else {
-      searchableHairParts.forEach((part) => {
-        query = query.ilike("hair_feature", `%${part}%`);
-      });
-    }
-
-    if (searchForm.top_color && searchForm.top_color !== "잘 모르겠음") {
-      query = query.eq("clothes_color", searchForm.top_color);
-    }
-
-    if (searchForm.top_type && searchForm.top_type !== "잘 모르겠음") {
-      query = query.ilike("clothes_style", `%상의:${searchForm.top_type}%`);
-    }
-
-    if (searchForm.bottom_type && searchForm.bottom_type !== "잘 모르겠음") {
-      query = query.ilike("clothes_style", `%하의:${searchForm.bottom_type}%`);
-    }
-
-    if (searchForm.bottom_color && searchForm.bottom_color !== "잘 모르겠음") {
-      query = query.ilike("clothes_style", `%${searchForm.bottom_color}%`);
-    }
-
-    const { data, error } = await query.order("created_at", {
-      ascending: false,
-    });
-
-    if (error) {
-      alert("검색에 실패했어요: " + error.message);
-      console.log(error);
-      return;
-    }
-
-    setSearchResults(data || []);
-    setPage("result");
-  };
 
   const saveClaim = async () => {
     if (!selectedPost) {
