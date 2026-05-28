@@ -366,6 +366,12 @@ function App() {
   const [matchingLoading, setMatchingLoading] = useState(false);
   const [matchingMode, setMatchingMode] = useState("sent");
   const [activityDate, setActivityDate] = useState("");
+  const [weatherDate, setWeatherDate] = useState(
+  new Date().toISOString().slice(0, 10)
+);
+const [weatherLoading, setWeatherLoading] = useState(false);
+const [weatherClouds, setWeatherClouds] = useState([]);
+const [selectedWeatherPlace, setSelectedWeatherPlace] = useState("");
 
   const [mySentPosts, setMySentPosts] = useState([]);
   const [sentClaims, setSentClaims] = useState([]);
@@ -1366,6 +1372,73 @@ const hideSearchResult = (postId) => {
     setPage("matching");
     await loadMyActivityData();
   };
+  const loadCloudWeather = async (targetDate = weatherDate) => {
+  if (!checkProfileRequired()) return;
+
+  if (!targetDate) {
+    alert("날짜를 선택해주세요.");
+    return;
+  }
+
+  setWeatherLoading(true);
+  setSelectedWeatherPlace("");
+
+  const { data, error } = await supabase
+    .from("crush_posts")
+    .select("*")
+    .eq("seen_date", targetDate)
+    .order("created_at", { ascending: false });
+
+  if (error) {
+    alert("단국대학교 날씨를 불러오지 못했어요: " + error.message);
+    console.log(error);
+    setWeatherLoading(false);
+    return;
+  }
+
+  setWeatherClouds(data || []);
+  setWeatherLoading(false);
+};
+
+const openWeatherPage = async () => {
+  if (!checkProfileRequired()) return;
+
+  setPage("weather");
+  await loadCloudWeather(weatherDate);
+};
+
+const getMainPlaceFromPost = (post) => {
+  if (!post.place) return "장소 없음";
+  return post.place.split(" - ")[0];
+};
+
+const getWeatherPlaceCounts = () => {
+  const countMap = {};
+
+  weatherClouds.forEach((post) => {
+    const place = getMainPlaceFromPost(post);
+
+    if (!countMap[place]) {
+      countMap[place] = {
+        place,
+        count: 0,
+        posts: [],
+      };
+    }
+
+    countMap[place].count += 1;
+    countMap[place].posts.push(post);
+  });
+
+  return Object.values(countMap).sort((a, b) => b.count - a.count);
+};
+
+const getWeatherComment = (count) => {
+  if (count >= 10) return "구름 폭주 중";
+  if (count >= 5) return "구름이 꽤 많아요";
+  if (count >= 2) return "구름이 조금 떠 있어요";
+  return "작은 구름 하나";
+};
 
   const acceptClaim = async (claimId) => {
     const { error } = await supabase
@@ -1827,6 +1900,9 @@ const hideSearchResult = (postId) => {
               <b>내 구름 관리</b> · 내가 남긴 구름과 도착한 응답을 관리해요.
             </p>
             <p>
+              <b>날씨 확인하기</b> · 오늘 단국대 어디에 구름이 많이 떴는지 확인해요.
+            </p>
+            <p>
               <b>마이페이지</b> · 닉네임과 프로필 정보를 관리해요.
             </p>
           </div>
@@ -1855,36 +1931,39 @@ const hideSearchResult = (postId) => {
             </button>
           </div>
 
-          <div className="homeMiniMenu fourMenu cloudMiniMenu">
-            <button onClick={openMatchingPage} className="miniMenuButton">
-              내 구름
-            </button>
+          <div className="homeMiniMenu weatherMenu cloudMiniMenu">
+  <button onClick={openMatchingPage} className="miniMenuButton">
+    내 구름
+  </button>
 
-            <button onClick={openProfilePage} className="miniMenuButton">
-              마이페이지
-            </button>
+  <button onClick={openWeatherPage} className="miniMenuButton weatherMiniButton">
+    날씨 확인
+  </button>
 
-            <button
-              onClick={() => {
-                setMatchingMode("notifications");
-                openMatchingPage();
-              }}
-              className="miniMenuButton"
-            >
-              알림
-            </button>
+  <button onClick={openProfilePage} className="miniMenuButton">
+    마이페이지
+  </button>
 
-            <button
-              onClick={() => {
-                setMatchingMode("calendar");
-                openMatchingPage();
-              }}
-              className="miniMenuButton"
-            >
-              기록
-            </button>
-          </div>
+  <button
+    onClick={() => {
+      setMatchingMode("notifications");
+      openMatchingPage();
+    }}
+    className="miniMenuButton"
+  >
+    알림
+  </button>
 
+  <button
+    onClick={() => {
+      setMatchingMode("calendar");
+      openMatchingPage();
+    }}
+    className="miniMenuButton"
+  >
+    기록
+  </button>
+</div>
           <div className="homeBottomNotice cloudNotice">
             <p>우리의 캠퍼스에서, 특별한 우연이 시작됩니다.</p>
           </div>
@@ -3302,7 +3381,135 @@ const hideSearchResult = (postId) => {
           </button>
         </div>
       )}
+      {page === "weather" && (
+  <div className="card weatherCard">
+    <h2>단국대학교 날씨 확인하기</h2>
 
+    <p className="subtitle">
+      날짜를 선택하면 단국대 건물 또는 특정 장소에 구름이 몇 개 떴는지
+      확인할 수 있어요.
+    </p>
+
+    <div className="weatherHeroBox">
+      <div className="weatherIcon">☁️</div>
+      <div>
+        <p className="weatherHeroTitle">오늘의 단국대 구름</p>
+        <p className="weatherHeroDesc">
+          많이 언급된 장소일수록 구름이 많이 뜬 곳이에요.
+        </p>
+      </div>
+    </div>
+
+    <div className="formGroup">
+      <label className="formLabel">확인할 날짜</label>
+      <input
+        type="date"
+        value={weatherDate}
+        onChange={(e) => setWeatherDate(e.target.value)}
+      />
+    </div>
+
+    <button onClick={() => loadCloudWeather(weatherDate)}>
+      이 날짜 날씨 확인하기
+    </button>
+
+    {weatherLoading && (
+      <p className="notice">단국대 하늘을 확인하는 중이에요...</p>
+    )}
+
+    {!weatherLoading && weatherClouds.length === 0 && (
+      <div className="noticeBox">
+        <p>이 날짜에는 아직 뜬 구름이 없어요.</p>
+        <p>첫 번째 구름을 띄워보면 이곳에 표시돼요.</p>
+      </div>
+    )}
+
+    {!weatherLoading && weatherClouds.length > 0 && (
+      <>
+        <div className="weatherSummaryGrid">
+          <div className="weatherSummaryItem">
+            <span>전체 구름</span>
+            <b>{weatherClouds.length}</b>
+          </div>
+
+          <div className="weatherSummaryItem">
+            <span>구름 뜬 장소</span>
+            <b>{getWeatherPlaceCounts().length}</b>
+          </div>
+        </div>
+
+        <div className="weatherPlaceList">
+          {getWeatherPlaceCounts().map((item, index) => (
+            <button
+              type="button"
+              key={item.place}
+              className={
+                selectedWeatherPlace === item.place
+                  ? "weatherPlaceCard active"
+                  : "weatherPlaceCard"
+              }
+              onClick={() =>
+                setSelectedWeatherPlace(
+                  selectedWeatherPlace === item.place ? "" : item.place
+                )
+              }
+            >
+              <div className="weatherRank">#{index + 1}</div>
+
+              <div className="weatherPlaceInfo">
+                <b>{item.place}</b>
+                <span>{getWeatherComment(item.count)}</span>
+              </div>
+
+              <div className="weatherCount">
+                <b>{item.count}</b>
+                <span>개</span>
+              </div>
+            </button>
+          ))}
+        </div>
+
+        {selectedWeatherPlace && (
+          <div className="weatherDetailBox">
+            <h3 className="manageSectionTitle">
+              {selectedWeatherPlace}에 뜬 구름
+            </h3>
+
+            {weatherClouds
+              .filter(
+                (post) => getMainPlaceFromPost(post) === selectedWeatherPlace
+              )
+              .map((post) => (
+                <div className="post resultPost" key={post.id}>
+                  <div className="postTopLine">
+                    <span className="statusPill active">
+                      ☁ {selectedWeatherPlace} 구름
+                    </span>
+                  </div>
+
+                  <p>
+                    <b>
+                      {post.seen_date}, {post.time_period}, {post.place}
+                    </b>
+                  </p>
+
+                  {renderPostQuestionAnswer(post)}
+
+                  <p className="message">
+                    “{cleanMessage(post.message) || "남긴 메시지가 없어요."}”
+                  </p>
+                </div>
+              ))}
+          </div>
+        )}
+      </>
+    )}
+
+    <button onClick={() => setPage("home")} className="white">
+      홈으로
+    </button>
+  </div>
+)}
       {page === "matching" && (
         <div className="card manageCard">
           <h2>내 구름 관리</h2>
