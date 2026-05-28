@@ -372,6 +372,7 @@ function App() {
 const [weatherLoading, setWeatherLoading] = useState(false);
 const [weatherClouds, setWeatherClouds] = useState([]);
 const [selectedWeatherPlace, setSelectedWeatherPlace] = useState("");
+const [homeTopWeatherPlace, setHomeTopWeatherPlace] = useState(null);
 
   const [mySentPosts, setMySentPosts] = useState([]);
   const [sentClaims, setSentClaims] = useState([]);
@@ -576,6 +577,12 @@ const [selectedWeatherPlace, setSelectedWeatherPlace] = useState("");
       window.removeEventListener("focusin", scrollFocusedInputIntoView);
     };
   }, []);
+
+  useEffect(() => {
+  if (!currentUser) return;
+
+  loadHomeTopWeatherPlace();
+}, [currentUser]);
 
   const handleSignUp = async () => {
     const loginId = authForm.login_id.trim();
@@ -1439,6 +1446,39 @@ const getWeatherComment = (count) => {
   if (count >= 2) return "구름이 조금 떠 있어요";
   return "작은 구름 하나";
 };
+const loadHomeTopWeatherPlace = async () => {
+  const today = new Date().toISOString().slice(0, 10);
+
+  const { data, error } = await supabase
+    .from("crush_posts")
+    .select("id, place")
+    .eq("seen_date", today);
+
+  if (error) {
+    console.log(error);
+    setHomeTopWeatherPlace(null);
+    return;
+  }
+
+  const countMap = {};
+
+  (data || []).forEach((post) => {
+    const place = getMainPlaceFromPost(post);
+
+    if (!countMap[place]) {
+      countMap[place] = {
+        place,
+        count: 0,
+      };
+    }
+
+    countMap[place].count += 1;
+  });
+
+  const topPlace = Object.values(countMap).sort((a, b) => b.count - a.count)[0];
+
+  setHomeTopWeatherPlace(topPlace || null);
+};
 
   const acceptClaim = async (claimId) => {
     const { error } = await supabase
@@ -1552,6 +1592,9 @@ const getWeatherComment = (count) => {
   const visibleSearchResults = searchResults.filter(
   (post) => !hiddenResultIds.includes(post.id)
 );
+  const homeWeatherTickerText = homeTopWeatherPlace
+  ? `☁️ 오늘 단국대에서 구름이 가장 많이 뜬 곳은 ${homeTopWeatherPlace.place}예요. ${homeTopWeatherPlace.count}개의 구름이 머물고 있어요. 혹시 그중 하나가 당신을 찾는 구름일지도 몰라요.`
+  : "☁️ 오늘 단국대 캠퍼스에 새로운 구름들이 떠오르고 있어요. 혹시 그중 하나가 당신을 찾는 구름일지도 몰라요.";
 
   const notificationItems = [
     ...sentClaims.map((claim) => ({
@@ -1884,12 +1927,19 @@ const getWeatherComment = (count) => {
             </p>
 
             <p className="homeDescription">
-              단꿈은 단국대 캠퍼스에서 우연히 마주친 사람에게 조심스럽게 구름을
-              띄우고, 서로가 원할 때만 이어지는 익명 인연 서비스예요.
-            </p>
-          </div>
+  단꿈은 단국대 캠퍼스에서 우연히 마주친 사람에게 조심스럽게 구름을
+  띄우고, 서로가 원할 때만 이어지는 익명 인연 서비스예요.
+</p>
 
-          <div className="appIntroBox homeIntroBox">
+<div className="homeWeatherTicker">
+  <div className="homeWeatherTickerTrack">
+    <span>{homeWeatherTickerText}</span>
+    <span>{homeWeatherTickerText}</span>
+  </div>
+</div>
+</div>
+
+<div className="appIntroBox homeIntroBox">
             <p>
               <b>구름 띄우기</b> · 내가 본 사람의 날짜, 시간, 장소, 착장을 남겨요.
             </p>
