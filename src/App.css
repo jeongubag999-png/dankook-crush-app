@@ -2338,7 +2338,7 @@ textarea {
 .homeWeatherTickerTrack {
   display: flex;
   width: max-content;
-  animation: homeWeatherTickerMove 24s linear infinite;
+  animation: homeWeatherTickerMove 13s linear infinite;
 }
 
 .homeWeatherTickerTrack span {
@@ -2371,7 +2371,7 @@ textarea {
   }
 
   .homeWeatherTickerTrack {
-    animation-duration: 22s;
+    animation-duration: 13s;
   }
 
   .homeWeatherTickerTrack span {
