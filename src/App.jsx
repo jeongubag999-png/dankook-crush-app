@@ -377,6 +377,8 @@ const [homeTopWeatherPlace, setHomeTopWeatherPlace] = useState(null);
   const [mySentPosts, setMySentPosts] = useState([]);
   const [sentClaims, setSentClaims] = useState([]);
   const [receivedClaims, setReceivedClaims] = useState([]);
+  const [sentCloudViews, setSentCloudViews] = useState([]);
+  const [receivedCloudViews, setReceivedCloudViews] = useState([]);
 
   const femaleHairGuideImage = "/hair-length-guide.png";
 
@@ -1211,26 +1213,80 @@ const hideSearchResult = (postId) => {
     return;
   }
 
-  setSearchResults(data || []);
+  const finalResults = (data || []).filter(
+    (post) => post.sender_user_id !== currentUser.id
+  );
+
+  if (finalResults.length > 0) {
+    const viewRows = finalResults.map((post) => ({
+      crush_post_id: String(post.id),
+      viewer_user_id: currentUser.id,
+      viewer_nickname: profile.nickname,
+      viewer_instagram: cleanInstagram(profile.instagram_id),
+      viewer_profile_image_url: profile.profile_image_url,
+      viewed_at: new Date().toISOString(),
+    }));
+
+    const { error: viewError } = await supabase
+      .from("cloud_views")
+      .upsert(viewRows, {
+        onConflict: "crush_post_id,viewer_user_id",
+        ignoreDuplicates: true,
+      });
+
+    if (viewError) {
+      console.log(viewError);
+    }
+  }
+
+  setSearchResults(finalResults);
   setHiddenResultIds([]);
   setPage("result");
 };
 
   const saveClaim = async () => {
-    if (!selectedPost) {
-      alert("응답할 구름 글을 찾지 못했어요.");
-      return;
-    }
+  if (!selectedPost) {
+    alert("응답할 구름 글을 찾지 못했어요.");
+    return;
+  }
 
-    if (!checkProfileRequired()) return;
+  if (!checkProfileRequired()) return;
 
-    if (!claimForm.match_level) {
-      alert("일치 정도를 선택해주세요.");
-      return;
-    }
+  if (!claimForm.match_level) {
+    alert("일치 정도를 선택해주세요.");
+    return;
+  }
 
-    const finalMessage = `[일치 정도: ${claimForm.match_level}] ${claimForm.claimer_message}`;
+  const finalMessage = `[일치 정도: ${claimForm.match_level}] ${claimForm.claimer_message}`;
 
+  const { data: existingClaim, error: existingError } = await supabase
+    .from("claims")
+    .select("*")
+    .eq("crush_post_id", selectedPost.id)
+    .eq("claimer_user_id", currentUser.id)
+    .maybeSingle();
+
+  if (existingError) {
+    alert("응답 확인에 실패했어요: " + existingError.message);
+    console.log(existingError);
+    return;
+  }
+
+  let claimError = null;
+
+  if (existingClaim) {
+    const { error } = await supabase
+      .from("claims")
+      .update({
+        claimer_nickname: profile.nickname,
+        claimer_instagram: cleanInstagram(profile.instagram_id),
+        claimer_profile_image_url: profile.profile_image_url,
+        claimer_message: finalMessage,
+      })
+      .eq("id", existingClaim.id);
+
+    claimError = error;
+  } else {
     const { error } = await supabase.from("claims").insert([
       {
         crush_post_id: selectedPost.id,
@@ -1243,24 +1299,44 @@ const hideSearchResult = (postId) => {
       },
     ]);
 
-    if (error) {
-      alert("응답 저장에 실패했어요: " + error.message);
-      console.log(error);
-      return;
+    claimError = error;
+  }
+
+  if (claimError) {
+    alert("응답 저장에 실패했어요: " + claimError.message);
+    console.log(claimError);
+    return;
+  }
+
+  await supabase.from("cloud_views").upsert(
+    [
+      {
+        crush_post_id: String(selectedPost.id),
+        viewer_user_id: currentUser.id,
+        viewer_nickname: profile.nickname,
+        viewer_instagram: cleanInstagram(profile.instagram_id),
+        viewer_profile_image_url: profile.profile_image_url,
+        viewed_at: new Date().toISOString(),
+      },
+    ],
+    {
+      onConflict: "crush_post_id,viewer_user_id",
+      ignoreDuplicates: true,
     }
+  );
 
-    alert("응답을 보냈어요!");
+  alert("응답을 보냈어요!");
 
-    setClaimForm({
-      claimer_nickname: "",
-      claimer_instagram: "",
-      match_level: "",
-      claimer_message: "",
-    });
+  setClaimForm({
+    claimer_nickname: "",
+    claimer_instagram: "",
+    match_level: "",
+    claimer_message: "",
+  });
 
-    setSelectedPost(null);
-    setPage("claim");
-  };
+  setSelectedPost(null);
+  setPage("claim");
+};
 
   const loadMyActivityData = async () => {
     if (!currentUser) return false;
@@ -1270,6 +1346,8 @@ const hideSearchResult = (postId) => {
     setMySentPosts([]);
     setSentClaims([]);
     setReceivedClaims([]);
+    setSentCloudViews([]);
+    setReceivedCloudViews([]);
 
     const { data: myPosts, error: postsError } = await supabase
       .from("crush_posts")
@@ -1316,6 +1394,44 @@ const hideSearchResult = (postId) => {
     }
 
     setSentClaims(finalSentClaims);
+    let finalSentCloudViews = [];
+
+if (finalMyPosts.length > 0) {
+  const postIds = finalMyPosts.map((post) => String(post.id));
+
+  const { data: viewsData, error: viewsError } = await supabase
+    .from("cloud_views")
+    .select("*")
+    .in("crush_post_id", postIds)
+    .order("created_at", { ascending: false });
+
+  if (viewsError) {
+    alert("내 구름을 본 사람 목록을 불러오지 못했어요: " + viewsError.message);
+    console.log(viewsError);
+    setMatchingLoading(false);
+    return false;
+  }
+
+  finalSentCloudViews = (viewsData || []).map((view) => {
+    const post = finalMyPosts.find(
+      (item) => String(item.id) === String(view.crush_post_id)
+    );
+
+    const claim = finalSentClaims.find(
+      (item) =>
+        String(item.crush_post_id) === String(view.crush_post_id) &&
+        item.claimer_user_id === view.viewer_user_id
+    );
+
+    return {
+      ...view,
+      post,
+      claim,
+    };
+  });
+}
+
+setSentCloudViews(finalSentCloudViews);
 
     const { data: myReceivedClaims, error: receivedError } = await supabase
       .from("claims")
@@ -1367,7 +1483,55 @@ const hideSearchResult = (postId) => {
         };
       });
     }
+  const { data: myReceivedViews, error: receivedViewsError } = await supabase
+  .from("cloud_views")
+  .select("*")
+  .eq("viewer_user_id", currentUser.id)
+  .not("second_cloud_sent_at", "is", null)
+  .order("second_cloud_sent_at", { ascending: false });
 
+if (receivedViewsError) {
+  alert("나에게 온 뭉게구름을 불러오지 못했어요: " + receivedViewsError.message);
+  console.log(receivedViewsError);
+  setMatchingLoading(false);
+  return false;
+}
+
+let combinedReceivedViews = (myReceivedViews || []).map((view) => ({
+  ...view,
+  post: null,
+}));
+
+if ((myReceivedViews || []).length > 0) {
+  const viewPostIds = [
+    ...new Set((myReceivedViews || []).map((view) => view.crush_post_id)),
+  ];
+
+  const { data: viewPosts, error: viewPostsError } = await supabase
+    .from("crush_posts")
+    .select("*")
+    .in("id", viewPostIds);
+
+  if (viewPostsError) {
+    alert("뭉게구름 글 정보를 불러오지 못했어요: " + viewPostsError.message);
+    console.log(viewPostsError);
+    setMatchingLoading(false);
+    return false;
+  }
+
+  combinedReceivedViews = (myReceivedViews || []).map((view) => {
+    const post = (viewPosts || []).find(
+      (item) => String(item.id) === String(view.crush_post_id)
+    );
+
+    return {
+      ...view,
+      post,
+    };
+  });
+}
+
+setReceivedCloudViews(combinedReceivedViews);
     setReceivedClaims(combinedReceivedClaims);
     setMatchingLoading(false);
     return true;
@@ -1479,7 +1643,82 @@ const loadHomeTopWeatherPlace = async () => {
 
   setHomeTopWeatherPlace(topPlace || null);
 };
+const sendSecondCloudToView = async (view) => {
+  if (!view?.id) {
+    alert("구름을 보낼 상대를 찾지 못했어요.");
+    return;
+  }
 
+  if (view.second_cloud_sent_at) {
+    alert("이미 뭉게구름을 보냈어요.");
+    return;
+  }
+
+  const ok = window.confirm(
+    `${view.viewer_nickname || "상대"}님에게 뭉게구름을 보낼까요?`
+  );
+
+  if (!ok) return;
+
+  const { error } = await supabase
+    .from("cloud_views")
+    .update({
+      second_cloud_sent_at: new Date().toISOString(),
+      second_cloud_message:
+        "상대가 한 번 더 마음을 담아 구름을 보내왔어요.",
+    })
+    .eq("id", view.id);
+
+  if (error) {
+    alert("구름 보내기에 실패했어요: " + error.message);
+    console.log(error);
+    return;
+  }
+
+  alert("뭉게구름을 보냈어요 ☁️");
+  await loadMyActivityData();
+};
+
+const sendSecondCloudToClaim = async (claim) => {
+  if (!claim?.crush_post_id || !claim?.claimer_user_id) {
+    alert("구름을 보낼 응답을 찾지 못했어요.");
+    return;
+  }
+
+  const ok = window.confirm(
+    `${claim.claimer_nickname || "상대"}님에게 뭉게구름을 보낼까요?`
+  );
+
+  if (!ok) return;
+
+  const { error } = await supabase.from("cloud_views").upsert(
+    [
+      {
+        crush_post_id: String(claim.crush_post_id),
+        viewer_user_id: claim.claimer_user_id,
+        viewer_nickname: claim.claimer_nickname,
+        viewer_instagram: claim.claimer_instagram,
+        viewer_profile_image_url: claim.claimer_profile_image_url,
+        viewed_at: new Date().toISOString(),
+        second_cloud_sent_at: new Date().toISOString(),
+        second_cloud_message:
+          "상대가 한 번 더 마음을 담아 구름을 보내왔어요.",
+      },
+    ],
+    {
+      onConflict: "crush_post_id,viewer_user_id",
+    }
+  );
+
+  if (error) {
+    alert("구름 보내기에 실패했어요: " + error.message);
+    console.log(error);
+    return;
+  }
+
+  alert("뭉게구름을 보냈어요 ☁️");
+  await loadMyActivityData();
+};
   const acceptClaim = async (claimId) => {
     const { error } = await supabase
       .from("claims")
@@ -1563,7 +1802,54 @@ const loadHomeTopWeatherPlace = async () => {
   const mySentPostsWithoutResponses = mySentPosts.filter(
     (post) => !sentClaimsByPostId[post.id]?.length
   );
+  const sentCloudViewsByPostId = sentCloudViews.reduce((acc, view) => {
+  if (!acc[view.crush_post_id]) {
+    acc[view.crush_post_id] = [];
+  }
 
+  acc[view.crush_post_id].push(view);
+  return acc;
+}, {});
+
+const receivedCloudPostIdSet = new Set([
+  ...receivedClaims.map((claim) => String(claim.crush_post_id)),
+  ...receivedCloudViews.map((view) => String(view.crush_post_id)),
+]);
+
+const receivedCloudCount = receivedCloudPostIdSet.size;
+
+const receivedCloudItems = [
+  ...receivedClaims.map((claim) => {
+    const matchedView = receivedCloudViews.find(
+      (view) => String(view.crush_post_id) === String(claim.crush_post_id)
+    );
+
+    return {
+      ...claim,
+      item_type: "claim",
+      second_cloud_sent_at: matchedView?.second_cloud_sent_at || null,
+      second_cloud_message: matchedView?.second_cloud_message || "",
+    };
+  }),
+
+  ...receivedCloudViews
+    .filter(
+      (view) =>
+        !receivedClaims.some(
+          (claim) => String(claim.crush_post_id) === String(view.crush_post_id)
+        )
+    )
+    .map((view) => ({
+      id: `view-${view.id}`,
+      item_type: "second_cloud",
+      crush_post_id: view.crush_post_id,
+      claimer_message: "",
+      status: "second_cloud_only",
+      second_cloud_sent_at: view.second_cloud_sent_at,
+      second_cloud_message: view.second_cloud_message,
+      post: view.post,
+    })),
+];
   const totalSentResponseCount = sentClaims.length;
   const acceptedMatchCount = [...sentClaims, ...receivedClaims].filter(
     (claim) => claim.status === "accepted"
@@ -1588,6 +1874,14 @@ const loadHomeTopWeatherPlace = async () => {
   const selectedDateReceivedClaims = receivedClaims.filter(
     (claim) => claim.post?.seen_date === selectedActivityDate
   );
+  const selectedDateReceivedCloudViews = receivedCloudViews.filter(
+  (view) => view.post?.seen_date === selectedActivityDate
+  );
+
+  const selectedDateReceivedCloudCount = new Set([
+  ...selectedDateReceivedClaims.map((claim) => String(claim.crush_post_id)),
+  ...selectedDateReceivedCloudViews.map((view) => String(view.crush_post_id)),
+  ]).size;
 
   const visibleSearchResults = searchResults.filter(
   (post) => !hiddenResultIds.includes(post.id)
@@ -1597,22 +1891,37 @@ const loadHomeTopWeatherPlace = async () => {
   : "☁️ 오늘 단국대 캠퍼스에 새로운 구름들이 떠오르고 있어요. 혹시 그중 하나가 당신을 찾는 구름일지도 몰라요.";
 
   const notificationItems = [
-    ...sentClaims.map((claim) => ({
-      id: `sent-${claim.id}`,
-      type: claim.status === "accepted" ? "매칭 수락" : "응답 도착",
-      title:
-        claim.status === "accepted"
-          ? "상대가 인스타 교환까지 연결됐어요"
-          : "내가 띄운 구름에 응답이 도착했어요",
-      description: `${claim.claimer_nickname || "상대"} · ${
-        claim.post?.seen_date || "날짜 없음"
-      }`,
-      created_at: claim.created_at,
-      active: claim.status === "accepted",
-    })),
-  ].sort((a, b) => new Date(b.created_at || 0) - new Date(a.created_at || 0));
+  ...sentClaims.map((claim) => ({
+    id: `sent-${claim.id}`,
+    type: claim.status === "accepted" ? "매칭 수락" : "응답 도착",
+    title:
+      claim.status === "accepted"
+        ? "상대가 인스타 교환까지 연결됐어요"
+        : "내가 띄운 구름에 응답이 도착했어요",
+    description: `${claim.claimer_nickname || "상대"} · ${
+      claim.post?.seen_date || "날짜 없음"
+    }`,
+    created_at: claim.created_at,
+    active: claim.status === "accepted",
+  })),
+
+  ...receivedCloudViews.map((view) => ({
+    id: `mungae-${view.id}`,
+    type: "뭉게구름 도착",
+    title: "뭉게구름이 왔어요",
+    description: "상대가 한 번 더 마음을 담아 구름을 보내왔어요.",
+    created_at: view.second_cloud_sent_at,
+    active: true,
+  })),
+].sort((a, b) => new Date(b.created_at || 0) - new Date(a.created_at || 0));
 
   const renderSentClaimCard = (claim) => {
+  const matchedView = sentCloudViews.find(
+    (view) =>
+      String(view.crush_post_id) === String(claim.crush_post_id) &&
+      view.viewer_user_id === claim.claimer_user_id
+  );
+
   return (
     <div className="responseBox" key={claim.id}>
       <p className="miniTitle">도착한 응답</p>
@@ -1629,6 +1938,23 @@ const loadHomeTopWeatherPlace = async () => {
           {claim.status === "accepted" ? "매칭 수락됨" : "응답 대기 중"}
         </b>
       </p>
+
+      {matchedView?.second_cloud_sent_at ? (
+        <div className="mungaeSentBox">
+          <p>☁️ 뭉게구름을 보냈어요.</p>
+          <p className="helperText">
+            상대의 나에게 온 구름 개수에 반영됐어요.
+          </p>
+        </div>
+      ) : (
+        <button
+          type="button"
+          className="secondCloudButton"
+          onClick={() => sendSecondCloudToClaim(claim)}
+        >
+          ☁️ 구름 보내기
+        </button>
+      )}
 
       {claim.status === "pending" && (
         <button onClick={() => acceptClaim(claim.id)}>
@@ -1663,6 +1989,11 @@ const loadHomeTopWeatherPlace = async () => {
 
   const renderSentPostCard = (post, mode) => {
     const claims = sentClaimsByPostId[post.id] || [];
+    const views = sentCloudViewsByPostId[String(post.id)] || [];
+    const viewOnlyItems = views.filter(
+       (view) =>
+          !claims.some((claim) => claim.claimer_user_id === view.viewer_user_id)
+   );
 
     return (
       <div className="post" key={post.id}>
@@ -1684,12 +2015,40 @@ const loadHomeTopWeatherPlace = async () => {
           “{cleanMessage(post.message) || "남긴 메시지가 없어요."}”
         </p>
 
-        {mode === "empty" && (
-          <div className="noticeBox">
-            <p>아직 이 구름에 응답한 사람이 없어요.</p>
-            <p>상대가 본인 착장과 날짜를 올리고 응답하면 여기에 표시돼요.</p>
+        {mode === "empty" && viewOnlyItems.length === 0 && (
+  <div className="noticeBox">
+    <p>아직 이 구름에 응답하거나 확인한 사람이 없어요.</p>
+    <p>상대가 구름 확인하기에서 이 구름을 보면 여기에 표시돼요.</p>
+  </div>
+)}
+
+{viewOnlyItems.length > 0 && (
+  <div className="cloudViewList">
+    <p className="miniTitle">이 구름을 확인한 사람</p>
+
+    {viewOnlyItems.map((view) => (
+      <div className="cloudViewCard" key={view.id}>
+        <p>
+          <b>{view.viewer_nickname || "상대"}</b>님이 이 구름을 확인했어요.
+        </p>
+
+        {view.second_cloud_sent_at ? (
+          <div className="mungaeSentBox">
+            <p>☁️ 뭉게구름을 보냈어요.</p>
           </div>
+        ) : (
+          <button
+            type="button"
+            className="secondCloudButton"
+            onClick={() => sendSecondCloudToView(view)}
+          >
+            ☁️ 구름 보내기
+          </button>
         )}
+      </div>
+    ))}
+  </div>
+)}
 
         {mode === "answered" && claims.map((claim) => renderSentClaimCard(claim))}
 
@@ -1731,11 +2090,30 @@ const loadHomeTopWeatherPlace = async () => {
         ) : (
           <p className="notice">연결된 구름 글을 찾지 못했어요.</p>
         )}
-
+        {claim.second_cloud_sent_at && (
+  <div className="mungaeCloudBox">
+    <div className="mungaeCloudIcon">☁️</div>
+    <div>
+      <p className="mungaeCloudTitle">뭉게구름이 왔어요</p>
+      <p className="mungaeCloudDesc">
+        상대가 한 번 더 마음을 담아 구름을 보내왔어요.
+      </p>
+    </div>
+  </div>
+)}
         <hr />
 
         <p>
-          내가 보낸 응답: <b>{claim.claimer_message || "-"}</b>
+          {claim.item_type === "second_cloud" ? (
+  <p>
+    아직 응답하지 않은 구름이에요. 마음에 들면 아래에서 다시 찾아보고
+    “이거 나인 것 같아요”를 눌러보세요.
+  </p>
+) : (
+  <p>
+    내가 보낸 응답: <b>{claim.claimer_message || "-"}</b>
+  </p>
+)}
         </p>
 
         <p>
@@ -2034,7 +2412,12 @@ const loadHomeTopWeatherPlace = async () => {
             </p>
             <p>프로필, 내가 띄운 구름, 받은 알림을 한곳에서 관리해요.</p>
           </div>
-
+          <div className="myCloudHeroBox">
+             <p className="myCloudHeroTitle">☁️ 나에게 온 구름 {receivedCloudCount}개</p>
+             <p className="myCloudHeroDesc">
+               오늘도 누군가의 기억 속에 머물렀어요.
+             </p>
+          </div>
           <div className="mypageStatsGrid">
             <div className="mypageStat">
               <span>띄운 구름</span>
@@ -2045,8 +2428,8 @@ const loadHomeTopWeatherPlace = async () => {
               <b>{totalSentResponseCount}</b>
             </div>
             <div className="mypageStat">
-              <span>받은 구름</span>
-              <b>{receivedClaims.length}</b>
+              <span>나에게 온 구름</span>
+              <b>{receivedCloudCount}</b>
             </div>
             <div className="mypageStat">
               <span>매칭</span>
@@ -3617,8 +4000,8 @@ const loadHomeTopWeatherPlace = async () => {
             </div>
 
             <div className="manageSummaryItem">
-              <span>받은 구름</span>
-              <b>{receivedClaims.length}</b>
+              <span>나에게 온 구름</span>
+              <b>{receivedCloudCount}</b>
             </div>
           </div>
 
@@ -3659,14 +4042,14 @@ const loadHomeTopWeatherPlace = async () => {
           {!matchingLoading && matchingMode === "received" && (
             <div className="manageSection">
               <h3 className="manageSectionTitle">
-                구름 확인 응답 {receivedClaims.length}개
+                나에게 온 구름 {receivedCloudCount}개
               </h3>
 
-              {receivedClaims.length === 0 && (
-                <p className="noticeBox">아직 내가 응답한 구름이 없어요.</p>
+              {receivedCloudItems.length === 0 && (
+                <p className="noticeBox">아직 나에게 온 구름이 없어요.</p>
               )}
 
-              {receivedClaims.map((claim) => renderReceivedClaimCard(claim))}
+              {receivedCloudItems.map((claim) => renderReceivedClaimCard(claim))}
             </div>
           )}
 
@@ -3726,8 +4109,8 @@ const loadHomeTopWeatherPlace = async () => {
                       <b>{selectedDateSentPosts.length}</b>
                     </div>
                     <div>
-                      <span>받은 구름</span>
-                      <b>{selectedDateReceivedClaims.length}</b>
+                      <span>나에게 온 구름</span>
+                      <b>{selectedDateReceivedCloudCount}</b>
                     </div>
                   </div>
 
