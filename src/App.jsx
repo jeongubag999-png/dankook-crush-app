@@ -379,6 +379,7 @@ const [homeTopWeatherPlace, setHomeTopWeatherPlace] = useState(null);
   const [receivedClaims, setReceivedClaims] = useState([]);
   const [sentCloudViews, setSentCloudViews] = useState([]);
   const [receivedCloudViews, setReceivedCloudViews] = useState([]);
+  const [myCloudChecks, setMyCloudChecks] = useState([]);
 
   const femaleHairGuideImage = "/hair-length-guide.png";
 
@@ -1216,6 +1217,41 @@ const hideSearchResult = (postId) => {
   const finalResults = (data || []).filter(
     (post) => post.sender_user_id !== currentUser.id
   );
+  const finalSearchHairFeature = getFinalSearchHairFeature();
+
+  const { error: checkLogError } = await supabase.from("cloud_checks").insert([
+  {
+    checker_user_id: currentUser.id,
+    checker_nickname: profile.nickname,
+    checker_gender: profile.gender,
+    checker_instagram: cleanInstagram(profile.instagram_id),
+
+    seen_date: searchForm.seen_date,
+
+    hair_feature: finalSearchHairFeature,
+
+    female_hair_style: searchForm.female_hair_style,
+    female_hair_color: searchForm.female_hair_color,
+    female_hat: searchForm.female_hat,
+    female_bangs: searchForm.female_bangs,
+
+    male_hair_style: searchForm.male_hair_style,
+    male_hair_color: searchForm.male_hair_color,
+    male_hat: searchForm.male_hat,
+    male_bangs: searchForm.male_bangs,
+
+    top_type: searchForm.top_type,
+    top_color: searchForm.top_color,
+    bottom_type: searchForm.bottom_type,
+    bottom_color: searchForm.bottom_color,
+
+    result_count: finalResults.length,
+  },
+]);
+
+if (checkLogError) {
+  console.log(checkLogError);
+}
 
   if (finalResults.length > 0) {
     const viewRows = finalResults.map((post) => ({
@@ -1348,7 +1384,21 @@ const hideSearchResult = (postId) => {
     setReceivedClaims([]);
     setSentCloudViews([]);
     setReceivedCloudViews([]);
+    setMyCloudChecks([]);
+    const { data: checksData, error: checksError } = await supabase
+  .from("cloud_checks")
+  .select("*")
+  .eq("checker_user_id", currentUser.id)
+  .order("checked_at", { ascending: false });
 
+if (checksError) {
+  alert("구름 확인 기록을 불러오지 못했어요: " + checksError.message);
+  console.log(checksError);
+  setMatchingLoading(false);
+  return false;
+}
+
+setMyCloudChecks(checksData || []);
     const { data: myPosts, error: postsError } = await supabase
       .from("crush_posts")
       .select("*")
@@ -1861,11 +1911,13 @@ const receivedCloudItems = [
   );
 
   const activityDateOptions = [
-    ...new Set([
-      ...mySentPosts.map((post) => post.seen_date).filter(Boolean),
-      ...receivedClaims.map((claim) => claim.post?.seen_date).filter(Boolean),
-    ]),
-  ].sort((a, b) => b.localeCompare(a));
+  ...new Set([
+    ...mySentPosts.map((post) => post.seen_date).filter(Boolean),
+    ...receivedClaims.map((claim) => claim.post?.seen_date).filter(Boolean),
+    ...receivedCloudViews.map((view) => view.post?.seen_date).filter(Boolean),
+    ...myCloudChecks.map((check) => check.seen_date).filter(Boolean),
+  ]),
+].sort((a, b) => b.localeCompare(a));
 
   const selectedActivityDate = activityDate || activityDateOptions[0] || "";
   const selectedDateSentPosts = mySentPosts.filter(
@@ -1882,6 +1934,14 @@ const receivedCloudItems = [
   ...selectedDateReceivedClaims.map((claim) => String(claim.crush_post_id)),
   ...selectedDateReceivedCloudViews.map((view) => String(view.crush_post_id)),
   ]).size;
+  const selectedDateCloudChecks = myCloudChecks.filter(
+  (check) => check.seen_date === selectedActivityDate
+);
+
+  const selectedDateTotalCheckResultCount = selectedDateCloudChecks.reduce(
+  (sum, check) => sum + (check.result_count || 0),
+  0
+);
 
   const visibleSearchResults = searchResults.filter(
   (post) => !hiddenResultIds.includes(post.id)
@@ -4103,15 +4163,19 @@ const receivedCloudItems = [
                     </select>
                   </div>
 
-                  <div className="activitySummaryBox">
-                    <div>
-                      <span>띄운 구름</span>
+                  <div className="activitySummaryBox threeBox">
+                   <div>
+                     <span>띄운 구름</span>
                       <b>{selectedDateSentPosts.length}</b>
-                    </div>
-                    <div>
-                      <span>나에게 온 구름</span>
-                      <b>{selectedDateReceivedCloudCount}</b>
-                    </div>
+                   </div>
+                   <div>
+                     <span>나에게 온 구름</span>
+                     <b>{selectedDateReceivedCloudCount}</b>
+                   </div>
+                   <div>
+                     <span>확인 결과</span>
+                      <b>{selectedDateTotalCheckResultCount}</b>
+                   </div>
                   </div>
 
                   <div className="manageSection">
@@ -4128,7 +4192,54 @@ const receivedCloudItems = [
                       )
                     )}
                   </div>
+                  <div className="manageSection">
+  <h3 className="manageSectionTitle">
+    {formatDateLabel(selectedActivityDate)} 구름 확인 기록
+  </h3>
 
+  {selectedDateCloudChecks.length === 0 && (
+    <p className="noticeBox">
+      이 날짜에 구름 확인하기를 한 기록이 없어요.
+    </p>
+  )}
+
+  {selectedDateCloudChecks.map((check) => (
+    <div className="cloudCheckCard" key={check.id}>
+      <div className="postTopLine">
+        <span className="statusPill active">
+          ☁ 확인 결과 {check.result_count || 0}개
+        </span>
+      </div>
+
+      <p>
+        <b>{formatShortDateTime(check.checked_at)}</b>
+      </p>
+
+      <div className="qaBox">
+        <p className="qaTitle">그날 내가 입력한 모습</p>
+
+        <p>
+          <strong>머리:</strong> {check.hair_feature || "-"}
+        </p>
+
+        <p>
+          <strong>상의:</strong>{" "}
+          {check.top_color || "-"} {check.top_type || "-"}
+        </p>
+
+        <p>
+          <strong>하의:</strong>{" "}
+          {check.bottom_color || "-"} {check.bottom_type || "-"}
+        </p>
+      </div>
+
+      <p className="helperText">
+        이 기록이 쌓이면 어떤 옷이나 머리일 때 구름을 많이 받았는지 분석할 수 있어요.
+      </p>
+    </div>
+  ))}
+</div>
+            
                   <div className="manageSection">
                     <h3 className="manageSectionTitle">
                       {formatDateLabel(selectedActivityDate)}에 내가 받은 구름

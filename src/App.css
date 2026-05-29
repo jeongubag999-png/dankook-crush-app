@@ -2497,3 +2497,38 @@ textarea {
 .cloudViewCard p {
   margin: 5px 0;
 }
+/* 구름 확인 기록 카드 */
+
+.cloudCheckCard {
+  text-align: left;
+  background: #f7fbff;
+  border: 1px solid #dbeeff;
+  border-radius: 22px;
+  padding: 16px;
+  margin: 14px 0;
+  line-height: 1.65;
+  color: #183b63;
+}
+
+.cloudCheckCard p {
+  margin: 6px 0;
+}
+
+.activitySummaryBox.threeBox {
+  grid-template-columns: repeat(3, minmax(0, 1fr));
+}
+
+@media (max-width: 480px) {
+  .activitySummaryBox.threeBox {
+    grid-template-columns: repeat(3, minmax(0, 1fr));
+    gap: 8px;
+  }
+
+  .activitySummaryBox.threeBox span {
+    font-size: 10px;
+  }
+
+  .activitySummaryBox.threeBox b {
+    font-size: 21px;
+  }
+}
