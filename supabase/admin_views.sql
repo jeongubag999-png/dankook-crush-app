@@ -238,8 +238,8 @@ select
   split_part(cp.place, ' - ', 1) as main_place,
   count(*) as cloud_count,
   count(distinct cp.sender_user_id) as sender_count,
-  count(c.id) as claim_count,
-  count(cv.id) as view_count
+  count(distinct c.id) as claim_count,
+  count(distinct cv.id) as view_count
 from public.crush_posts cp
 left join public.claims c
   on c.crush_post_id::text = cp.id::text

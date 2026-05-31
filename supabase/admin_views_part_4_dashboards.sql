@@ -23,17 +23,26 @@ claims_by_date as (
   join public.crush_posts cp
     on c.crush_post_id::text = cp.id::text
   group by cp.seen_date
+),
+views_by_date as (
+  select cp.seen_date as activity_date, count(cv.id) as view_count
+  from public.cloud_views cv
+  join public.crush_posts cp
+    on cv.crush_post_id::text = cp.id::text
+  group by cp.seen_date
 )
 select
   d.activity_date,
   coalesce(sent.sent_clouds, 0) as sent_clouds,
   coalesce(checks.search_count, 0) as search_count,
   coalesce(checks.total_search_results, 0) as total_search_results,
-  coalesce(claims_by_date.claim_count, 0) as claim_count
+  coalesce(claims_by_date.claim_count, 0) as claim_count,
+  coalesce(views_by_date.view_count, 0) as view_count
 from dates d
 left join sent using (activity_date)
 left join checks using (activity_date)
 left join claims_by_date using (activity_date)
+left join views_by_date using (activity_date)
 order by d.activity_date desc;
 
 create or replace view public.admin_place_dashboard as
@@ -42,9 +51,12 @@ select
   split_part(cp.place, ' - ', 1) as main_place,
   count(*) as cloud_count,
   count(distinct cp.sender_user_id) as sender_count,
-  count(c.id) as claim_count
+  count(distinct c.id) as claim_count,
+  count(distinct cv.id) as view_count
 from public.crush_posts cp
 left join public.claims c
   on c.crush_post_id::text = cp.id::text
+left join public.cloud_views cv
+  on cv.crush_post_id::text = cp.id::text
 group by cp.seen_date, split_part(cp.place, ' - ', 1)
 order by cp.seen_date desc, cloud_count desc;

@@ -71,6 +71,7 @@ select
   cp.message as "메시지",
   coalesce(claim_counts.claim_count, 0) as "응답수",
   coalesce(view_counts.view_count, 0) as "조회수",
+  coalesce(second_cloud_counts.second_cloud_count, 0) as "뭉게구름수",
   cp.sender_user_id as "보낸사람ID"
 from public.crush_posts cp
 left join (
@@ -85,6 +86,13 @@ left join (
   group by crush_post_id::text
 ) view_counts
   on view_counts.crush_post_id = cp.id::text
+left join (
+  select crush_post_id::text as crush_post_id, count(*) as second_cloud_count
+  from public.cloud_views
+  where second_cloud_sent_at is not null
+  group by crush_post_id::text
+) second_cloud_counts
+  on second_cloud_counts.crush_post_id = cp.id::text
 order by cp.created_at desc;
 
 create or replace view public."관리_응답목록" as

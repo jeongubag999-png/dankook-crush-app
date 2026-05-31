@@ -924,6 +924,7 @@ const handleLogin = async () => {
     setAuthForm({
       name: "",
       student_id: "",
+      department: "",
       login_id: "",
       password: "",
     });
@@ -2354,6 +2355,9 @@ const receivedCloudItems = [
   ...selectedDateReceivedClaims.map((claim) => String(claim.crush_post_id)),
   ...selectedDateReceivedCloudViews.map((view) => String(view.crush_post_id)),
   ]).size;
+  const selectedDateReceivedCloudItems = receivedCloudItems.filter(
+    (item) => item.post?.seen_date === selectedActivityDate
+  );
   const selectedDateCloudChecks = myCloudChecks.filter(
   (check) => check.seen_date === selectedActivityDate
 );
@@ -2614,18 +2618,16 @@ const receivedCloudItems = [
 )}
         <hr />
 
-        <p>
-          {claim.item_type === "second_cloud" ? (
-  <p>
-    아직 응답하지 않은 구름이에요. 마음에 들면 아래에서 다시 찾아보고
-    “이거 나인 것 같아요”를 눌러보세요.
-  </p>
-) : (
-  <p>
-    내가 보낸 응답: <b>{claim.claimer_message || "-"}</b>
-  </p>
-)}
-        </p>
+        {claim.item_type === "second_cloud" ? (
+          <p>
+            아직 응답하지 않은 구름이에요. 마음에 들면 아래에서 다시 찾아보고
+            “이거 나인 것 같아요”를 눌러보세요.
+          </p>
+        ) : (
+          <p>
+            내가 보낸 응답: <b>{claim.claimer_message || "-"}</b>
+          </p>
+        )}
 
         <p>
           상태:{" "}
@@ -5017,10 +5019,10 @@ const receivedCloudItems = [
                     <h3 className="manageSectionTitle">
                       {formatDateLabel(selectedActivityDate)}에 내가 받은 구름
                     </h3>
-                    {selectedDateReceivedClaims.length === 0 && (
+                    {selectedDateReceivedCloudCount === 0 && (
                       <p className="noticeBox">이 날짜에 내가 받은 구름은 없어요.</p>
                     )}
-                    {selectedDateReceivedClaims.map((claim) =>
+                    {selectedDateReceivedCloudItems.map((claim) =>
                       renderReceivedClaimCard(claim)
                     )}
                   </div>

@@ -68,17 +68,26 @@ claims_by_date as (
   join public.crush_posts cp
     on c.crush_post_id::text = cp.id::text
   group by cp.seen_date
+),
+views_by_date as (
+  select cp.seen_date as activity_date, count(cv.id) as view_count
+  from public.cloud_views cv
+  join public.crush_posts cp
+    on cv.crush_post_id::text = cp.id::text
+  group by cp.seen_date
 )
 select
   d.activity_date as "날짜",
   coalesce(sent.sent_clouds, 0) as "보낸구름수",
   coalesce(checks.search_count, 0) as "구름확인횟수",
   coalesce(checks.total_search_results, 0) as "검색결과총합",
-  coalesce(claims_by_date.claim_count, 0) as "응답수"
+  coalesce(claims_by_date.claim_count, 0) as "응답수",
+  coalesce(views_by_date.view_count, 0) as "조회수"
 from dates d
 left join sent using (activity_date)
 left join checks using (activity_date)
 left join claims_by_date using (activity_date)
+left join views_by_date using (activity_date)
 order by d.activity_date desc;
 
 create or replace view public."관리_장소별통계" as
@@ -87,9 +96,12 @@ select
   split_part(cp.place, ' - ', 1) as "대표장소",
   count(*) as "구름수",
   count(distinct cp.sender_user_id) as "보낸사람수",
-  count(c.id) as "응답수"
+  count(distinct c.id) as "응답수",
+  count(distinct cv.id) as "조회수"
 from public.crush_posts cp
 left join public.claims c
   on c.crush_post_id::text = cp.id::text
+left join public.cloud_views cv
+  on cv.crush_post_id::text = cp.id::text
 group by cp.seen_date, split_part(cp.place, ' - ', 1)
 order by cp.seen_date desc, count(*) desc;
