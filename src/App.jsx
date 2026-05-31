@@ -699,9 +699,10 @@ if (verificationError) {
     }));
 
     alert("회원가입 신청이 완료됐어요. 단국대 학생 인증 승인 후 이용할 수 있어요.");
-    setPage("verificationPending");
+setPage("verificationPending");
+};
 
-  const handleLogin = async () => {
+const handleLogin = async () => {
     const loginId = authForm.login_id.trim();
 
     if (!loginId || !authForm.password) {
