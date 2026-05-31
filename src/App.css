@@ -2561,10 +2561,10 @@ textarea {
 
 body {
   background:
-    radial-gradient(circle at 18% 10%, rgba(255, 255, 255, 0.86), transparent 18%),
-    radial-gradient(circle at 78% 4%, rgba(255, 255, 255, 0.72), transparent 20%),
-    linear-gradient(180deg, rgba(238, 248, 255, 0.96), rgba(255, 255, 255, 0.98)),
-    linear-gradient(135deg, #dff2ff 0%, #fff2f5 48%, #f7fbf8 100%);
+    radial-gradient(circle at 16% 10%, rgba(255, 255, 255, 0.86), transparent 18%),
+    radial-gradient(circle at 78% 6%, rgba(255, 255, 255, 0.74), transparent 22%),
+    radial-gradient(circle at 50% 82%, rgba(184, 224, 255, 0.36), transparent 34%),
+    linear-gradient(180deg, #dff3ff 0%, #eef9ff 52%, #f7fcff 100%);
   color: var(--ink);
 }
 
@@ -2573,9 +2573,10 @@ body {
   min-height: 100svh;
   padding: 18px 16px 104px;
   background:
-    linear-gradient(180deg, rgba(255, 255, 255, 0.24), transparent 34%),
-    radial-gradient(circle at 18% 8%, rgba(47, 128, 237, 0.1), transparent 26%),
-    radial-gradient(circle at 85% 2%, rgba(239, 91, 121, 0.1), transparent 24%);
+    radial-gradient(circle at 18% 8%, rgba(255, 255, 255, 0.56), transparent 20%),
+    radial-gradient(circle at 84% 14%, rgba(255, 255, 255, 0.46), transparent 22%),
+    radial-gradient(circle at 82% 78%, rgba(130, 200, 255, 0.16), transparent 30%),
+    linear-gradient(180deg, rgba(255, 255, 255, 0.18), transparent 42%);
 }
 
 .card,
@@ -2884,6 +2885,76 @@ textarea:focus {
   margin-bottom: 22px;
 }
 
+.verificationGuide {
+  display: grid;
+  grid-template-columns: 1fr 92px;
+  gap: 12px;
+  align-items: center;
+  margin-top: 10px;
+  padding: 14px;
+  border: 1px solid rgba(47, 128, 237, 0.14);
+  border-radius: 18px;
+  background:
+    linear-gradient(180deg, rgba(255, 255, 255, 0.8), rgba(247, 252, 255, 0.96)),
+    #f3faff;
+  text-align: left;
+}
+
+.verificationGuide p {
+  margin: 4px 0 0;
+  color: var(--muted);
+  font-size: 12px;
+  line-height: 1.45;
+  word-break: keep-all;
+}
+
+.verificationGuideTitle {
+  margin-top: 0 !important;
+  color: var(--ink) !important;
+  font-size: 13px !important;
+  font-weight: 900;
+}
+
+.verificationGuide img {
+  width: 92px;
+  aspect-ratio: 9 / 16;
+  border: 1px solid rgba(23, 32, 51, 0.08);
+  border-radius: 14px;
+  object-fit: cover;
+  object-position: top center;
+  box-shadow: 0 10px 24px rgba(19, 39, 74, 0.12);
+}
+
+.verificationChecklist {
+  display: grid;
+  gap: 8px;
+  margin: 10px 0 2px;
+  padding: 0;
+  list-style: none;
+}
+
+.verificationChecklist li {
+  position: relative;
+  padding-left: 22px;
+  color: #475467;
+  font-size: 12px;
+  font-weight: 800;
+  line-height: 1.35;
+}
+
+.verificationChecklist li::before {
+  content: "";
+  position: absolute;
+  left: 0;
+  top: 2px;
+  width: 14px;
+  height: 14px;
+  border-radius: 50%;
+  background:
+    radial-gradient(circle at center, #fff 0 2px, transparent 3px),
+    linear-gradient(135deg, #65b8ff, #ef7d96);
+}
+
 .homeMainAction {
   gap: 10px;
 }
@@ -3046,6 +3117,14 @@ textarea:focus {
 
   .appIntroBox.trustStrip p {
     min-height: 54px;
+  }
+
+  .verificationGuide {
+    grid-template-columns: 1fr 78px;
+  }
+
+  .verificationGuide img {
+    width: 78px;
   }
 
   .homeMiniMenu {

@@ -2560,11 +2560,29 @@ const receivedCloudItems = [
   />
 </div>
 
-<div className="formGroup">
-  <label className="formLabel">단국대 학생 인증 캡처</label>
-	  <input
-	    type="file"
-	    accept="image/*"
+	<div className="formGroup">
+	  <label className="formLabel">단국대 학생 인증 캡처</label>
+	  <div className="verificationGuide">
+	    <div>
+	      <p className="verificationGuideTitle">MY DKU 첫 화면을 캡처해주세요</p>
+	      <p>
+	        예시처럼 이름, 학번, 학과, 학부/재학 상태가 한 화면에 보이면 인증이
+	        더 빠르게 진행돼요.
+	      </p>
+	    </div>
+	    <img
+	      src="/my-dku-verification-example.png"
+	      alt="MY DKU 학생 인증 캡처 예시"
+	    />
+	  </div>
+	  <ul className="verificationChecklist">
+	    <li>MY DKU 앱 홈 화면</li>
+	    <li>이름과 학번이 보이는 화면</li>
+	    <li>학과와 재학 상태가 보이는 화면</li>
+	  </ul>
+		  <input
+		    type="file"
+		    accept="image/*"
 	    onChange={(e) => {
 	      const file = e.target.files[0];
 	      if (!file) {
@@ -2584,11 +2602,10 @@ const receivedCloudItems = [
 	      setVerificationFile(file);
 	    }}
 	  />
-  <p className="helperText">
-    MY DKU 첫 화면에서 이름, 학번, 학과가 보이게 캡처해서 올려주세요.
-    인증 완료 후 단꿈을 이용할 수 있어요.
-  </p>
-</div>
+	  <p className="helperText">
+	    민감한 알림 내용은 가려도 괜찮아요. 단, 이름/학번/학과는 확인 가능해야 해요.
+	  </p>
+	</div>
             </>
           )}
 
