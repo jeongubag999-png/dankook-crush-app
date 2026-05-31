@@ -2553,8 +2553,8 @@ textarea {
   --ink: #172033;
   --muted: #667085;
   --line: #e7edf3;
-  --brand: #ef5b79;
-  --brand-strong: #da3f64;
+  --brand: #4da8ff;
+  --brand-strong: #2477d4;
   --blue: #2f80ed;
   --shadow-soft: 0 18px 48px rgba(19, 39, 74, 0.1);
 }
@@ -2623,7 +2623,7 @@ button {
   min-height: 52px;
   border-radius: 14px;
   background: linear-gradient(135deg, var(--brand) 0%, var(--brand-strong) 100%);
-  box-shadow: 0 10px 22px rgba(239, 91, 121, 0.18);
+  box-shadow: 0 10px 22px rgba(47, 128, 237, 0.18);
   letter-spacing: 0;
 }
 
@@ -2966,7 +2966,10 @@ textarea:focus {
 }
 
 .primaryHomeButton {
-  background: linear-gradient(135deg, #ff7590, #df4c72);
+  background:
+    radial-gradient(circle at 22% 32%, rgba(255, 255, 255, 0.32), transparent 28%),
+    linear-gradient(135deg, #62bdff, #2477d4);
+  box-shadow: 0 14px 30px rgba(47, 128, 237, 0.22);
 }
 
 .secondaryHomeButton {
