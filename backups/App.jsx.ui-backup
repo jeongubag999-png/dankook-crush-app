@@ -2426,71 +2426,12 @@ const receivedCloudItems = [
       상대 인스타: <b>@{post?.sender_instagram || "-"}</b>
     </p>
   </div>
-	)}
-	      </div>
-	    );
-	  };
-
-  const renderBottomNav = () => {
-    const navItems = [
-      {
-        key: "home",
-        label: "홈",
-        icon: "⌂",
-        active: page === "home",
-        onClick: () => setPage("home"),
-      },
-      {
-        key: "send",
-        label: "보내기",
-        icon: "+",
-        active: page === "send" || page === "sent",
-        onClick: openSendPage,
-      },
-      {
-        key: "search",
-        label: "확인",
-        icon: "⌕",
-        active: page === "search" || page === "result" || page === "reply",
-        onClick: openSearchPage,
-      },
-      {
-        key: "matching",
-        label: "내 구름",
-        icon: "≡",
-        active: page === "matching" || page === "claim",
-        onClick: () => {
-          setMatchingMode("sent");
-          openMatchingPage();
-        },
-      },
-      {
-        key: "profile",
-        label: "프로필",
-        icon: "◦",
-        active: page === "profile",
-        onClick: openProfilePage,
-      },
-    ];
-
-    return (
-      <nav className="bottomNav" aria-label="주요 메뉴">
-        {navItems.map((item) => (
-          <button
-            type="button"
-            key={item.key}
-            className={item.active ? "bottomNavItem active" : "bottomNavItem"}
-            onClick={item.onClick}
-          >
-            <span className="bottomNavIcon">{item.icon}</span>
-            <span>{item.label}</span>
-          </button>
-        ))}
-      </nav>
+)}
+      </div>
     );
   };
 
-	  if (authLoading) {
+  if (authLoading) {
     return (
       <div className="app">
         <div className="card">
@@ -2507,24 +2448,28 @@ const receivedCloudItems = [
         <div className="card">
           <h1>단꿈</h1>
 
-	          <p className="subtitle">
-	            호감이라는 말보다 조금 덜 부담스럽게, 몽글한 구름으로 마음을 전해요.
-	          </p>
-	
-	          <div className="appIntroBox trustStrip authTrustStrip">
-	            <p>
-	              <b>학생 인증</b>
-	              <span>단국대 구성원 중심</span>
-	            </p>
-	            <p>
-	              <b>상호 수락</b>
-	              <span>원할 때만 인스타 공개</span>
-	            </p>
-	            <p>
-	              <b>내가 관리</b>
-	              <span>보낸 구름 삭제 가능</span>
-	            </p>
-	          </div>
+          <p className="subtitle">
+            단꿈은 단국대 캠퍼스에서 우연히 스쳐간 사람에게 조심스럽게 구름을
+            띄우고, 상대가 본인이라고 느낄 때만 이어지는 익명 인연 서비스예요.
+          </p>
+
+          <div className="appIntroBox">
+            <p>
+              <b>구름 띄우기</b>는 내가 마주친 사람의 날짜, 시간, 장소, 착장을
+              남기는 기능이에요.
+            </p>
+            <p>
+              <b>구름 확인하기</b>는 내 날짜와 인상착의에 맞는 구름을 찾아보는
+              기능이에요.
+            </p>
+            <p>
+              <b>내 구름 관리</b>에서는 내가 남긴 구름, 받은 응답, 매칭 상태를
+              확인할 수 있어요.
+            </p>
+            <p>
+              <b>마이페이지</b>에서는 닉네임과 프로필 정보를 관리해요.
+            </p>
+          </div>
 
           {authMode === "signup" && (
             <>
@@ -2677,16 +2622,19 @@ const receivedCloudItems = [
 
             <div className="cloudLogo">☁</div>
 
-	            <h1 className="homeLogo">단꿈</h1>
-	
-	            <p className="homeSlogan">
-	              스쳐간 마음을
-	              <br />
-	              구름처럼 가볍게
-	            </p>
-	
-	            <p className="homeDescription">
-	  호감은 조금 쑥스러우니까, 단꿈에서는 구름으로 보내고 서로 원할 때만 이어져요.
+            <h1 className="homeLogo">단꿈</h1>
+
+            <p className="homeSlogan">
+              스쳐간 인연,
+              <br />
+              기억은 남기고
+              <br />
+              용기는 구름에 담아
+            </p>
+
+            <p className="homeDescription">
+  단꿈은 단국대 캠퍼스에서 우연히 마주친 사람에게 조심스럽게 구름을
+  띄우고, 서로가 원할 때만 이어지는 익명 인연 서비스예요.
 </p>
 
 <div className="homeWeatherTicker">
@@ -2697,20 +2645,23 @@ const receivedCloudItems = [
 </div>
 </div>
 
-	<div className="appIntroBox homeIntroBox trustStrip">
-	            <p>
-	              <b>학생 인증</b>
-	              <span>단국대 구성원 중심</span>
-	            </p>
-	            <p>
-	              <b>상호 수락</b>
-	              <span>원할 때만 인스타 공개</span>
-	            </p>
-	            <p>
-	              <b>삭제 가능</b>
-	              <span>내가 남긴 구름 관리</span>
-	            </p>
-	          </div>
+<div className="appIntroBox homeIntroBox">
+            <p>
+              <b>구름 띄우기</b> · 내가 본 사람의 날짜, 시간, 장소, 착장을 남겨요.
+            </p>
+            <p>
+              <b>구름 확인하기</b> · 나를 찾는 것 같은 구름을 확인하고 응답해요.
+            </p>
+            <p>
+              <b>내 구름 관리</b> · 내가 남긴 구름과 도착한 응답을 관리해요.
+            </p>
+            <p>
+              <b>날씨 확인하기</b> · 오늘 단국대 어디에 구름이 많이 떴는지 확인해요.
+            </p>
+            <p>
+              <b>마이페이지</b> · 닉네임과 프로필 정보를 관리해요.
+            </p>
+          </div>
 
           <div className="homeMainAction cloudActionBox">
             <button
@@ -2718,10 +2669,10 @@ const receivedCloudItems = [
               className="primaryHomeButton cloudPrimaryButton"
             >
               <span className="buttonEmoji">☁</span>
-	              <span>
-	                <b>구름 보내기</b>
-	                <small>스쳐간 사람의 날짜, 장소, 착장을 구름에 담아요.</small>
-	              </span>
+              <span>
+                <b>구름 띄우기</b>
+                <small>시간, 장소, 착장을 선택해 스쳐간 사람을 떠올려요.</small>
+              </span>
             </button>
 
             <button
@@ -2729,10 +2680,10 @@ const receivedCloudItems = [
               className="secondaryHomeButton cloudSecondaryButton"
             >
               <span className="buttonEmoji">🔔</span>
-	              <span>
-	                <b>구름 확인하기</b>
-	                <small>나를 찾는 구름이 있는지 조심스럽게 확인해요.</small>
-	              </span>
+              <span>
+                <b>구름 확인하기</b>
+                <small>내 날짜와 머리 정보에 맞는 구름을 확인해요.</small>
+              </span>
             </button>
           </div>
 
@@ -4605,14 +4556,13 @@ const receivedCloudItems = [
             새로고침
           </button>
 
-	          <button onClick={() => setPage("home")} className="white">
-	            홈으로
-	          </button>
-	        </div>
-	      )}
-	      {renderBottomNav()}
-	    </div>
-	  );
-	}
+          <button onClick={() => setPage("home")} className="white">
+            홈으로
+          </button>
+        </div>
+      )}
+    </div>
+  );
+}
 
 export default App;
