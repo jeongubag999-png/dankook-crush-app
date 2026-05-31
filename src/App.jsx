@@ -117,11 +117,8 @@ const [verificationFile, setVerificationFile] = useState(null);
     student_year: "",
     instagram_id: "",
     bio: "",
-    profile_image_url: "",
   });
 
-  const [profileImageFile, setProfileImageFile] = useState(null);
-  const [profileImagePreview, setProfileImagePreview] = useState("");
 
   const emptyCrushPost = {
     target_gender: "",
@@ -350,11 +347,7 @@ const [verificationFile, setVerificationFile] = useState(null);
       student_year: "",
       instagram_id: "",
       bio: "",
-      profile_image_url: "",
     });
-
-    setProfileImageFile(null);
-    setProfileImagePreview("");
   };
 
   const loadMyProfile = async (user, force = false) => {
@@ -368,9 +361,7 @@ const [verificationFile, setVerificationFile] = useState(null);
 
     const { data, error } = await supabase
       .from("profiles")
-      .select(
-        "nickname, gender, department, student_year, instagram_id, bio, profile_image_url"
-      )
+      .select("nickname, gender, department, student_year, instagram_id, bio")
       .eq("user_id", user.id)
       .maybeSingle();
 
@@ -388,7 +379,6 @@ const [verificationFile, setVerificationFile] = useState(null);
         student_year: data.student_year || "",
         instagram_id: data.instagram_id || "",
         bio: data.bio || "",
-        profile_image_url: data.profile_image_url || "",
       });
     } else {
       setProfile((prev) => ({
@@ -477,14 +467,6 @@ const [verificationFile, setVerificationFile] = useState(null);
       behavior: "smooth",
     });
   }, [page]);
-
-  useEffect(() => {
-    return () => {
-      if (profileImagePreview) {
-        URL.revokeObjectURL(profileImagePreview);
-      }
-    };
-  }, [profileImagePreview]);
 
   useEffect(() => {
     if (!currentUser) return;
@@ -749,58 +731,63 @@ const containsMatch = (source, target) => {
 };
 
 const getPostMatchScore = (post) => {
-  let score = 25;
-  const reasons = ["날짜 일치"];
+  // 날짜·성별은 DB 쿼리에서 이미 필터링됨 → 기본 20점
+  let score = 20;
+  const reasons = ["날짜·성별 일치"];
 
-  if (post.target_gender === profile.gender) {
-    score += 15;
-    reasons.push("성별 일치");
-  }
-
-  if (post.time_period && post.time_period === searchForm.time_period) {
-    score += 10;
-    reasons.push("시간대 일치");
-  } else if (post.time_period) {
-    score += 4;
-  }
-
+  // 머리: "잘 모르겠음" 제외 후 항목별 매칭 (최대 +30)
   const searchHair = getFinalSearchHairFeature();
-
   if (searchHair && post.hair_feature) {
-    const searchHairParts = searchHair.split(" / ");
+    const searchHairParts = searchHair
+      .split(" / ")
+      .filter((p) => p && p !== "잘 모르겠음");
     const matchedHairCount = searchHairParts.filter((part) =>
       containsMatch(post.hair_feature, part)
     ).length;
-
     if (matchedHairCount > 0) {
-      score += Math.min(20, matchedHairCount * 6);
-      reasons.push("머리 정보 유사");
+      score += Math.min(30, matchedHairCount * 10);
+      reasons.push(`머리 ${matchedHairCount}개 항목 일치`);
     }
   }
 
-  if (containsMatch(post.clothes_style, searchForm.top_type)) {
-    score += 8;
-    reasons.push("상의 종류 유사");
+  // 상의 종류: "잘 모르겠음" 제외 후 매칭 (+15)
+  if (
+    searchForm.top_type &&
+    searchForm.top_type !== "잘 모르겠음" &&
+    containsMatch(post.clothes_style, searchForm.top_type)
+  ) {
+    score += 15;
+    reasons.push("상의 종류 일치");
   }
 
-  if (containsMatch(post.clothes_style, searchForm.top_color)) {
-    score += 8;
-    reasons.push("상의 색상 유사");
+  // 상의 색상: "잘 모르겠음" 제외 후 매칭 (+15)
+  if (
+    searchForm.top_color &&
+    searchForm.top_color !== "잘 모르겠음" &&
+    containsMatch(post.clothes_style, searchForm.top_color)
+  ) {
+    score += 15;
+    reasons.push("상의 색상 일치");
   }
 
-  if (containsMatch(post.clothes_style, searchForm.bottom_type)) {
-    score += 7;
-    reasons.push("하의 종류 유사");
+  // 하의 종류: "잘 모르겠음" 제외 후 매칭 (+10)
+  if (
+    searchForm.bottom_type &&
+    searchForm.bottom_type !== "잘 모르겠음" &&
+    containsMatch(post.clothes_style, searchForm.bottom_type)
+  ) {
+    score += 10;
+    reasons.push("하의 종류 일치");
   }
 
-  if (containsMatch(post.clothes_style, searchForm.bottom_color)) {
-    score += 7;
-    reasons.push("하의 색상 유사");
-  }
-
-  if (post.place) {
-    score += 5;
-    reasons.push("장소 정보 있음");
+  // 하의 색상: "잘 모르겠음" 제외 후 매칭 (+10)
+  if (
+    searchForm.bottom_color &&
+    searchForm.bottom_color !== "잘 모르겠음" &&
+    containsMatch(post.clothes_style, searchForm.bottom_color)
+  ) {
+    score += 10;
+    reasons.push("하의 색상 일치");
   }
 
   return {
@@ -985,43 +972,9 @@ const hideSearchResult = (postId) => {
       return;
     }
 
-    if (profileImageFile) {
-      const profileImageError = validateImageFile(profileImageFile, "프로필 사진");
-
-      if (profileImageError) {
-        toast.error(profileImageError);
-        return;
-      }
-    }
-
-    let imageUrl = profile.profile_image_url;
-
     setProfileSubmitting(true);
 
     try {
-      if (profileImageFile) {
-        const fileName = makeStorageFilePath(currentUser.id, profileImageFile);
-
-        const { error: uploadError } = await supabase.storage
-          .from("profile-images")
-          .upload(fileName, profileImageFile, {
-            contentType: profileImageFile.type,
-            upsert: false,
-          });
-
-        if (uploadError) {
-          toast.error("프로필 사진 업로드에 실패했어요: " + uploadError.message);
-          console.log(uploadError);
-          return;
-        }
-
-        const { data } = supabase.storage
-          .from("profile-images")
-          .getPublicUrl(fileName);
-
-        imageUrl = data.publicUrl;
-      }
-
       const { error } = await supabase.from("profiles").upsert(
         [
           {
@@ -1032,7 +985,6 @@ const hideSearchResult = (postId) => {
             student_year: profile.student_year,
             instagram_id: cleanInstagram(profile.instagram_id),
             bio: profile.bio,
-            profile_image_url: imageUrl,
           },
         ],
         { onConflict: "user_id" }
@@ -1047,15 +999,11 @@ const hideSearchResult = (postId) => {
       setProfile({
         ...profile,
         instagram_id: cleanInstagram(profile.instagram_id),
-        profile_image_url: imageUrl,
       });
 
       profileLoadedUserIdRef.current = currentUser.id;
 
       toast.success("프로필이 저장됐어요!");
-
-      setProfileImageFile(null);
-      setProfileImagePreview("");
       setPage("home");
     } finally {
       setProfileSubmitting(false);
@@ -1157,7 +1105,6 @@ const hideSearchResult = (postId) => {
           sender_user_id: currentUser.id,
           sender_nickname: profile.nickname,
           sender_instagram: cleanInstagram(profile.instagram_id),
-          sender_profile_image_url: profile.profile_image_url,
           sender_gender: profile.gender,
           target_gender: crushPost.target_gender,
         },
@@ -1219,7 +1166,6 @@ const hideSearchResult = (postId) => {
           sender_user_id: currentUser.id,
           sender_nickname: profile.nickname,
           sender_instagram: cleanInstagram(profile.instagram_id),
-          sender_profile_image_url: profile.profile_image_url,
           sender_gender: profile.gender,
           target_gender: quickCloud.target_gender,
         },
@@ -1322,7 +1268,6 @@ const hideSearchResult = (postId) => {
         viewer_user_id: currentUser.id,
         viewer_nickname: profile.nickname,
         viewer_instagram: cleanInstagram(profile.instagram_id),
-        viewer_profile_image_url: profile.profile_image_url,
         viewed_at: viewedAt,
       }));
 
@@ -1387,7 +1332,6 @@ const hideSearchResult = (postId) => {
         .update({
           claimer_nickname: profile.nickname,
           claimer_instagram: cleanInstagram(profile.instagram_id),
-          claimer_profile_image_url: profile.profile_image_url,
           claimer_message: finalMessage,
         })
         .eq("id", existingClaim.id);
@@ -1400,7 +1344,6 @@ const hideSearchResult = (postId) => {
           claimer_user_id: currentUser.id,
           claimer_nickname: profile.nickname,
           claimer_instagram: cleanInstagram(profile.instagram_id),
-          claimer_profile_image_url: profile.profile_image_url,
           claimer_message: finalMessage,
           status: "pending",
         },
@@ -1422,7 +1365,6 @@ const hideSearchResult = (postId) => {
           viewer_user_id: currentUser.id,
           viewer_nickname: profile.nickname,
           viewer_instagram: cleanInstagram(profile.instagram_id),
-          viewer_profile_image_url: profile.profile_image_url,
           viewed_at: new Date().toISOString(),
         },
       ],
@@ -1735,7 +1677,6 @@ const sendSecondCloudToClaim = async (claim) => {
           viewer_user_id: claim.claimer_user_id,
           viewer_nickname: claim.claimer_nickname,
           viewer_instagram: claim.claimer_instagram,
-          viewer_profile_image_url: claim.claimer_profile_image_url,
           viewed_at: now,
           second_cloud_sent_at: now,
           second_cloud_message:
@@ -2043,19 +1984,9 @@ const receivedCloudItems = [
       {claim.status === "accepted" && (
         <div className="noticeBox">
           <p>매칭이 수락됐어요.</p>
-
-          {claim.claimer_profile_image_url && (
-            <img
-              src={claim.claimer_profile_image_url}
-              alt="상대 프로필"
-              className="matchProfileImage"
-            />
-          )}
-
           <p>
             내 인스타: <b>@{profile.instagram_id}</b>
           </p>
-
           <p>
             상대 인스타: <b>@{claim.claimer_instagram}</b>
           </p>
@@ -2214,18 +2145,9 @@ const receivedCloudItems = [
   <div className="noticeBox">
     <p>매칭이 수락됐어요.</p>
 
-    {post?.sender_profile_image_url && (
-      <img
-        src={post.sender_profile_image_url}
-        alt="상대 프로필"
-        className="matchProfileImage"
-      />
-    )}
-
     <p>
       내 인스타: <b>@{profile.instagram_id}</b>
     </p>
-
     <p>
       상대 인스타: <b>@{post?.sender_instagram || "-"}</b>
     </p>
@@ -2717,47 +2639,6 @@ const receivedCloudItems = [
               알림 보기
             </button>
           </div>
-
-          <div className="profileImageBox">
-            {profileImagePreview || profile.profile_image_url ? (
-              <img
-                src={profileImagePreview || profile.profile_image_url}
-                alt="프로필 미리보기"
-              />
-            ) : (
-              <div className="profileImagePlaceholder">프로필 사진</div>
-            )}
-          </div>
-
-          <input
-            type="file"
-            accept="image/*"
-	            onChange={(e) => {
-	              const file = e.target.files[0];
-	
-	              if (!file) {
-	                setProfileImageFile(null);
-	                setProfileImagePreview("");
-	                return;
-	              }
-
-	              const fileError = validateImageFile(file, "프로필 사진");
-
-	              if (fileError) {
-	                toast.error(fileError);
-	                e.target.value = "";
-	                setProfileImageFile(null);
-	                setProfileImagePreview("");
-	                return;
-	              }
-	
-	              setProfileImageFile(file);
-	              setProfileImagePreview((prev) => {
-	                if (prev) URL.revokeObjectURL(prev);
-	                return URL.createObjectURL(file);
-	              });
-	            }}
-	          />
 
           <input
             placeholder="닉네임 예: 정우23"
