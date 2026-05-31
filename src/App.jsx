@@ -15,11 +15,14 @@ function App() {
   const profileLoadedUserIdRef = useRef(null);
 
   const [authForm, setAuthForm] = useState({
-    name: "",
-    student_id: "",
-    login_id: "",
-    password: "",
-  });
+  name: "",
+  student_id: "",
+  department: "",
+  login_id: "",
+  password: "",
+});
+
+const [verificationFile, setVerificationFile] = useState(null);
 
   const placeOptions = [
     "혜당관",
@@ -599,6 +602,15 @@ const [homeTopWeatherPlace, setHomeTopWeatherPlace] = useState(null);
       alert("학번을 입력해주세요.");
       return;
     }
+    if (!authForm.department.trim()) {
+      alert("학과를 입력해주세요.");
+      return;
+    }
+
+    if (!verificationFile) {
+      alert("MY DKU 첫 화면 캡처를 업로드해주세요.");
+      return;
+    }
 
     if (!loginId) {
       alert("아이디를 입력해주세요.");
@@ -642,6 +654,43 @@ const [homeTopWeatherPlace, setHomeTopWeatherPlace] = useState(null);
 
     setSession(data.session || null);
     setCurrentUser(signedUpUser);
+    if (!signedUpUser) {
+  alert("회원가입은 완료됐지만 로그인 세션을 확인하지 못했어요. 다시 로그인해주세요.");
+  setAuthMode("login");
+  return;
+}
+
+const fileExt = verificationFile.name.split(".").pop();
+const filePath = `${signedUpUser.id}/${Date.now()}.${fileExt}`;
+
+const { error: uploadError } = await supabase.storage
+  .from("dku-verifications")
+  .upload(filePath, verificationFile);
+
+if (uploadError) {
+  alert("학생 인증 이미지 업로드에 실패했어요: " + uploadError.message);
+  console.log(uploadError);
+  return;
+}
+
+const { error: verificationError } = await supabase
+  .from("dku_verifications")
+  .insert([
+    {
+      user_id: signedUpUser.id,
+      name: authForm.name.trim(),
+      student_id: authForm.student_id.trim(),
+      department: authForm.department.trim(),
+      screenshot_path: filePath,
+      status: "pending",
+    },
+  ]);
+
+if (verificationError) {
+  alert("학생 인증 신청 저장에 실패했어요: " + verificationError.message);
+  console.log(verificationError);
+  return;
+}
 
     setProfile((prev) => ({
       ...prev,
@@ -649,14 +698,8 @@ const [homeTopWeatherPlace, setHomeTopWeatherPlace] = useState(null);
       student_year: authForm.student_id.trim(),
     }));
 
-    alert("회원가입이 완료됐어요. 이제 프로필을 작성해주세요.");
-
-    if (signedUpUser) {
-      setPage("profile");
-    } else {
-      setAuthMode("login");
-    }
-  };
+    alert("회원가입 신청이 완료됐어요. 단국대 학생 인증 승인 후 이용할 수 있어요.");
+    setPage("verificationPending");
 
   const handleLogin = async () => {
     const loginId = authForm.login_id.trim();
@@ -697,6 +740,8 @@ const [homeTopWeatherPlace, setHomeTopWeatherPlace] = useState(null);
       login_id: "",
       password: "",
     });
+
+    setVerificationFile(null);
 
     setAuthMode("login");
     setPage("home");
@@ -2278,6 +2323,33 @@ const receivedCloudItems = [
                   }
                 />
               </div>
+              <div className="formGroup">
+  <label className="formLabel">학과</label>
+  <input
+    placeholder="예: 경영경제 글로벌경영학과"
+    value={authForm.department}
+    onChange={(e) =>
+      setAuthForm({ ...authForm, department: e.target.value })
+    }
+  />
+</div>
+
+<div className="formGroup">
+  <label className="formLabel">단국대 학생 인증 캡처</label>
+  <input
+    type="file"
+    accept="image/*"
+    onChange={(e) => {
+      const file = e.target.files[0];
+      if (!file) return;
+      setVerificationFile(file);
+    }}
+  />
+  <p className="helperText">
+    MY DKU 첫 화면에서 이름, 학번, 학과가 보이게 캡처해서 올려주세요.
+    인증 완료 후 단꿈을 이용할 수 있어요.
+  </p>
+</div>
             </>
           )}
 
