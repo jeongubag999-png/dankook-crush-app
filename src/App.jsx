@@ -1,65 +1,47 @@
 import { useCallback, useEffect, useRef, useState } from "react";
+import toast, { Toaster } from "react-hot-toast";
 import "./App.css";
 import { supabase } from "./supabase";
-
-const KOREA_TIME_ZONE = "Asia/Seoul";
-const MAX_IMAGE_SIZE = 5 * 1024 * 1024;
-const IMAGE_EXTENSIONS = {
-  "image/jpeg": "jpg",
-  "image/png": "png",
-  "image/webp": "webp",
-  "image/gif": "gif",
-};
-
-const getKoreaDateString = (date = new Date()) => {
-  const parts = new Intl.DateTimeFormat("en-CA", {
-    timeZone: KOREA_TIME_ZONE,
-    year: "numeric",
-    month: "2-digit",
-    day: "2-digit",
-  }).formatToParts(date);
-
-  const values = Object.fromEntries(parts.map((part) => [part.type, part.value]));
-
-  return `${values.year}-${values.month}-${values.day}`;
-};
-
-const getMainPlaceFromPost = (post) => {
-  if (!post.place) return "장소 없음";
-  return post.place.split(" - ")[0];
-};
-
-const getSafeImageExtension = (file) => {
-  const mimeExtension = IMAGE_EXTENSIONS[file.type];
-
-  if (mimeExtension) return mimeExtension;
-
-  return file.name.split(".").pop()?.toLowerCase() || "jpg";
-};
-
-const makeStorageFilePath = (userId, file) => {
-  const extension = getSafeImageExtension(file);
-  const uniqueId =
-    typeof crypto !== "undefined" && crypto.randomUUID
-      ? crypto.randomUUID()
-      : `${file.lastModified}-${file.size}`;
-
-  return `${userId}/${uniqueId}.${extension}`;
-};
-
-const validateImageFile = (file, label) => {
-  if (!file) return `${label} 파일을 선택해주세요.`;
-
-  if (!file.type.startsWith("image/")) {
-    return `${label}은 이미지 파일만 업로드할 수 있어요.`;
-  }
-
-  if (file.size > MAX_IMAGE_SIZE) {
-    return `${label}은 5MB 이하 이미지만 업로드할 수 있어요.`;
-  }
-
-  return "";
-};
+import { OptionButton } from "./components/OptionButton";
+import {
+  placeOptions,
+  timeOptions,
+  genderOptions,
+  femaleHairStyleOptions,
+  maleHairStyleOptions,
+  hairColorOptions,
+  hatOptions,
+  bangsOptions,
+  topTypeOptions,
+  topColorOptions,
+  bottomTypeOptions,
+  bottomColorOptions,
+  bagOptions,
+  earphoneOptions,
+  heightFeelingOptions,
+  shoeOptions,
+  togetherSituationOptions,
+  moodOptions,
+  matchOptions,
+} from "./constants";
+import {
+  getKoreaDateString,
+  getMainPlaceFromPost,
+  makeStorageFilePath,
+  validateImageFile,
+  makeAuthEmail,
+  cleanInstagram,
+  formatDateLabel,
+  formatShortDateTime,
+  cleanMessage,
+  makeHairFeature,
+  cleanTagText,
+  getPostTopText,
+  getPostBottomText,
+  getAccessoryValue,
+  makeCloudTags,
+  getWeatherComment,
+} from "./utils";
 
 function App() {
   const [page, setPage] = useState("home");
@@ -82,109 +64,6 @@ function App() {
 });
 
 const [verificationFile, setVerificationFile] = useState(null);
-
-  const placeOptions = [
-    "혜당관",
-    "퇴계기념중앙도서관",
-    "학생회관",
-    "상경관",
-    "사범관",
-    "인문관",
-    "사회과학관",
-    "법학관/대학원동",
-    "국제관",
-    "미술관",
-    "난파음악관",
-    "무용관",
-    "제1공학관",
-    "제2공학관",
-    "제3공학관",
-    "소프트웨어ICT관",
-    "종합실험동",
-    "미디어센터",
-    "범정관/대학본부",
-    "석주선기념박물관",
-    "체육관",
-    "대운동장",
-    "학군단",
-    "복지관",
-    "베어토피아",
-    "웅비홀",
-    "집현재1",
-    "집현재2",
-    "정문",
-    "버스정류장",
-    "셔틀버스 탑승장",
-    "곰상 근처",
-    "폭포공원 근처",
-    "기숙사 방향 길",
-    "학교 앞 상권/거리",
-    "죽전역 근처",
-    "보정동 카페거리",
-    "잘 모르겠음",
-    "기타/직접 입력",
-  ];
-
-  const timeOptions = [
-    "00:00~02:00",
-    "02:00~04:00",
-    "04:00~06:00",
-    "06:00~08:00",
-    "08:00~10:00",
-    "10:00~12:00",
-    "12:00~14:00",
-    "14:00~16:00",
-    "16:00~18:00",
-    "18:00~20:00",
-    "20:00~22:00",
-    "22:00~24:00",
-    "잘 모르겠음",
-  ];
-
-  const genderOptions = ["여자", "남자"];
-
-  const femaleHairStyleOptions = [
-    "장발",
-    "중단발",
-    "단발",
-    "묶음머리",
-    "포니테일",
-    "잘 모르겠음",
-  ];
-
-  const maleHairStyleOptions = [
-    "짧은 머리",
-    "댄디컷",
-    "가르마펌",
-    "애즈펌",
-    "리젠트컷",
-    "스포츠머리",
-    "장발",
-    "묶음머리",
-    "포니테일",
-    "잘 모르겠음",
-  ];
-
-  const hairColorOptions = [
-    "검정/흑발",
-    "갈색 계열",
-    "금발/탈색",
-    "빨강/와인",
-    "회색/애쉬",
-    "핑크/보라",
-    "파랑",
-    "초록",
-    "잘 모르겠음",
-  ];
-
-  const hatOptions = ["모자 착용", "모자 없음", "잘 모르겠음"];
-
-  const bangsOptions = ["앞머리 있음", "앞머리 없음", "잘 모르겠음"];
-
-  const makeHairFeature = (style, color, hat, bangs) => {
-    if (!style || !color || !hat || !bangs) return "";
-    return `${style} / ${color} / ${hat} / ${bangs}`;
-  };
 
   const getFinalHairFeature = () => {
     if (crushPost.target_gender === "여자") {
@@ -230,122 +109,6 @@ const [verificationFile, setVerificationFile] = useState(null);
     return "";
   };
 
-  const topTypeOptions = [
-    "반팔 티셔츠",
-    "긴팔 티셔츠",
-    "셔츠/블라우스",
-    "후드티",
-    "맨투맨",
-    "니트",
-    "가디건",
-    "자켓",
-    "코트/패딩",
-    "학잠/과잠",
-    "원피스",
-    "군복",
-    "잘 모르겠음",
-  ];
-
-  const topColorOptions = [
-    "흰색",
-    "검정",
-    "회색",
-    "네이비",
-    "파랑",
-    "하늘",
-    "분홍",
-    "빨강",
-    "베이지",
-    "갈색",
-    "초록",
-    "노랑",
-    "패턴/무늬",
-    "잘 모르겠음",
-  ];
-
-  const bottomTypeOptions = [
-    "청바지",
-    "슬랙스",
-    "면바지",
-    "반바지",
-    "치마",
-    "트레이닝 바지",
-    "레깅스",
-    "기타",
-    "잘 모르겠음",
-  ];
-
-  const bottomColorOptions = [
-    "검정",
-    "청색",
-    "연청",
-    "진청",
-    "회색",
-    "흰색",
-    "베이지",
-    "갈색",
-    "잘 모르겠음",
-  ];
-
-  const bagOptions = [
-    "백팩",
-    "에코백",
-    "숄더백",
-    "크로스백",
-    "토트백",
-    "작은 가방",
-    "헬스가방",
-    "가방 없음",
-    "잘 모르겠음",
-  ];
-
-  const earphoneOptions = [
-    "무선 이어폰",
-    "유선 이어폰",
-    "헤드셋",
-    "없음",
-    "잘 모르겠음",
-  ];
-
-  const heightFeelingOptions = ["크다", "보통이다", "작다", "잘 모르겠음"];
-
-  const shoeOptions = [
-    "운동화",
-    "컨버스/반스 느낌",
-    "구두/로퍼",
-    "부츠",
-    "샌들/슬리퍼",
-    "크록스",
-    "잘 모르겠음",
-  ];
-
-  const togetherSituationOptions = [
-    "이동 중이었음",
-    "공부/과제 중이었음",
-    "밥 먹는 중이었음",
-    "카페에 있었음",
-    "기다리는 중이었음",
-    "통화 중이었음",
-    "대화 중이었음",
-    "술자리/모임 중이었음",
-    "잘 모르겠음",
-  ];
-
-  const moodOptions = [
-    "강아지상 느낌",
-    "고양이상 느낌",
-    "차분한 분위기",
-    "밝고 활발한 분위기",
-    "귀여운 분위기",
-    "시크한 분위기",
-    "깔끔한 분위기",
-    "힙한 분위기",
-    "따뜻한 분위기",
-    "조용한 분위기",
-    "잘 모르겠음",
-  ];
-
-  const matchOptions = ["거의 저 같아요", "조금 비슷해요", "잘 모르겠어요"];
 
   const [profile, setProfile] = useState({
     nickname: "",
@@ -479,22 +242,6 @@ const [verificationFile, setVerificationFile] = useState(null);
       ...prev,
       [key]: value,
     }));
-  };
-
-  const cleanInstagram = (value) => {
-    if (!value) return "";
-    return value.trim().replace("@", "");
-  };
-
-  const makeAuthEmail = (loginId) => {
-    const rawId = loginId.trim();
-
-    const encodedId = btoa(unescape(encodeURIComponent(rawId)))
-      .replace(/\+/g, "-")
-      .replace(/\//g, "_")
-      .replace(/=+$/g, "");
-
-    return `user-${encodedId}@dankum.app`;
   };
 
   const loadHomeTopWeatherPlace = useCallback(async () => {
@@ -751,21 +498,21 @@ const [verificationFile, setVerificationFile] = useState(null);
     const loginId = authForm.login_id.trim();
 
     if (!authForm.name.trim()) {
-      alert("닉네임 또는 이름을 입력해주세요.");
+      toast.error("닉네임 또는 이름을 입력해주세요.");
       return;
     }
 
     if (!authForm.student_id.trim()) {
-      alert("학번을 입력해주세요.");
+      toast.error("학번을 입력해주세요.");
       return;
     }
     if (!authForm.department.trim()) {
-      alert("학과를 입력해주세요.");
+      toast.error("학과를 입력해주세요.");
       return;
     }
 
     if (!verificationFile) {
-      alert("MY DKU 첫 화면 캡처를 업로드해주세요.");
+      toast.error("MY DKU 첫 화면 캡처를 업로드해주세요.");
       return;
     }
 
@@ -775,27 +522,27 @@ const [verificationFile, setVerificationFile] = useState(null);
     );
 
     if (verificationFileError) {
-      alert(verificationFileError);
+      toast.error(verificationFileError);
       return;
     }
 
     if (!loginId) {
-      alert("아이디를 입력해주세요.");
+      toast.error("아이디를 입력해주세요.");
       return;
     }
 
     if (loginId.length < 4) {
-      alert("아이디는 4자 이상으로 입력해주세요.");
+      toast.error("아이디는 4자 이상으로 입력해주세요.");
       return;
     }
 
     if (loginId.length > 30) {
-      alert("아이디는 30자 이하로 입력해주세요.");
+      toast.error("아이디는 30자 이하로 입력해주세요.");
       return;
     }
 
     if (authForm.password.length < 6) {
-      alert("비밀번호는 6자리 이상으로 입력해주세요.");
+      toast.error("비밀번호는 6자리 이상으로 입력해주세요.");
       return;
     }
 
@@ -815,7 +562,7 @@ const [verificationFile, setVerificationFile] = useState(null);
       });
 
       if (error) {
-        alert("회원가입에 실패했어요: " + error.message);
+        toast.error("회원가입에 실패했어요: " + error.message);
         console.log(error);
         return;
       }
@@ -826,7 +573,7 @@ const [verificationFile, setVerificationFile] = useState(null);
       setCurrentUser(signedUpUser);
 
       if (!signedUpUser) {
-        alert(
+        toast.error(
           "회원가입은 완료됐지만 로그인 세션을 확인하지 못했어요. 다시 로그인해주세요."
         );
         setAuthMode("login");
@@ -843,7 +590,7 @@ const [verificationFile, setVerificationFile] = useState(null);
         });
 
       if (uploadError) {
-        alert("학생 인증 이미지 업로드에 실패했어요: " + uploadError.message);
+        toast.error("학생 인증 이미지 업로드에 실패했어요: " + uploadError.message);
         console.log(uploadError);
         return;
       }
@@ -862,7 +609,7 @@ const [verificationFile, setVerificationFile] = useState(null);
         ]);
 
       if (verificationError) {
-        alert("학생 인증 신청 저장에 실패했어요: " + verificationError.message);
+        toast.error("학생 인증 신청 저장에 실패했어요: " + verificationError.message);
         console.log(verificationError);
         return;
       }
@@ -873,7 +620,7 @@ const [verificationFile, setVerificationFile] = useState(null);
         student_year: authForm.student_id.trim(),
       }));
 
-      alert("회원가입 신청이 완료됐어요. 단국대 학생 인증 승인 후 이용할 수 있어요.");
+      toast.success("회원가입 신청이 완료됐어요. 단국대 학생 인증 승인 후 이용할 수 있어요.");
       setPage("verificationPending");
     } finally {
       setAuthSubmitting(false);
@@ -886,7 +633,7 @@ const handleLogin = async () => {
     const loginId = authForm.login_id.trim();
 
     if (!loginId || !authForm.password) {
-      alert("아이디와 비밀번호를 입력해주세요.");
+      toast.error("아이디와 비밀번호를 입력해주세요.");
       return;
     }
 
@@ -899,7 +646,7 @@ const handleLogin = async () => {
       });
 
       if (error) {
-        alert("로그인에 실패했어요. 아이디와 비밀번호를 확인해주세요.");
+        toast.error("로그인에 실패했어요. 아이디와 비밀번호를 확인해주세요.");
         console.log(error);
         return;
       }
@@ -937,7 +684,7 @@ const handleLogin = async () => {
 
   const saveDraft = () => {
     if (!currentUser) {
-      alert("로그인 후 임시저장을 사용할 수 있어요.");
+      toast.error("로그인 후 임시저장을 사용할 수 있어요.");
       return;
     }
 
@@ -950,14 +697,14 @@ const handleLogin = async () => {
       })
     );
 
-    alert("작성 중인 구름을 임시저장했어요.");
+    toast.success("작성 중인 구름을 임시저장했어요.");
   };
 
   const loadDraft = () => {
     const saved = localStorage.getItem(getDraftKey());
 
     if (!saved) {
-      alert("불러올 임시저장이 없어요.");
+      toast.error("불러올 임시저장이 없어요.");
       return;
     }
 
@@ -972,86 +719,17 @@ const handleLogin = async () => {
       setCrushStep(parsed.crushStep || 1);
       setPage("send");
 
-      alert("임시저장한 구름을 불러왔어요.");
+      toast.success("임시저장한 구름을 불러왔어요.");
     } catch (error) {
       console.log(error);
-      alert("임시저장을 불러오지 못했어요.");
+      toast.error("임시저장을 불러오지 못했어요.");
     }
   };
 
   const clearDraft = () => {
     localStorage.removeItem(getDraftKey());
-    alert("임시저장을 삭제했어요.");
+    toast.success("임시저장을 삭제했어요.");
   };
-const cleanTagText = (text) => {
-  if (!text) return "";
-
-  return text
-    .replace(/\/\s*상의 설명:.*/g, "")
-    .replace(/\/\s*하의 설명:.*/g, "")
-    .replace(/\/\s*소지품 설명:.*/g, "")
-    .replace(/\/\s*신발 설명:.*/g, "")
-    .replace(/\/\s*자세히:.*/g, "")
-    .trim();
-};
-
-const getPostTopText = (post) => {
-  const clothesStyleText = post.clothes_style || "";
-
-  if (!clothesStyleText) return "";
-
-  if (clothesStyleText.includes("하의:")) {
-    return cleanTagText(
-      clothesStyleText.split("하의:")[0].replace("상의:", "").trim()
-    );
-  }
-
-  return cleanTagText(clothesStyleText.replace("상의:", "").trim());
-};
-
-const getPostBottomText = (post) => {
-  const clothesStyleText = post.clothes_style || "";
-
-  if (!clothesStyleText || !clothesStyleText.includes("하의:")) return "";
-
-  return cleanTagText(clothesStyleText.split("하의:")[1].trim());
-};
-
-const getAccessoryValue = (post, label) => {
-  const accessoryText = post.accessory || "";
-
-  if (!accessoryText.includes(`${label}:`)) return "";
-
-  const afterLabel = accessoryText.split(`${label}:`)[1] || "";
-  return cleanTagText(afterLabel.split(" / ")[0].trim());
-};
-
-const makeCloudTags = (post) => {
-  const tags = [];
-
-  const mainPlace = post.place ? post.place.split(" - ")[0] : "";
-  const hairParts = (post.hair_feature || "")
-    .split(" / ")
-    .map((item) => item.trim())
-    .filter((item) => item && item !== "잘 모르겠음");
-
-  const topText = getPostTopText(post);
-  const bottomText = getPostBottomText(post);
-  const bagText = getAccessoryValue(post, "가방");
-  const moodText = getAccessoryValue(post, "분위기");
-
-  if (mainPlace) tags.push(mainPlace);
-  if (post.time_period) tags.push(post.time_period);
-
-  hairParts.slice(0, 2).forEach((item) => tags.push(item));
-
-  if (topText && topText !== "-") tags.push(topText);
-  if (bottomText && bottomText !== "-") tags.push(bottomText);
-  if (bagText && bagText !== "잘 모르겠음") tags.push(bagText);
-  if (moodText && moodText !== "잘 모르겠음") tags.push(moodText);
-
-  return [...new Set(tags)].slice(0, 8);
-};
 
 const normalizeMatchText = (value) => {
   if (!value || value === "잘 모르겠음") return "";
@@ -1138,18 +816,9 @@ const hideSearchResult = (postId) => {
   });
 };
   const renderPostQuestionAnswer = (post) => {
-    const clothesStyleText = post.clothes_style || "";
     const accessoryText = post.accessory || "";
-
-    const topText =
-      clothesStyleText && clothesStyleText.includes("하의:")
-        ? clothesStyleText.split("하의:")[0].replace("상의:", "").trim()
-        : clothesStyleText.replace("상의:", "").trim();
-
-    const bottomText =
-      clothesStyleText && clothesStyleText.includes("하의:")
-        ? clothesStyleText.split("하의:")[1].trim()
-        : "-";
+    const topText = getPostTopText(post) || "-";
+    const bottomText = getPostBottomText(post) || "-";
 
     return (
       <div className="qaBox">
@@ -1190,33 +859,6 @@ const hideSearchResult = (postId) => {
     );
   };
 
-  const cleanMessage = (message) => {
-    if (!message) return "";
-    return message.replace(/\[찾는 성별:\s*.*?\]\s*/, "");
-  };
-
-  const formatDateLabel = (dateText) => {
-    if (!dateText) return "날짜 없음";
-
-    const [year, month, day] = dateText.split("-");
-
-    if (!year || !month || !day) return dateText;
-
-    return `${Number(month)}월 ${Number(day)}일`;
-  };
-
-  const formatShortDateTime = (dateTimeText) => {
-    if (!dateTimeText) return "";
-
-    const date = new Date(dateTimeText);
-
-    if (Number.isNaN(date.getTime())) return "";
-
-    return `${date.getMonth() + 1}/${date.getDate()} ${String(
-      date.getHours()
-    ).padStart(2, "0")}:${String(date.getMinutes()).padStart(2, "0")}`;
-  };
-
   const selectTargetGenderAndNext = (value) => {
     setCrushPost((prev) => ({
       ...prev,
@@ -1248,24 +890,24 @@ const hideSearchResult = (postId) => {
 
   const checkProfileRequired = () => {
     if (!currentUser) {
-      alert("먼저 로그인 또는 회원가입을 해주세요.");
+      toast.error("먼저 로그인 또는 회원가입을 해주세요.");
       return false;
     }
 
     if (!profile.nickname) {
-      alert("먼저 내 프로필에서 닉네임을 입력해주세요.");
+      toast.error("먼저 내 프로필에서 닉네임을 입력해주세요.");
       setPage("profile");
       return false;
     }
 
     if (!profile.gender) {
-      alert("먼저 내 프로필에서 성별을 선택해주세요.");
+      toast.error("먼저 내 프로필에서 성별을 선택해주세요.");
       setPage("profile");
       return false;
     }
 
     if (!profile.instagram_id) {
-      alert("먼저 내 프로필에서 인스타 아이디를 입력해주세요.");
+      toast.error("먼저 내 프로필에서 인스타 아이디를 입력해주세요.");
       setPage("profile");
       return false;
     }
@@ -1324,22 +966,22 @@ const hideSearchResult = (postId) => {
     if (profileSubmitting) return;
 
     if (!currentUser) {
-      alert("먼저 로그인해주세요.");
+      toast.error("먼저 로그인해주세요.");
       return;
     }
 
     if (!profile.nickname) {
-      alert("닉네임을 입력해주세요.");
+      toast.error("닉네임을 입력해주세요.");
       return;
     }
 
     if (!profile.gender) {
-      alert("성별을 선택해주세요.");
+      toast.error("성별을 선택해주세요.");
       return;
     }
 
     if (!profile.instagram_id) {
-      alert("인스타 아이디를 입력해주세요.");
+      toast.error("인스타 아이디를 입력해주세요.");
       return;
     }
 
@@ -1347,7 +989,7 @@ const hideSearchResult = (postId) => {
       const profileImageError = validateImageFile(profileImageFile, "프로필 사진");
 
       if (profileImageError) {
-        alert(profileImageError);
+        toast.error(profileImageError);
         return;
       }
     }
@@ -1368,7 +1010,7 @@ const hideSearchResult = (postId) => {
           });
 
         if (uploadError) {
-          alert("프로필 사진 업로드에 실패했어요: " + uploadError.message);
+          toast.error("프로필 사진 업로드에 실패했어요: " + uploadError.message);
           console.log(uploadError);
           return;
         }
@@ -1397,7 +1039,7 @@ const hideSearchResult = (postId) => {
       );
 
       if (error) {
-        alert("프로필 저장에 실패했어요: " + error.message);
+        toast.error("프로필 저장에 실패했어요: " + error.message);
         console.log(error);
         return;
       }
@@ -1410,7 +1052,7 @@ const hideSearchResult = (postId) => {
 
       profileLoadedUserIdRef.current = currentUser.id;
 
-      alert("프로필이 저장됐어요!");
+      toast.success("프로필이 저장됐어요!");
 
       setProfileImageFile(null);
       setProfileImagePreview("");
@@ -1426,19 +1068,19 @@ const hideSearchResult = (postId) => {
     if (!checkProfileRequired()) return;
 
     if (!crushPost.target_gender) {
-      alert("찾는 사람의 성별을 선택해주세요.");
+      toast.error("찾는 사람의 성별을 선택해주세요.");
       setCrushStep(1);
       return;
     }
 
     if (!crushPost.seen_date || !crushPost.time_period) {
-      alert("날짜와 시간을 선택해주세요.");
+      toast.error("날짜와 시간을 선택해주세요.");
       setCrushStep(2);
       return;
     }
 
     if (!getFinalPlace()) {
-      alert("장소를 선택하거나 직접 입력해주세요.");
+      toast.error("장소를 선택하거나 직접 입력해주세요.");
       setCrushStep(3);
       return;
     }
@@ -1446,25 +1088,25 @@ const hideSearchResult = (postId) => {
     const finalHairFeature = getFinalHairFeature();
 
     if (!finalHairFeature) {
-      alert("머리스타일, 머리 색깔, 모자 유무, 앞머리 유무를 선택해주세요.");
+      toast.error("머리스타일, 머리 색깔, 모자 유무, 앞머리 유무를 선택해주세요.");
       setCrushStep(4);
       return;
     }
 
     if (!crushPost.top_type || !crushPost.top_color) {
-      alert("상의 종류와 색상을 선택해주세요.");
+      toast.error("상의 종류와 색상을 선택해주세요.");
       setCrushStep(5);
       return;
     }
 
     if (!getFinalBottomType() || !crushPost.bottom_color) {
-      alert("하의 종류와 색상을 선택해주세요.");
+      toast.error("하의 종류와 색상을 선택해주세요.");
       setCrushStep(6);
       return;
     }
 
     if (!crushPost.bag_type || !crushPost.earphone_type) {
-      alert("가방과 이어폰 정보를 선택해주세요.");
+      toast.error("가방과 이어폰 정보를 선택해주세요.");
       setCrushStep(7);
       return;
     }
@@ -1475,7 +1117,7 @@ const hideSearchResult = (postId) => {
       !crushPost.together_situation ||
       !crushPost.mood
     ) {
-      alert("키 느낌, 신발, 같이 있었던 상황, 분위기를 선택해주세요.");
+      toast.error("키 느낌, 신발, 같이 있었던 상황, 분위기를 선택해주세요.");
       setCrushStep(8);
       return;
     }
@@ -1522,14 +1164,14 @@ const hideSearchResult = (postId) => {
       ]);
 
       if (error) {
-        alert("구름 남기기에 실패했어요: " + error.message);
+        toast.error("구름 남기기에 실패했어요: " + error.message);
         console.log(error);
         return;
       }
 
       localStorage.removeItem(getDraftKey());
 
-      alert("구름을 남겼어요!");
+      toast.success("구름을 남겼어요!");
       resetCrushPost();
       setPage("sent");
     } finally {
@@ -1543,17 +1185,17 @@ const hideSearchResult = (postId) => {
     if (!checkProfileRequired()) return;
 
     if (!quickCloud.target_gender) {
-      alert("찾는 사람의 성별을 선택해주세요.");
+      toast.error("찾는 사람의 성별을 선택해주세요.");
       return;
     }
 
     if (!quickCloud.seen_date) {
-      alert("날짜를 선택해주세요.");
+      toast.error("날짜를 선택해주세요.");
       return;
     }
 
     if (!getQuickCloudPlace()) {
-      alert("장소를 선택하거나 직접 입력해주세요.");
+      toast.error("장소를 선택하거나 직접 입력해주세요.");
       return;
     }
 
@@ -1584,12 +1226,12 @@ const hideSearchResult = (postId) => {
       ]);
 
       if (error) {
-        alert("빠른 구름 보내기에 실패했어요: " + error.message);
+        toast.error("빠른 구름 보내기에 실패했어요: " + error.message);
         console.log(error);
         return;
       }
 
-      alert("빠른 구름을 보냈어요!");
+      toast.success("빠른 구름을 보냈어요!");
       resetQuickCloud();
       loadHomeTopWeatherPlace();
       setPage("sent");
@@ -1604,7 +1246,7 @@ const hideSearchResult = (postId) => {
   if (!checkProfileRequired()) return;
 
   if (!searchForm.seen_date) {
-    alert("날짜를 선택해주세요.");
+    toast.error("날짜를 선택해주세요.");
     return;
   }
 
@@ -1621,7 +1263,7 @@ const hideSearchResult = (postId) => {
       });
 
     if (error) {
-      alert("검색에 실패했어요: " + error.message);
+      toast.error("검색에 실패했어요: " + error.message);
       console.log(error);
       return;
     }
@@ -1708,14 +1350,14 @@ const hideSearchResult = (postId) => {
   if (claimSubmitting) return;
 
   if (!selectedPost) {
-    alert("응답할 구름 글을 찾지 못했어요.");
+    toast.error("응답할 구름 글을 찾지 못했어요.");
     return;
   }
 
   if (!checkProfileRequired()) return;
 
   if (!claimForm.match_level) {
-    alert("일치 정도를 선택해주세요.");
+    toast.error("일치 정도를 선택해주세요.");
     return;
   }
 
@@ -1732,7 +1374,7 @@ const hideSearchResult = (postId) => {
       .maybeSingle();
 
     if (existingError) {
-      alert("응답 확인에 실패했어요: " + existingError.message);
+      toast.error("응답 확인에 실패했어요: " + existingError.message);
       console.log(existingError);
       return;
     }
@@ -1768,7 +1410,7 @@ const hideSearchResult = (postId) => {
     }
 
     if (claimError) {
-      alert("응답 저장에 실패했어요: " + claimError.message);
+      toast.error("응답 저장에 실패했어요: " + claimError.message);
       console.log(claimError);
       return;
     }
@@ -1790,7 +1432,7 @@ const hideSearchResult = (postId) => {
       }
     );
 
-    alert("응답을 보냈어요!");
+    toast.success("응답을 보냈어요!");
 
     setClaimForm({
       claimer_nickname: "",
@@ -1810,211 +1452,154 @@ const hideSearchResult = (postId) => {
     if (!currentUser) return false;
 
     setMatchingLoading(true);
-
     setMySentPosts([]);
     setSentClaims([]);
     setReceivedClaims([]);
     setSentCloudViews([]);
     setReceivedCloudViews([]);
     setMyCloudChecks([]);
-    const { data: checksData, error: checksError } = await supabase
-  .from("cloud_checks")
-  .select("*")
-  .eq("checker_user_id", currentUser.id)
-  .order("checked_at", { ascending: false });
 
-if (checksError) {
-  alert("구름 확인 기록을 불러오지 못했어요: " + checksError.message);
-  console.log(checksError);
-  setMatchingLoading(false);
-  return false;
-}
+    // Round 1: 독립 쿼리 병렬 실행
+    const [checksResult, postsResult, receivedClaimsResult, receivedViewsResult] =
+      await Promise.all([
+        supabase
+          .from("cloud_checks")
+          .select("*")
+          .eq("checker_user_id", currentUser.id)
+          .order("checked_at", { ascending: false }),
+        supabase
+          .from("crush_posts")
+          .select("*")
+          .eq("sender_user_id", currentUser.id)
+          .order("created_at", { ascending: false }),
+        supabase
+          .from("claims")
+          .select("*")
+          .eq("claimer_user_id", currentUser.id)
+          .order("created_at", { ascending: false }),
+        supabase
+          .from("cloud_views")
+          .select("*")
+          .eq("viewer_user_id", currentUser.id)
+          .not("second_cloud_sent_at", "is", null)
+          .order("second_cloud_sent_at", { ascending: false }),
+      ]);
 
-setMyCloudChecks(checksData || []);
-    const { data: myPosts, error: postsError } = await supabase
-      .from("crush_posts")
-      .select("*")
-      .eq("sender_user_id", currentUser.id)
-      .order("created_at", { ascending: false });
-
-    if (postsError) {
-      alert("내가 띄운 구름을 불러오지 못했어요: " + postsError.message);
-      console.log(postsError);
+    if (checksResult.error) {
+      toast.error("구름 확인 기록을 불러오지 못했어요: " + checksResult.error.message);
+      console.log(checksResult.error);
+      setMatchingLoading(false);
+      return false;
+    }
+    if (postsResult.error) {
+      toast.error("내가 띄운 구름을 불러오지 못했어요: " + postsResult.error.message);
+      console.log(postsResult.error);
+      setMatchingLoading(false);
+      return false;
+    }
+    if (receivedClaimsResult.error) {
+      toast.error("내가 받은 구름 목록을 불러오지 못했어요: " + receivedClaimsResult.error.message);
+      console.log(receivedClaimsResult.error);
+      setMatchingLoading(false);
+      return false;
+    }
+    if (receivedViewsResult.error) {
+      toast.error("나에게 온 뭉게구름을 불러오지 못했어요: " + receivedViewsResult.error.message);
+      console.log(receivedViewsResult.error);
       setMatchingLoading(false);
       return false;
     }
 
-    const finalMyPosts = myPosts || [];
+    setMyCloudChecks(checksResult.data || []);
+
+    const finalMyPosts = postsResult.data || [];
     setMySentPosts(finalMyPosts);
 
-    let finalSentClaims = [];
+    const finalReceivedClaims = receivedClaimsResult.data || [];
+    const myReceivedViews = receivedViewsResult.data || [];
 
-    if (finalMyPosts.length > 0) {
-      const postIds = finalMyPosts.map((post) => post.id);
+    // Round 2: Round 1 결과가 필요한 쿼리 병렬 실행
+    const round2Promises = [];
 
-      const { data: claimsData, error: claimsError } = await supabase
-        .from("claims")
-        .select("*")
-        .in("crush_post_id", postIds)
-        .order("created_at", { ascending: false });
+    const sentPostIds = finalMyPosts.map((post) => post.id);
+    const sentPostIdsStr = finalMyPosts.map((post) => String(post.id));
+    const receivedClaimPostIds = [...new Set(finalReceivedClaims.map((c) => c.crush_post_id))];
+    const viewPostIds = [...new Set(myReceivedViews.map((v) => v.crush_post_id))];
 
-      if (claimsError) {
-        alert("내 구름에 온 응답을 불러오지 못했어요: " + claimsError.message);
-        console.log(claimsError);
-        setMatchingLoading(false);
-        return false;
-      }
+    round2Promises.push(
+      sentPostIds.length > 0
+        ? supabase.from("claims").select("*").in("crush_post_id", sentPostIds).order("created_at", { ascending: false })
+        : Promise.resolve({ data: [], error: null }),
+      sentPostIdsStr.length > 0
+        ? supabase.from("cloud_views").select("*").in("crush_post_id", sentPostIdsStr).order("created_at", { ascending: false })
+        : Promise.resolve({ data: [], error: null }),
+      receivedClaimPostIds.length > 0
+        ? supabase.from("crush_posts").select("*").in("id", receivedClaimPostIds)
+        : Promise.resolve({ data: [], error: null }),
+      viewPostIds.length > 0
+        ? supabase.from("crush_posts").select("*").in("id", viewPostIds)
+        : Promise.resolve({ data: [], error: null }),
+    );
 
-      finalSentClaims = (claimsData || []).map((claim) => {
-        const post = finalMyPosts.find((item) => item.id === claim.crush_post_id);
+    const [claimsResult, viewsResult, receivedPostsResult, viewPostsResult] =
+      await Promise.all(round2Promises);
 
-        return {
-          ...claim,
-          post,
-        };
-      });
+    if (claimsResult.error) {
+      toast.error("내 구름에 온 응답을 불러오지 못했어요: " + claimsResult.error.message);
+      console.log(claimsResult.error);
+      setMatchingLoading(false);
+      return false;
     }
-
-    setSentClaims(finalSentClaims);
-    let finalSentCloudViews = [];
-
-if (finalMyPosts.length > 0) {
-  const postIds = finalMyPosts.map((post) => String(post.id));
-
-  const { data: viewsData, error: viewsError } = await supabase
-    .from("cloud_views")
-    .select("*")
-    .in("crush_post_id", postIds)
-    .order("created_at", { ascending: false });
-
-  if (viewsError) {
-    alert("내 구름을 본 사람 목록을 불러오지 못했어요: " + viewsError.message);
-    console.log(viewsError);
-    setMatchingLoading(false);
-    return false;
-  }
-
-  finalSentCloudViews = (viewsData || []).map((view) => {
-    const post = finalMyPosts.find(
-      (item) => String(item.id) === String(view.crush_post_id)
-    );
-
-    const claim = finalSentClaims.find(
-      (item) =>
-        String(item.crush_post_id) === String(view.crush_post_id) &&
-        item.claimer_user_id === view.viewer_user_id
-    );
-
-    return {
-      ...view,
-      post,
-      claim,
-    };
-  });
-}
-
-setSentCloudViews(finalSentCloudViews);
-
-    const { data: myReceivedClaims, error: receivedError } = await supabase
-      .from("claims")
-      .select("*")
-      .eq("claimer_user_id", currentUser.id)
-      .order("created_at", { ascending: false });
-
-    if (receivedError) {
-      alert("내가 받은 구름 목록을 불러오지 못했어요: " + receivedError.message);
-      console.log(receivedError);
+    if (viewsResult.error) {
+      toast.error("내 구름을 본 사람 목록을 불러오지 못했어요: " + viewsResult.error.message);
+      console.log(viewsResult.error);
+      setMatchingLoading(false);
+      return false;
+    }
+    if (receivedPostsResult.error) {
+      toast.error("내가 응답한 구름 글 정보를 불러오지 못했어요: " + receivedPostsResult.error.message);
+      console.log(receivedPostsResult.error);
+      setMatchingLoading(false);
+      return false;
+    }
+    if (viewPostsResult.error) {
+      toast.error("뭉게구름 글 정보를 불러오지 못했어요: " + viewPostsResult.error.message);
+      console.log(viewPostsResult.error);
       setMatchingLoading(false);
       return false;
     }
 
-    const finalReceivedClaims = myReceivedClaims || [];
-    let combinedReceivedClaims = finalReceivedClaims.map((claim) => ({
+    const finalSentClaims = (claimsResult.data || []).map((claim) => ({
       ...claim,
-      post: null,
+      post: finalMyPosts.find((item) => item.id === claim.crush_post_id),
     }));
+    setSentClaims(finalSentClaims);
 
-    if (finalReceivedClaims.length > 0) {
-      const receivedPostIds = [
-        ...new Set(finalReceivedClaims.map((claim) => claim.crush_post_id)),
-      ];
-
-      const { data: receivedPosts, error: receivedPostsError } = await supabase
-        .from("crush_posts")
-        .select("*")
-        .in("id", receivedPostIds);
-
-      if (receivedPostsError) {
-        alert(
-          "내가 응답한 구름 글 정보를 불러오지 못했어요: " +
-            receivedPostsError.message
-        );
-        console.log(receivedPostsError);
-        setMatchingLoading(false);
-        return false;
-      }
-
-      combinedReceivedClaims = finalReceivedClaims.map((claim) => {
-        const post = (receivedPosts || []).find(
-          (item) => item.id === claim.crush_post_id
-        );
-
-        return {
-          ...claim,
-          post,
-        };
-      });
-    }
-  const { data: myReceivedViews, error: receivedViewsError } = await supabase
-  .from("cloud_views")
-  .select("*")
-  .eq("viewer_user_id", currentUser.id)
-  .not("second_cloud_sent_at", "is", null)
-  .order("second_cloud_sent_at", { ascending: false });
-
-if (receivedViewsError) {
-  alert("나에게 온 뭉게구름을 불러오지 못했어요: " + receivedViewsError.message);
-  console.log(receivedViewsError);
-  setMatchingLoading(false);
-  return false;
-}
-
-let combinedReceivedViews = (myReceivedViews || []).map((view) => ({
-  ...view,
-  post: null,
-}));
-
-if ((myReceivedViews || []).length > 0) {
-  const viewPostIds = [
-    ...new Set((myReceivedViews || []).map((view) => view.crush_post_id)),
-  ];
-
-  const { data: viewPosts, error: viewPostsError } = await supabase
-    .from("crush_posts")
-    .select("*")
-    .in("id", viewPostIds);
-
-  if (viewPostsError) {
-    alert("뭉게구름 글 정보를 불러오지 못했어요: " + viewPostsError.message);
-    console.log(viewPostsError);
-    setMatchingLoading(false);
-    return false;
-  }
-
-  combinedReceivedViews = (myReceivedViews || []).map((view) => {
-    const post = (viewPosts || []).find(
-      (item) => String(item.id) === String(view.crush_post_id)
-    );
-
-    return {
+    const finalSentCloudViews = (viewsResult.data || []).map((view) => ({
       ...view,
-      post,
-    };
-  });
-}
+      post: finalMyPosts.find((item) => String(item.id) === String(view.crush_post_id)),
+      claim: finalSentClaims.find(
+        (item) =>
+          String(item.crush_post_id) === String(view.crush_post_id) &&
+          item.claimer_user_id === view.viewer_user_id
+      ),
+    }));
+    setSentCloudViews(finalSentCloudViews);
 
-setReceivedCloudViews(combinedReceivedViews);
+    const receivedPosts = receivedPostsResult.data || [];
+    const combinedReceivedClaims = finalReceivedClaims.map((claim) => ({
+      ...claim,
+      post: receivedPosts.find((item) => item.id === claim.crush_post_id) || null,
+    }));
     setReceivedClaims(combinedReceivedClaims);
+
+    const viewPosts = viewPostsResult.data || [];
+    const combinedReceivedViews = myReceivedViews.map((view) => ({
+      ...view,
+      post: viewPosts.find((item) => String(item.id) === String(view.crush_post_id)) || null,
+    }));
+    setReceivedCloudViews(combinedReceivedViews);
+
     setMatchingLoading(false);
     return true;
   };
@@ -2029,7 +1614,7 @@ setReceivedCloudViews(combinedReceivedViews);
   if (!checkProfileRequired()) return;
 
   if (!targetDate) {
-    alert("날짜를 선택해주세요.");
+    toast.error("날짜를 선택해주세요.");
     return;
   }
 
@@ -2043,7 +1628,7 @@ setReceivedCloudViews(combinedReceivedViews);
     .order("created_at", { ascending: false });
 
   if (error) {
-    alert("단국대학교 날씨를 불러오지 못했어요: " + error.message);
+    toast.error("단국대학교 날씨를 불러오지 못했어요: " + error.message);
     console.log(error);
     setWeatherLoading(false);
     return;
@@ -2081,22 +1666,16 @@ const getWeatherPlaceCounts = () => {
   return Object.values(countMap).sort((a, b) => b.count - a.count);
 };
 
-const getWeatherComment = (count) => {
-  if (count >= 10) return "구름 폭주 중";
-  if (count >= 5) return "구름이 꽤 많아요";
-  if (count >= 2) return "구름이 조금 떠 있어요";
-  return "작은 구름 하나";
-};
 const sendSecondCloudToView = async (view) => {
   if (!view?.id) {
-    alert("구름을 보낼 상대를 찾지 못했어요.");
+    toast.error("구름을 보낼 상대를 찾지 못했어요.");
     return;
   }
 
   if (secondCloudSubmittingId) return;
 
   if (view.second_cloud_sent_at) {
-    alert("이미 뭉게구름을 보냈어요.");
+    toast.error("이미 뭉게구름을 보냈어요.");
     return;
   }
 
@@ -2119,12 +1698,12 @@ const sendSecondCloudToView = async (view) => {
       .eq("id", view.id);
 
     if (error) {
-      alert("구름 보내기에 실패했어요: " + error.message);
+      toast.error("구름 보내기에 실패했어요: " + error.message);
       console.log(error);
       return;
     }
 
-    alert("뭉게구름을 보냈어요 ☁️");
+    toast.success("뭉게구름을 보냈어요 ☁️");
     await loadMyActivityData();
   } finally {
     setSecondCloudSubmittingId(null);
@@ -2133,7 +1712,7 @@ const sendSecondCloudToView = async (view) => {
 
 const sendSecondCloudToClaim = async (claim) => {
   if (!claim?.crush_post_id || !claim?.claimer_user_id) {
-    alert("구름을 보낼 응답을 찾지 못했어요.");
+    toast.error("구름을 보낼 응답을 찾지 못했어요.");
     return;
   }
 
@@ -2169,12 +1748,12 @@ const sendSecondCloudToClaim = async (claim) => {
     );
 
     if (error) {
-      alert("구름 보내기에 실패했어요: " + error.message);
+      toast.error("구름 보내기에 실패했어요: " + error.message);
       console.log(error);
       return;
     }
 
-    alert("뭉게구름을 보냈어요 ☁️");
+    toast.success("뭉게구름을 보냈어요 ☁️");
     await loadMyActivityData();
   } finally {
     setSecondCloudSubmittingId(null);
@@ -2192,12 +1771,12 @@ const sendSecondCloudToClaim = async (claim) => {
         .eq("id", claimId);
 
       if (error) {
-        alert("수락에 실패했어요: " + error.message);
+        toast.error("수락에 실패했어요: " + error.message);
         console.log(error);
         return;
       }
 
-      alert("매칭을 수락했어요! 이제 서로의 인스타를 확인할 수 있어요.");
+      toast.success("매칭을 수락했어요! 이제 서로의 인스타를 확인할 수 있어요.");
       openMatchingPage();
     } finally {
       setAcceptingClaimId(null);
@@ -2223,7 +1802,7 @@ const sendSecondCloudToClaim = async (claim) => {
         .eq("crush_post_id", postId);
 
       if (claimsError) {
-        alert("구름에 연결된 응답 삭제에 실패했어요: " + claimsError.message);
+        toast.error("구름에 연결된 응답 삭제에 실패했어요: " + claimsError.message);
         console.log(claimsError);
         return;
       }
@@ -2235,29 +1814,17 @@ const sendSecondCloudToClaim = async (claim) => {
         .eq("sender_user_id", currentUser.id);
 
       if (error) {
-        alert("구름 삭제에 실패했어요: " + error.message);
+        toast.error("구름 삭제에 실패했어요: " + error.message);
         console.log(error);
         return;
       }
 
-      alert("구름을 삭제했어요.");
+      toast.success("구름을 삭제했어요.");
       await loadMyActivityData();
     } finally {
       setDeletingPostId(null);
     }
   };
-
-  const OptionButton = ({ value, selected, onClick, full }) => (
-    <button
-      type="button"
-      className={`optionButton ${selected ? "selected" : ""} ${
-        full ? "fullOption" : ""
-      }`}
-      onClick={onClick}
-    >
-      {value}
-    </button>
-  );
 
   const progressPercent = (crushStep / 9) * 100;
   const searchProgressPercent = (searchStep / 5) * 100;
@@ -2834,7 +2401,7 @@ const receivedCloudItems = [
 	      const fileError = validateImageFile(file, "학생 인증 이미지");
 
 	      if (fileError) {
-	        alert(fileError);
+	        toast.error(fileError);
 	        e.target.value = "";
 	        setVerificationFile(null);
 	        return;
@@ -2923,6 +2490,13 @@ const receivedCloudItems = [
 
   return (
     <div className="app">
+      <Toaster
+        position="top-center"
+        toastOptions={{
+          duration: 3000,
+          style: { fontSize: "14px", maxWidth: "320px" },
+        }}
+      />
       {page === "home" && (
         <div className="homeCard skyHome">
           <div className="skyDecor cloudA">☁</div>
@@ -3170,7 +2744,7 @@ const receivedCloudItems = [
 	              const fileError = validateImageFile(file, "프로필 사진");
 
 	              if (fileError) {
-	                alert(fileError);
+	                toast.error(fileError);
 	                e.target.value = "";
 	                setProfileImageFile(null);
 	                setProfileImagePreview("");
@@ -3425,7 +2999,7 @@ const receivedCloudItems = [
               <button
                 onClick={() => {
                   if (!crushPost.seen_date || !crushPost.time_period) {
-                    alert("날짜와 시간을 선택해주세요.");
+                    toast.error("날짜와 시간을 선택해주세요.");
                     return;
                   }
                   setCrushStep(3);
@@ -3486,7 +3060,7 @@ const receivedCloudItems = [
               <button
                 onClick={() => {
                   if (!getFinalPlace()) {
-                    alert("장소를 선택하거나 직접 입력해주세요.");
+                    toast.error("장소를 선택하거나 직접 입력해주세요.");
                     return;
                   }
                   setCrushStep(4);
@@ -3644,7 +3218,7 @@ const receivedCloudItems = [
               <button
                 onClick={() => {
                   if (!getFinalHairFeature()) {
-                    alert(
+                    toast.error(
                       "머리스타일, 머리 색깔, 모자 유무, 앞머리 유무를 선택해주세요."
                     );
                     return;
@@ -3707,7 +3281,7 @@ const receivedCloudItems = [
               <button
                 onClick={() => {
                   if (!crushPost.top_type || !crushPost.top_color) {
-                    alert("상의 종류와 색상을 선택해주세요.");
+                    toast.error("상의 종류와 색상을 선택해주세요.");
                     return;
                   }
                   setCrushStep(6);
@@ -3781,7 +3355,7 @@ const receivedCloudItems = [
               <button
                 onClick={() => {
                   if (!getFinalBottomType() || !crushPost.bottom_color) {
-                    alert("하의 종류와 색상을 선택해주세요.");
+                    toast.error("하의 종류와 색상을 선택해주세요.");
                     return;
                   }
                   setCrushStep(7);
@@ -3840,7 +3414,7 @@ const receivedCloudItems = [
               <button
                 onClick={() => {
                   if (!crushPost.bag_type || !crushPost.earphone_type) {
-                    alert("가방과 이어폰 정보를 선택해주세요.");
+                    toast.error("가방과 이어폰 정보를 선택해주세요.");
                     return;
                   }
                   setCrushStep(8);
@@ -3955,7 +3529,7 @@ const receivedCloudItems = [
                     !crushPost.together_situation ||
                     !crushPost.mood
                   ) {
-                    alert("키 느낌, 신발, 같이 있었던 상황, 분위기를 선택해주세요.");
+                    toast.error("키 느낌, 신발, 같이 있었던 상황, 분위기를 선택해주세요.");
                     return;
                   }
                   setCrushStep(9);
@@ -4133,7 +3707,7 @@ const receivedCloudItems = [
               <button
                 onClick={() => {
                   if (!searchForm.seen_date) {
-                    alert("날짜를 선택해주세요.");
+                    toast.error("날짜를 선택해주세요.");
                     return;
                   }
                   setSearchStep(2);
@@ -4314,7 +3888,7 @@ const receivedCloudItems = [
               <button
                 onClick={() => {
                   if (!getFinalSearchHairFeature()) {
-                    alert("머리 정보를 선택해주세요.");
+                    toast.error("머리 정보를 선택해주세요.");
                     return;
                   }
                   setSearchStep(3);
