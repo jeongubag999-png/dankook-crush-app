@@ -2108,6 +2108,43 @@ textarea {
   box-shadow: none !important;
 }
 
+.matchScoreBox {
+  display: flex;
+  flex-direction: column;
+  gap: 5px;
+  margin: 10px 0 12px;
+  padding: 12px;
+  border: 1px solid #dceeff;
+  border-radius: 16px;
+  background: linear-gradient(180deg, #f5fbff, #fff);
+}
+
+.matchScoreBox b {
+  color: #1c5f9f;
+  font-size: 13px;
+  font-weight: 900;
+}
+
+.matchScoreBox span {
+  color: #667085;
+  font-size: 12px;
+  line-height: 1.4;
+  font-weight: 800;
+}
+
+.maybeButton {
+  background: #eef8ff !important;
+  color: #24649f !important;
+  border: 1px solid #cfeaff !important;
+  box-shadow: none !important;
+}
+
+.maybeButton.active {
+  background: #172033 !important;
+  color: #fff !important;
+  border-color: #172033 !important;
+}
+
 @media (max-width: 480px) {
   .cloudTag {
     min-height: 28px;
@@ -2957,6 +2994,119 @@ textarea:focus {
 
 .homeMainAction {
   gap: 10px;
+}
+
+.todayCloudFeed {
+  position: relative;
+  z-index: 1;
+  margin-top: 14px;
+  padding: 16px;
+  border: 1px solid var(--line);
+  border-radius: 20px;
+  background: rgba(255, 255, 255, 0.78);
+  text-align: left;
+}
+
+.todayCloudHeader {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 12px;
+}
+
+.todayCloudHeader p {
+  margin: 4px 0 0;
+  color: var(--muted);
+  font-size: 12px;
+  line-height: 1.4;
+}
+
+.todayCloudHeader b {
+  display: inline-flex;
+  width: 42px;
+  height: 42px;
+  align-items: center;
+  justify-content: center;
+  border-radius: 15px;
+  background: #eef8ff;
+  color: #2477d4;
+  font-size: 20px;
+  font-weight: 900;
+}
+
+.placeChipRow {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 8px;
+  margin-top: 12px;
+}
+
+.placeCloudChip {
+  width: auto;
+  height: 36px;
+  min-height: 36px;
+  margin: 0;
+  padding: 0 12px;
+  border-radius: 999px;
+  background: #f5fbff;
+  color: #245fb3;
+  border: 1px solid #dceeff;
+  box-shadow: none;
+  font-size: 12px;
+}
+
+.placeCloudChip b {
+  margin-left: 4px;
+}
+
+.todayMessageList {
+  display: grid;
+  gap: 8px;
+  margin-top: 12px;
+}
+
+.todayMessageList p {
+  margin: 0;
+  padding: 10px 12px;
+  border-radius: 14px;
+  background: #fff;
+  color: #475467;
+  font-size: 12px;
+  line-height: 1.45;
+  font-weight: 800;
+}
+
+.emptyFeedText {
+  margin: 12px 0 0;
+  color: var(--muted);
+  font-size: 12px;
+  font-weight: 800;
+}
+
+.quickCloudCard .quickGuideBox {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 12px;
+  margin: 16px 0;
+  padding: 14px;
+  border: 1px solid #dceeff;
+  border-radius: 18px;
+  background: linear-gradient(135deg, #eef8ff, #fff);
+  text-align: left;
+}
+
+.quickGuideBox b {
+  color: #2477d4;
+  font-size: 14px;
+  font-weight: 900;
+}
+
+.quickGuideBox span {
+  color: var(--muted);
+  font-size: 12px;
+  line-height: 1.4;
+  font-weight: 800;
 }
 
 .primaryHomeButton,

@@ -417,6 +417,16 @@ const [verificationFile, setVerificationFile] = useState(null);
   const [searchResults, setSearchResults] = useState([]);
   const [hiddenResultIds, setHiddenResultIds] = useState([]);
   const [selectedPost, setSelectedPost] = useState(null);
+  const [maybeReactionIds, setMaybeReactionIds] = useState([]);
+
+  const [quickCloud, setQuickCloud] = useState({
+    target_gender: "",
+    seen_date: getKoreaDateString(),
+    place: "",
+    custom_place: "",
+    time_period: "",
+    message: "",
+  });
 
   const [claimForm, setClaimForm] = useState({
     claimer_nickname: "",
@@ -433,6 +443,7 @@ const [verificationFile, setVerificationFile] = useState(null);
   const [weatherClouds, setWeatherClouds] = useState([]);
   const [selectedWeatherPlace, setSelectedWeatherPlace] = useState("");
   const [homeTopWeatherPlace, setHomeTopWeatherPlace] = useState(null);
+  const [homeTodayClouds, setHomeTodayClouds] = useState([]);
   const [authSubmitting, setAuthSubmitting] = useState(false);
   const [profileSubmitting, setProfileSubmitting] = useState(false);
   const [postSubmitting, setPostSubmitting] = useState(false);
@@ -463,6 +474,13 @@ const [verificationFile, setVerificationFile] = useState(null);
     }));
   };
 
+  const updateQuickCloud = (key, value) => {
+    setQuickCloud((prev) => ({
+      ...prev,
+      [key]: value,
+    }));
+  };
+
   const cleanInstagram = (value) => {
     if (!value) return "";
     return value.trim().replace("@", "");
@@ -484,18 +502,23 @@ const [verificationFile, setVerificationFile] = useState(null);
 
     const { data, error } = await supabase
       .from("crush_posts")
-      .select("id, place")
-      .eq("seen_date", today);
+      .select(
+        "id, created_at, seen_date, place, time_period, target_gender, message, sender_nickname"
+      )
+      .eq("seen_date", today)
+      .order("created_at", { ascending: false });
 
     if (error) {
       console.log(error);
       setHomeTopWeatherPlace(null);
+      setHomeTodayClouds([]);
       return;
     }
 
     const countMap = {};
+    const todayClouds = data || [];
 
-    (data || []).forEach((post) => {
+    todayClouds.forEach((post) => {
       const place = getMainPlaceFromPost(post);
 
       if (!countMap[place]) {
@@ -511,11 +534,29 @@ const [verificationFile, setVerificationFile] = useState(null);
     const topPlace = Object.values(countMap).sort((a, b) => b.count - a.count)[0];
 
     setHomeTopWeatherPlace(topPlace || null);
+    setHomeTodayClouds(todayClouds);
   }, []);
 
   const getFinalPlace = () => {
     const mainPlace = crushPost.place;
     const detailPlace = crushPost.custom_place.trim();
+
+    if (!mainPlace) return "";
+
+    if (mainPlace === "기타/직접 입력") {
+      return detailPlace;
+    }
+
+    if (detailPlace) {
+      return `${mainPlace} - ${detailPlace}`;
+    }
+
+    return mainPlace;
+  };
+
+  const getQuickCloudPlace = () => {
+    const mainPlace = quickCloud.place;
+    const detailPlace = quickCloud.custom_place.trim();
 
     if (!mainPlace) return "";
 
@@ -682,6 +723,13 @@ const [verificationFile, setVerificationFile] = useState(null);
       window.removeEventListener("focusin", scrollFocusedInputIntoView);
     };
   }, []);
+
+  useEffect(() => {
+    window.scrollTo({
+      top: 0,
+      behavior: "smooth",
+    });
+  }, [page]);
 
   useEffect(() => {
     return () => {
@@ -1004,6 +1052,84 @@ const makeCloudTags = (post) => {
   return [...new Set(tags)].slice(0, 8);
 };
 
+const normalizeMatchText = (value) => {
+  if (!value || value === "잘 모르겠음") return "";
+  return String(value).replace(/\s/g, "").toLowerCase();
+};
+
+const containsMatch = (source, target) => {
+  const normalizedSource = normalizeMatchText(source);
+  const normalizedTarget = normalizeMatchText(target);
+
+  if (!normalizedSource || !normalizedTarget) return false;
+
+  return (
+    normalizedSource.includes(normalizedTarget) ||
+    normalizedTarget.includes(normalizedSource)
+  );
+};
+
+const getPostMatchScore = (post) => {
+  let score = 25;
+  const reasons = ["날짜 일치"];
+
+  if (post.target_gender === profile.gender) {
+    score += 15;
+    reasons.push("성별 일치");
+  }
+
+  if (post.time_period && post.time_period === searchForm.time_period) {
+    score += 10;
+    reasons.push("시간대 일치");
+  } else if (post.time_period) {
+    score += 4;
+  }
+
+  const searchHair = getFinalSearchHairFeature();
+
+  if (searchHair && post.hair_feature) {
+    const searchHairParts = searchHair.split(" / ");
+    const matchedHairCount = searchHairParts.filter((part) =>
+      containsMatch(post.hair_feature, part)
+    ).length;
+
+    if (matchedHairCount > 0) {
+      score += Math.min(20, matchedHairCount * 6);
+      reasons.push("머리 정보 유사");
+    }
+  }
+
+  if (containsMatch(post.clothes_style, searchForm.top_type)) {
+    score += 8;
+    reasons.push("상의 종류 유사");
+  }
+
+  if (containsMatch(post.clothes_style, searchForm.top_color)) {
+    score += 8;
+    reasons.push("상의 색상 유사");
+  }
+
+  if (containsMatch(post.clothes_style, searchForm.bottom_type)) {
+    score += 7;
+    reasons.push("하의 종류 유사");
+  }
+
+  if (containsMatch(post.clothes_style, searchForm.bottom_color)) {
+    score += 7;
+    reasons.push("하의 색상 유사");
+  }
+
+  if (post.place) {
+    score += 5;
+    reasons.push("장소 정보 있음");
+  }
+
+  return {
+    score: Math.min(score, 98),
+    reasons: [...new Set(reasons)].slice(0, 4),
+  };
+};
+
 const hideSearchResult = (postId) => {
   setHiddenResultIds((prev) => {
     if (prev.includes(postId)) return prev;
@@ -1160,6 +1286,16 @@ const hideSearchResult = (postId) => {
     setPage("search");
   };
 
+  const openQuickCloudPage = () => {
+    if (!checkProfileRequired()) return;
+
+    setQuickCloud((prev) => ({
+      ...prev,
+      seen_date: prev.seen_date || getKoreaDateString(),
+    }));
+    setPage("quickSend");
+  };
+
   const openProfilePage = async () => {
     if (!checkProfileRequired()) return;
 
@@ -1170,6 +1306,17 @@ const hideSearchResult = (postId) => {
   const resetCrushPost = () => {
     setCrushPost(emptyCrushPost);
     setCrushStep(1);
+  };
+
+  const resetQuickCloud = () => {
+    setQuickCloud({
+      target_gender: "",
+      seen_date: getKoreaDateString(),
+      place: "",
+      custom_place: "",
+      time_period: "",
+      message: "",
+    });
   };
 
   const saveProfile = async () => {
@@ -1389,6 +1536,67 @@ const hideSearchResult = (postId) => {
     }
   };
 
+  const saveQuickCloud = async () => {
+    if (postSubmitting) return;
+
+    if (!checkProfileRequired()) return;
+
+    if (!quickCloud.target_gender) {
+      alert("찾는 사람의 성별을 선택해주세요.");
+      return;
+    }
+
+    if (!quickCloud.seen_date) {
+      alert("날짜를 선택해주세요.");
+      return;
+    }
+
+    if (!getQuickCloudPlace()) {
+      alert("장소를 선택하거나 직접 입력해주세요.");
+      return;
+    }
+
+    const quickMessage = quickCloud.message.trim();
+
+    setPostSubmitting(true);
+
+    try {
+      const { error } = await supabase.from("crush_posts").insert([
+        {
+          seen_date: quickCloud.seen_date,
+          place: getQuickCloudPlace(),
+          time_period: quickCloud.time_period || "잘 모르겠음",
+          hair_feature: "빠른 구름 / 잘 모르겠음",
+          clothes_color: "잘 모르겠음",
+          clothes_style: "빠른 구름",
+          accessory: "빠른 구름",
+          message:
+            quickMessage ||
+            "스쳐간 마음을 구름으로 남겨요. 자세한 기억은 아직 흐릿해요.",
+          sender_user_id: currentUser.id,
+          sender_nickname: profile.nickname,
+          sender_instagram: cleanInstagram(profile.instagram_id),
+          sender_profile_image_url: profile.profile_image_url,
+          sender_gender: profile.gender,
+          target_gender: quickCloud.target_gender,
+        },
+      ]);
+
+      if (error) {
+        alert("빠른 구름 보내기에 실패했어요: " + error.message);
+        console.log(error);
+        return;
+      }
+
+      alert("빠른 구름을 보냈어요!");
+      resetQuickCloud();
+      loadHomeTopWeatherPlace();
+      setPage("sent");
+    } finally {
+      setPostSubmitting(false);
+    }
+  };
+
   const searchCrushPosts = async () => {
   if (searchSubmitting) return;
 
@@ -1417,9 +1625,17 @@ const hideSearchResult = (postId) => {
       return;
     }
 
-    const finalResults = (data || []).filter(
-      (post) => post.sender_user_id !== currentUser.id
-    );
+    const finalResults = (data || [])
+      .filter((post) => post.sender_user_id !== currentUser.id)
+      .map((post) => {
+        const match = getPostMatchScore(post);
+        return {
+          ...post,
+          match_score: match.score,
+          match_reasons: match.reasons,
+        };
+      })
+      .sort((a, b) => (b.match_score || 0) - (a.match_score || 0));
     const finalSearchHairFeature = getFinalSearchHairFeature();
 
     const { error: checkLogError } = await supabase.from("cloud_checks").insert([
@@ -2150,6 +2366,25 @@ const receivedCloudItems = [
   const visibleSearchResults = searchResults.filter(
   (post) => !hiddenResultIds.includes(post.id)
 );
+  const todayPlaceCounts = homeTodayClouds.reduce((acc, post) => {
+    const place = getMainPlaceFromPost(post);
+
+    if (!acc[place]) {
+      acc[place] = {
+        place,
+        count: 0,
+      };
+    }
+
+    acc[place].count += 1;
+    return acc;
+  }, {});
+  const topTodayPlaces = Object.values(todayPlaceCounts)
+    .sort((a, b) => b.count - a.count)
+    .slice(0, 3);
+  const todayCloudMessages = homeTodayClouds
+    .filter((post) => cleanMessage(post.message))
+    .slice(0, 3);
   const homeWeatherTickerText = homeTopWeatherPlace
   ? `☁️ 오늘 단국대에서 구름이 가장 많이 뜬 곳은 ${homeTopWeatherPlace.place}예요. ${homeTopWeatherPlace.count}개의 구름이 머물고 있어요. 혹시 그중 하나가 당신을 찾는 구름일지도 몰라요.`
   : "☁️ 오늘 단국대 캠퍼스에 새로운 구름들이 떠오르고 있어요. 혹시 그중 하나가 당신을 찾는 구름일지도 몰라요.";
@@ -2444,7 +2679,7 @@ const receivedCloudItems = [
         key: "send",
         label: "보내기",
         icon: "+",
-        active: page === "send" || page === "sent",
+        active: page === "send" || page === "quickSend" || page === "sent",
         onClick: openSendPage,
       },
       {
@@ -2733,31 +2968,82 @@ const receivedCloudItems = [
 	            </p>
 	          </div>
 
-          <div className="homeMainAction cloudActionBox">
-            <button
-              onClick={openSendPage}
-              className="primaryHomeButton cloudPrimaryButton"
-            >
-              <span className="buttonEmoji">☁</span>
-	              <span>
-	                <b>구름 보내기</b>
-	                <small>스쳐간 사람의 날짜, 장소, 착장을 구름에 담아요.</small>
-	              </span>
-            </button>
+	          <div className="homeMainAction cloudActionBox">
+	            <button
+	              onClick={openQuickCloudPage}
+	              className="primaryHomeButton cloudPrimaryButton"
+	            >
+	              <span className="buttonEmoji">☁</span>
+		              <span>
+		                <b>빠른 구름 보내기</b>
+		                <small>날짜와 장소만으로 30초 안에 구름을 남겨요.</small>
+		              </span>
+	            </button>
 
-            <button
-              onClick={openSearchPage}
-              className="secondaryHomeButton cloudSecondaryButton"
+	            <button
+	              onClick={openSendPage}
+	              className="secondaryHomeButton cloudSecondaryButton"
+	            >
+	              <span className="buttonEmoji">✎</span>
+		              <span>
+		                <b>자세한 구름 보내기</b>
+		                <small>착장과 분위기까지 담아 더 정확하게 찾아요.</small>
+		              </span>
+	            </button>
+	
+	            <button
+	              onClick={openSearchPage}
+	              className="secondaryHomeButton cloudSecondaryButton"
             >
               <span className="buttonEmoji">🔔</span>
 	              <span>
 	                <b>구름 확인하기</b>
 	                <small>나를 찾는 구름이 있는지 조심스럽게 확인해요.</small>
 	              </span>
-            </button>
-          </div>
+	            </button>
+	          </div>
 
-          <div className="homeMiniMenu weatherMenu cloudMiniMenu">
+	          <div className="todayCloudFeed">
+	            <div className="todayCloudHeader">
+	              <div>
+	                <p className="miniTitle">오늘의 단국대 구름</p>
+	                <p>지금 캠퍼스 어디에 구름이 머무는지 가볍게 구경해요.</p>
+	              </div>
+	              <b>{homeTodayClouds.length}</b>
+	            </div>
+
+	            {topTodayPlaces.length > 0 ? (
+	              <div className="placeChipRow">
+	                {topTodayPlaces.map((item) => (
+	                  <button
+	                    type="button"
+	                    key={item.place}
+	                    className="placeCloudChip"
+	                    onClick={() => {
+	                      setWeatherDate(getKoreaDateString());
+	                      openWeatherPage();
+	                    }}
+	                  >
+	                    {item.place} <b>{item.count}</b>
+	                  </button>
+	                ))}
+	              </div>
+	            ) : (
+	              <p className="emptyFeedText">아직 오늘 떠오른 구름이 없어요.</p>
+	            )}
+
+	            {todayCloudMessages.length > 0 && (
+	              <div className="todayMessageList">
+	                {todayCloudMessages.map((post) => (
+	                  <p key={post.id}>
+	                    “{cleanMessage(post.message)}”
+	                  </p>
+	                ))}
+	              </div>
+	            )}
+	          </div>
+
+	          <div className="homeMiniMenu weatherMenu cloudMiniMenu">
   <button onClick={openMatchingPage} className="miniMenuButton">
     내 구름
   </button>
@@ -2800,8 +3086,8 @@ const receivedCloudItems = [
         </div>
       )}
 
-      {page === "profile" && (
-        <div className="card">
+	      {page === "profile" && (
+	        <div className="card">
           <h2>마이페이지</h2>
 
           <div className="mypageHero">
@@ -2954,10 +3240,111 @@ const receivedCloudItems = [
           <button onClick={() => setPage("home")} className="white">
             홈으로
           </button>
-        </div>
-      )}
+	        </div>
+	      )}
 
-      {page === "send" && (
+	      {page === "quickSend" && (
+	        <div className="card quickCloudCard">
+	          <h2>빠른 구름 보내기</h2>
+	          <p className="subtitle">
+	            지금 기억나는 것만 가볍게 남겨도 돼요. 자세한 정보는 나중에 더
+	            또렷한 구름으로 보내면 됩니다.
+	          </p>
+
+	          <div className="quickGuideBox">
+	            <b>30초 구름</b>
+	            <span>성별, 날짜, 장소만 있으면 바로 보낼 수 있어요.</span>
+	          </div>
+
+	          <div className="formGroup">
+	            <label className="formLabel">찾는 사람의 성별</label>
+	            <div className="optionGrid">
+	              {genderOptions.map((option) => (
+	                <OptionButton
+	                  key={option}
+	                  value={option}
+	                  selected={quickCloud.target_gender === option}
+	                  onClick={() => updateQuickCloud("target_gender", option)}
+	                />
+	              ))}
+	            </div>
+	          </div>
+
+	          <div className="formGroup">
+	            <label className="formLabel">마주친 날짜</label>
+	            <input
+	              type="date"
+	              value={quickCloud.seen_date}
+	              onChange={(e) => updateQuickCloud("seen_date", e.target.value)}
+	            />
+	          </div>
+
+	          <div className="formGroup">
+	            <label className="formLabel">시간대</label>
+	            <select
+	              value={quickCloud.time_period}
+	              onChange={(e) => updateQuickCloud("time_period", e.target.value)}
+	            >
+	              <option value="">시간이 흐릿해도 괜찮아요</option>
+	              {timeOptions.map((option) => (
+	                <option key={option}>{option}</option>
+	              ))}
+	            </select>
+	          </div>
+
+	          <div className="formGroup">
+	            <label className="formLabel">장소</label>
+	            <select
+	              value={quickCloud.place}
+	              onChange={(e) =>
+	                setQuickCloud({
+	                  ...quickCloud,
+	                  place: e.target.value,
+	                  custom_place: "",
+	                })
+	              }
+	            >
+	              <option value="">장소 선택</option>
+	              {placeOptions.map((option) => (
+	                <option key={option}>{option}</option>
+	              ))}
+	            </select>
+	          </div>
+
+	          <input
+	            placeholder="구체적인 위치 예: 도서관 1층, 혜당관 앞"
+	            value={quickCloud.custom_place}
+	            onChange={(e) => updateQuickCloud("custom_place", e.target.value)}
+	          />
+
+	          <textarea
+	            placeholder="한 줄 구름 예: 오늘 분위기가 좋아 보여서 구름 남겨요."
+	            value={quickCloud.message}
+	            onChange={(e) => updateQuickCloud("message", e.target.value)}
+	          />
+
+	          <button onClick={saveQuickCloud} disabled={postSubmitting}>
+	            {postSubmitting ? "구름 보내는 중..." : "빠른 구름 보내기"}
+	          </button>
+
+	          <button
+	            type="button"
+	            className="white"
+	            onClick={() => {
+	              setCrushStep(1);
+	              setPage("send");
+	            }}
+	          >
+	            자세하게 보내기
+	          </button>
+
+	          <button onClick={() => setPage("home")} className="white">
+	            홈으로
+	          </button>
+	        </div>
+	      )}
+
+	      {page === "send" && (
         <div className="card">
           <h2>구름 남기기</h2>
 
@@ -4093,16 +4480,24 @@ const receivedCloudItems = [
       </p>
     )}
 
-    {visibleSearchResults.map((post) => {
-      const tags = makeCloudTags(post);
+	    {visibleSearchResults.map((post) => {
+	      const tags = makeCloudTags(post);
+	      const maybeReacted = maybeReactionIds.includes(post.id);
+	
+	      return (
+	        <div className="post resultPost" key={post.id}>
+	          <div className="postTopLine">
+	            <span className="statusPill active">
+	              ☁ 일치도 {post.match_score || 0}%
+	            </span>
+	          </div>
 
-      return (
-        <div className="post resultPost" key={post.id}>
-          <div className="postTopLine">
-            <span className="statusPill active">
-              ☁ 나를 찾는 구름일 수도 있어요
-            </span>
-          </div>
+	          {post.match_reasons?.length > 0 && (
+	            <div className="matchScoreBox">
+	              <b>나일 가능성이 높은 이유</b>
+	              <span>{post.match_reasons.join(" · ")}</span>
+	            </div>
+	          )}
 
           {tags.length > 0 && (
             <div className="cloudTagBox">
@@ -4126,10 +4521,22 @@ const receivedCloudItems = [
             “{cleanMessage(post.message) || "남긴 메시지가 없어요."}”
           </p>
 
-          <div className="resultActionRow">
-            <button
-              onClick={() => {
-                setSelectedPost(post);
+	          <div className="resultActionRow">
+	            <button
+	              type="button"
+	              className={maybeReacted ? "maybeButton active" : "maybeButton"}
+	              onClick={() => {
+	                setMaybeReactionIds((prev) =>
+	                  prev.includes(post.id) ? prev : [...prev, post.id]
+	                );
+	              }}
+	            >
+	              {maybeReacted ? "몽글 표시 완료" : "나일 수도 있어요"}
+	            </button>
+
+	            <button
+	              onClick={() => {
+	                setSelectedPost(post);
                 setPage("claimForm");
               }}
             >
