@@ -2571,8 +2571,12 @@ const receivedCloudItems = [
 	      </p>
 	    </div>
 	    <img
-	      src="/my-dku-verification-example.png"
+	      src="/my-dku-verification-example-thumb.png"
 	      alt="MY DKU 학생 인증 캡처 예시"
+	      width="92"
+	      height="199"
+	      loading="eager"
+	      decoding="async"
 	    />
 	  </div>
 	  <ul className="verificationChecklist">
