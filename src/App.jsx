@@ -6,7 +6,7 @@ import { OptionButton } from "./components/OptionButton";
 import { VerificationPendingPage } from "./components/VerificationPendingPage";
 import { AdminPage } from "./components/AdminPage";
 
-const ADMIN_LOGIN_ID = "pjwo12356";
+const ADMIN_LOGIN_IDS = ["pjwo12356", "djkim5882"];
 import {
   placeOptions,
   timeOptions,
@@ -204,7 +204,7 @@ const [verificationFile, setVerificationFile] = useState(null);
   const [signupProgress, setSignupProgress] = useState(""); // 회원가입 진행 단계
   const [showAdmin, setShowAdmin] = useState(false); // 관리자 페이지
 
-  const isAdmin = currentUser?.user_metadata?.login_id === ADMIN_LOGIN_ID;
+  const isAdmin = ADMIN_LOGIN_IDS.includes(currentUser?.user_metadata?.login_id);
   const [matchingLoading, setMatchingLoading] = useState(false);
   const [matchingMode, setMatchingMode] = useState("sent");
   const [activityDate, setActivityDate] = useState("");
@@ -364,7 +364,7 @@ const [verificationFile, setVerificationFile] = useState(null);
     if (!user) return "none";
 
     // 관리자는 인증 없이 바로 통과
-    if (user.user_metadata?.login_id === ADMIN_LOGIN_ID) return "approved";
+    if (ADMIN_LOGIN_IDS.includes(user?.user_metadata?.login_id)) return "approved";
 
     const { data, error } = await supabase
       .from("dku_verifications")
