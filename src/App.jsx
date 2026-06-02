@@ -368,7 +368,10 @@ const [verificationFile, setVerificationFile] = useState(null);
       return "none";
     }
 
-    return data?.status || "none";
+    // 레코드 자체가 없으면 → 사진 업로드 실패 등으로 인증이 미완성된 상태
+    if (!data) return "incomplete";
+
+    return data.status; // "pending" | "approved"
   };
 
   const loadMyProfile = async (user, force = false) => {
@@ -430,7 +433,7 @@ const [verificationFile, setVerificationFile] = useState(null);
         // 인증 확인이 끝날 때까지 authLoading 유지 (홈 화면 노출 방지)
         const verifyStatus = await checkVerificationStatus(savedUser);
         if (!mounted) return;
-        if (verifyStatus === "pending") {
+        if (verifyStatus === "pending" || verifyStatus === "incomplete") {
           setPage("verificationPending");
         } else {
           loadMyProfile(savedUser);
@@ -604,10 +607,18 @@ const [verificationFile, setVerificationFile] = useState(null);
         });
 
       if (uploadError) {
-        // 업로드 실패 시 생성된 계정도 정리 시도
-        await supabase.auth.admin?.deleteUser?.(signedUpUser.id).catch(() => {});
-        toast.error("인증 사진 업로드에 실패했어요. 네트워크 연결을 확인하고 다시 시도해주세요.");
         console.log(uploadError);
+        // 계정은 생성됐지만 사진 업로드 실패
+        // → 대기 화면으로 이동시키고 관리자 문의 안내
+        setProfile((prev) => ({
+          ...prev,
+          nickname: authForm.name.trim(),
+          student_year: authForm.student_id.trim(),
+        }));
+        setSession(data.session || null);
+        setCurrentUser(signedUpUser);
+        toast.error("인증 사진 업로드에 실패했어요. 단꿈 인스타그램으로 문의해주세요.");
+        setPage("verificationPending");
         return;
       }
 
@@ -687,7 +698,7 @@ const handleLogin = async () => {
       setSession(data.session);
       setCurrentUser(data.user);
 
-      if (verifyStatus === "pending") {
+      if (verifyStatus === "pending" || verifyStatus === "incomplete") {
         toast.error("학생 인증이 아직 승인되지 않았어요. 승인될 때까지 기다려주세요.");
         setPage("verificationPending");
       } else {

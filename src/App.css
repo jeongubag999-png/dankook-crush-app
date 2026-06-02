@@ -3531,3 +3531,27 @@ textarea:focus {
   animation: dotPulse 1s ease-in-out infinite;
   flex-shrink: 0;
 }
+
+/* 인증 사진 재업로드 */
+.retryUploadBox {
+  display: flex;
+  flex-direction: column;
+  gap: 10px;
+  width: 100%;
+  margin: 8px 0;
+}
+
+.retryFileName {
+  font-size: 13px;
+  color: #2563eb;
+  text-align: center;
+  margin: 0;
+  word-break: break-all;
+}
+
+.retryErrorText {
+  font-size: 13px;
+  color: #ef4444;
+  text-align: center;
+  margin: 0;
+}
