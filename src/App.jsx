@@ -3528,10 +3528,45 @@ const receivedCloudItems = [
 
       {page === "sent" && (
         <div className="card">
-          <h2>구름을 남겼어요</h2>
+          <h2>구름을 남겼어요 ☁️</h2>
           <p className="subtitle">
             상대가 자신의 날짜와 착장을 올리면, 당신의 구름을 발견할 수 있어요.
           </p>
+
+          <div className="shareBox">
+            <p className="shareTitle">친구에게 단꿈 알리기</p>
+            <p className="shareDesc">
+              "나 단꿈에 구름 남겼어, 혹시 너야?" 한 마디로 퍼뜨려요.
+            </p>
+            <button
+              className="shareButton"
+              onClick={async () => {
+                const shareData = {
+                  title: "단꿈 ☁️",
+                  text: "나 단꿈에 구름 남겼어. 혹시 너야? 단국대 캠퍼스 인연 찾기 앱",
+                  url: window.location.origin,
+                };
+                if (navigator.share) {
+                  try {
+                    await navigator.share(shareData);
+                  } catch (e) {
+                    if (e.name !== "AbortError") {
+                      toast.error("공유에 실패했어요.");
+                    }
+                  }
+                } else {
+                  try {
+                    await navigator.clipboard.writeText(window.location.origin);
+                    toast.success("링크가 복사됐어요! 친구에게 보내보세요.");
+                  } catch (e) {
+                    toast.error("복사에 실패했어요.");
+                  }
+                }
+              }}
+            >
+              ☁️ 친구에게 알리기
+            </button>
+          </div>
 
           <button onClick={openMatchingPage}>내 구름 관리로 가기</button>
 

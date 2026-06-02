@@ -3295,3 +3295,44 @@ textarea:focus {
     font-size: 10px;
   }
 }
+
+/* 공유 박스 */
+.shareBox {
+  background: linear-gradient(135deg, #eff6ff, #dbeafe);
+  border: 1.5px solid #bfdbfe;
+  border-radius: 16px;
+  padding: 20px;
+  margin: 8px 0 16px;
+  text-align: center;
+}
+
+.shareTitle {
+  font-size: 15px;
+  font-weight: 700;
+  color: #1e40af;
+  margin: 0 0 6px;
+}
+
+.shareDesc {
+  font-size: 13px;
+  color: #3b82f6;
+  margin: 0 0 16px;
+  line-height: 1.5;
+}
+
+.shareButton {
+  width: 100%;
+  padding: 13px;
+  background: #2563eb;
+  color: #fff;
+  border: none;
+  border-radius: 12px;
+  font-size: 15px;
+  font-weight: 700;
+  cursor: pointer;
+  transition: background 0.15s;
+}
+
+.shareButton:active {
+  background: #1d4ed8;
+}
