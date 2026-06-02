@@ -2507,7 +2507,7 @@ const receivedCloudItems = [
 	                <p className="miniTitle">오늘의 단국대 구름</p>
 	                <p>지금 캠퍼스 어디에 구름이 머무는지 가볍게 구경해요.</p>
 	              </div>
-	              <b>{homeTodayClouds.length}</b>
+	              <b className="todayCloudCount">{homeTodayClouds.length}개</b>
 	            </div>
 
 	            {topTodayPlaces.length > 0 ? (
@@ -2529,54 +2529,7 @@ const receivedCloudItems = [
 	            ) : (
 	              <p className="emptyFeedText">아직 오늘 떠오른 구름이 없어요.</p>
 	            )}
-
-	            {todayCloudMessages.length > 0 && (
-	              <div className="todayMessageList">
-	                {todayCloudMessages.map((post) => (
-	                  <p key={post.id}>
-	                    “{cleanMessage(post.message)}”
-	                  </p>
-	                ))}
-	              </div>
-	            )}
 	          </div>
-
-	          <div className="homeMiniMenu weatherMenu cloudMiniMenu">
-  <button onClick={openMatchingPage} className="miniMenuButton">
-    내 구름
-  </button>
-
-  <button onClick={openWeatherPage} className="miniMenuButton weatherMiniButton">
-    날씨 확인
-  </button>
-
-  <button onClick={openProfilePage} className="miniMenuButton">
-    마이페이지
-  </button>
-
-  <button
-    onClick={() => {
-      setMatchingMode("notifications");
-      openMatchingPage();
-    }}
-    className="miniMenuButton"
-  >
-    알림
-  </button>
-
-  <button
-    onClick={() => {
-      setMatchingMode("calendar");
-      openMatchingPage();
-    }}
-    className="miniMenuButton"
-  >
-    기록
-  </button>
-</div>
-          <div className="homeBottomNotice cloudNotice">
-            <p>우리의 캠퍼스에서, 특별한 우연이 시작됩니다.</p>
-          </div>
 
           <button onClick={handleLogout} className="logoutTextButton">
             로그아웃
