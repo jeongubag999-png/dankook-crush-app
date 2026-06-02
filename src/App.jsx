@@ -55,6 +55,7 @@ function App() {
   const [authLoading, setAuthLoading] = useState(true);
   const [showPassword, setShowPassword] = useState(false);
   const profileLoadedUserIdRef = useRef(null);
+  const isSigningUpRef = useRef(false); // 회원가입 진행 중 플래그
 
   const [authForm, setAuthForm] = useState({
   name: "",
@@ -423,17 +424,19 @@ const [verificationFile, setVerificationFile] = useState(null);
 
       setSession(savedSession);
       setCurrentUser(savedUser);
-      setAuthLoading(false);
 
       if (savedUser) {
-        // 인증 상태 확인 후 pending이면 대기 화면으로
+        // 인증 확인이 끝날 때까지 authLoading 유지 (홈 화면 노출 방지)
         const verifyStatus = await checkVerificationStatus(savedUser);
+        if (!mounted) return;
         if (verifyStatus === "pending") {
           setPage("verificationPending");
         } else {
           loadMyProfile(savedUser);
         }
       }
+
+      setAuthLoading(false);
     };
 
     initAuth();
@@ -441,6 +444,10 @@ const [verificationFile, setVerificationFile] = useState(null);
     const {
       data: { subscription },
     } = supabase.auth.onAuthStateChange(async (event, newSession) => {
+      // 회원가입 중이면 onAuthStateChange가 state를 건드리지 않음
+      // handleSignUp이 모든 상태를 직접 제어함
+      if (isSigningUpRef.current) return;
+
       const newUser = newSession?.user || null;
 
       setSession(newSession);
@@ -449,13 +456,8 @@ const [verificationFile, setVerificationFile] = useState(null);
 
       if (newUser) {
         if (event !== "INITIAL_SESSION") {
-          // 인증 상태 확인 후 pending이면 대기 화면으로
-          const verifyStatus = await checkVerificationStatus(newUser);
-          if (verifyStatus === "pending") {
-            setPage("verificationPending");
-          } else {
-            loadMyProfile(newUser);
-          }
+          // 로그인 이벤트는 handleLogin이 직접 처리하므로 건너뜀
+          // (handleLogin이 이미 verification 체크 후 page 설정함)
         }
       } else {
         profileLoadedUserIdRef.current = null;
@@ -560,6 +562,7 @@ const [verificationFile, setVerificationFile] = useState(null);
     }
 
     setAuthSubmitting(true);
+    isSigningUpRef.current = true; // 회원가입 시작 → onAuthStateChange 차단
 
     try {
       const { data, error } = await supabase.auth.signUp({
@@ -582,9 +585,6 @@ const [verificationFile, setVerificationFile] = useState(null);
 
       const signedUpUser = data.session?.user || data.user || null;
 
-      setSession(data.session || null);
-      setCurrentUser(signedUpUser);
-
       if (!signedUpUser) {
         toast.error(
           "회원가입은 완료됐지만 로그인 세션을 확인하지 못했어요. 다시 로그인해주세요."
@@ -593,6 +593,7 @@ const [verificationFile, setVerificationFile] = useState(null);
         return;
       }
 
+      // 파일 업로드 (세션 설정 전에 먼저 처리)
       const filePath = makeStorageFilePath(signedUpUser.id, verificationFile);
 
       const { error: uploadError } = await supabase.storage
@@ -627,15 +628,18 @@ const [verificationFile, setVerificationFile] = useState(null);
         return;
       }
 
+      // 모든 처리 완료 후 세션/유저/페이지를 한 번에 설정
       setProfile((prev) => ({
         ...prev,
         nickname: authForm.name.trim(),
         student_year: authForm.student_id.trim(),
       }));
-
+      setSession(data.session || null);
+      setCurrentUser(signedUpUser);
       toast.success("회원가입 신청이 완료됐어요. 단국대 학생 인증 승인 후 이용할 수 있어요.");
       setPage("verificationPending");
     } finally {
+      isSigningUpRef.current = false; // 회원가입 완료 → 차단 해제
       setAuthSubmitting(false);
     }
   };
@@ -664,11 +668,18 @@ const handleLogin = async () => {
         return;
       }
 
+      // 로그인 후 인증 상태 확인
+      const verifyStatus = await checkVerificationStatus(data.user);
+
       setSession(data.session);
       setCurrentUser(data.user);
-      setPage("home");
 
-      loadMyProfile(data.user, true);
+      if (verifyStatus === "pending") {
+        setPage("verificationPending");
+      } else {
+        setPage("home");
+        loadMyProfile(data.user, true);
+      }
     } finally {
       setAuthSubmitting(false);
     }
