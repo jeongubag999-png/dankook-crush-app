@@ -198,6 +198,7 @@ const [verificationFile, setVerificationFile] = useState(null);
   });
 
   const [editingPost, setEditingPost] = useState(null); // 수정 중인 빠른 구름 post
+  const [signupProgress, setSignupProgress] = useState(""); // 회원가입 진행 단계
   const [matchingLoading, setMatchingLoading] = useState(false);
   const [matchingMode, setMatchingMode] = useState("sent");
   const [activityDate, setActivityDate] = useState("");
@@ -512,11 +513,11 @@ const [verificationFile, setVerificationFile] = useState(null);
 
     const loginId = authForm.login_id.trim();
 
+    // ── 필드 검증 ──
     if (!authForm.name.trim()) {
       toast.error("닉네임 또는 이름을 입력해주세요.");
       return;
     }
-
     if (!authForm.student_id.trim()) {
       toast.error("학번을 입력해주세요.");
       return;
@@ -525,46 +526,42 @@ const [verificationFile, setVerificationFile] = useState(null);
       toast.error("학과를 입력해주세요.");
       return;
     }
-
     if (!verificationFile) {
       toast.error("MY DKU 첫 화면 캡처를 업로드해주세요.");
       return;
     }
-
-    const verificationFileError = validateImageFile(
-      verificationFile,
-      "학생 인증 이미지"
-    );
-
+    const verificationFileError = validateImageFile(verificationFile, "학생 인증 이미지");
     if (verificationFileError) {
       toast.error(verificationFileError);
       return;
     }
-
     if (!loginId) {
       toast.error("아이디를 입력해주세요.");
       return;
     }
-
     if (loginId.length < 4) {
       toast.error("아이디는 4자 이상으로 입력해주세요.");
       return;
     }
-
     if (loginId.length > 30) {
       toast.error("아이디는 30자 이하로 입력해주세요.");
       return;
     }
-
+    if (!/^[a-zA-Z0-9_!@#$%^&*]*$/.test(loginId)) {
+      toast.error("아이디는 영문, 숫자, 특수문자(!@#$%^&*_)만 사용할 수 있어요.");
+      return;
+    }
     if (authForm.password.length < 6) {
       toast.error("비밀번호는 6자리 이상으로 입력해주세요.");
       return;
     }
 
     setAuthSubmitting(true);
-    isSigningUpRef.current = true; // 회원가입 시작 → onAuthStateChange 차단
+    isSigningUpRef.current = true;
 
     try {
+      // ── 1단계: 계정 생성 ──
+      setSignupProgress("1단계: 계정 생성 중...");
       const { data, error } = await supabase.auth.signUp({
         email: makeAuthEmail(loginId),
         password: authForm.password,
@@ -578,7 +575,11 @@ const [verificationFile, setVerificationFile] = useState(null);
       });
 
       if (error) {
-        toast.error("회원가입에 실패했어요: " + error.message);
+        if (error.message.includes("already registered") || error.message.includes("already been registered")) {
+          toast.error("이미 사용 중인 아이디예요. 다른 아이디를 입력하거나 로그인해주세요.");
+        } else {
+          toast.error("회원가입에 실패했어요. 잠시 후 다시 시도해주세요.");
+        }
         console.log(error);
         return;
       }
@@ -586,14 +587,13 @@ const [verificationFile, setVerificationFile] = useState(null);
       const signedUpUser = data.session?.user || data.user || null;
 
       if (!signedUpUser) {
-        toast.error(
-          "회원가입은 완료됐지만 로그인 세션을 확인하지 못했어요. 다시 로그인해주세요."
-        );
+        toast.error("계정 생성은 완료됐지만 세션을 확인하지 못했어요. 로그인을 시도해주세요.");
         setAuthMode("login");
         return;
       }
 
-      // 파일 업로드 (세션 설정 전에 먼저 처리)
+      // ── 2단계: 인증 사진 업로드 ──
+      setSignupProgress("2단계: 인증 사진 업로드 중...");
       const filePath = makeStorageFilePath(signedUpUser.id, verificationFile);
 
       const { error: uploadError } = await supabase.storage
@@ -604,31 +604,33 @@ const [verificationFile, setVerificationFile] = useState(null);
         });
 
       if (uploadError) {
-        toast.error("학생 인증 이미지 업로드에 실패했어요: " + uploadError.message);
+        // 업로드 실패 시 생성된 계정도 정리 시도
+        await supabase.auth.admin?.deleteUser?.(signedUpUser.id).catch(() => {});
+        toast.error("인증 사진 업로드에 실패했어요. 네트워크 연결을 확인하고 다시 시도해주세요.");
         console.log(uploadError);
         return;
       }
 
+      // ── 3단계: 인증 신청 저장 ──
+      setSignupProgress("3단계: 인증 신청 저장 중...");
       const { error: verificationError } = await supabase
         .from("dku_verifications")
-        .insert([
-          {
-            user_id: signedUpUser.id,
-            name: authForm.name.trim(),
-            student_id: authForm.student_id.trim(),
-            department: authForm.department.trim(),
-            screenshot_path: filePath,
-            status: "pending",
-          },
-        ]);
+        .insert([{
+          user_id: signedUpUser.id,
+          name: authForm.name.trim(),
+          student_id: authForm.student_id.trim(),
+          department: authForm.department.trim(),
+          screenshot_path: filePath,
+          status: "pending",
+        }]);
 
       if (verificationError) {
-        toast.error("학생 인증 신청 저장에 실패했어요: " + verificationError.message);
+        toast.error("인증 신청 저장에 실패했어요. 잠시 후 다시 시도해주세요.");
         console.log(verificationError);
         return;
       }
 
-      // 모든 처리 완료 후 세션/유저/페이지를 한 번에 설정
+      // ── 완료: 세션/유저/페이지 한 번에 설정 ──
       setProfile((prev) => ({
         ...prev,
         nickname: authForm.name.trim(),
@@ -636,10 +638,15 @@ const [verificationFile, setVerificationFile] = useState(null);
       }));
       setSession(data.session || null);
       setCurrentUser(signedUpUser);
-      toast.success("회원가입 신청이 완료됐어요. 단국대 학생 인증 승인 후 이용할 수 있어요.");
+      toast.success("회원가입 신청 완료! 학생 인증 승인 후 이용할 수 있어요.");
       setPage("verificationPending");
+
+    } catch (e) {
+      toast.error("예상치 못한 오류가 발생했어요. 잠시 후 다시 시도해주세요.");
+      console.log(e);
     } finally {
-      isSigningUpRef.current = false; // 회원가입 완료 → 차단 해제
+      isSigningUpRef.current = false;
+      setSignupProgress("");
       setAuthSubmitting(false);
     }
   };
@@ -663,7 +670,13 @@ const handleLogin = async () => {
       });
 
       if (error) {
-        toast.error("로그인에 실패했어요. 아이디와 비밀번호를 확인해주세요.");
+        if (error.message.includes("Invalid login credentials")) {
+          toast.error("아이디 또는 비밀번호가 틀렸어요.");
+        } else if (error.message.includes("Email not confirmed")) {
+          toast.error("이메일 인증이 필요해요.");
+        } else {
+          toast.error("로그인에 실패했어요. 잠시 후 다시 시도해주세요.");
+        }
         console.log(error);
         return;
       }
@@ -675,11 +688,15 @@ const handleLogin = async () => {
       setCurrentUser(data.user);
 
       if (verifyStatus === "pending") {
+        toast.error("학생 인증이 아직 승인되지 않았어요. 승인될 때까지 기다려주세요.");
         setPage("verificationPending");
       } else {
         setPage("home");
         loadMyProfile(data.user, true);
       }
+    } catch (e) {
+      toast.error("예상치 못한 오류가 발생했어요. 잠시 후 다시 시도해주세요.");
+      console.log(e);
     } finally {
       setAuthSubmitting(false);
     }
@@ -2491,17 +2508,24 @@ const receivedCloudItems = [
             </>
           ) : (
             <>
-	              <button onClick={handleSignUp} disabled={authSubmitting}>
-	                {authSubmitting ? "신청 중..." : "회원가입하기"}
-	              </button>
+              <button onClick={handleSignUp} disabled={authSubmitting}>
+                {authSubmitting ? (signupProgress || "처리 중...") : "회원가입하기"}
+              </button>
 
-	              <button
-	                className="white"
-	                onClick={() => setAuthMode("login")}
-	                disabled={authSubmitting}
-	              >
-	                이미 계정이 있어요
-	              </button>
+              {signupProgress && (
+                <div className="signupProgressBox">
+                  <div className="signupProgressDot" />
+                  <span>{signupProgress}</span>
+                </div>
+              )}
+
+              <button
+                className="white"
+                onClick={() => setAuthMode("login")}
+                disabled={authSubmitting}
+              >
+                이미 계정이 있어요
+              </button>
             </>
           )}
 
