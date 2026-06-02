@@ -3,6 +3,7 @@ import toast, { Toaster } from "react-hot-toast";
 import "./App.css";
 import { supabase } from "./supabase";
 import { OptionButton } from "./components/OptionButton";
+import { VerificationPendingPage } from "./components/VerificationPendingPage";
 import {
   placeOptions,
   timeOptions,
@@ -351,6 +352,23 @@ const [verificationFile, setVerificationFile] = useState(null);
     });
   };
 
+  const checkVerificationStatus = async (user) => {
+    if (!user) return "none";
+
+    const { data, error } = await supabase
+      .from("dku_verifications")
+      .select("status")
+      .eq("user_id", user.id)
+      .maybeSingle();
+
+    if (error) {
+      console.log(error);
+      return "none";
+    }
+
+    return data?.status || "none";
+  };
+
   const loadMyProfile = async (user, force = false) => {
     if (!user) return;
 
@@ -408,7 +426,13 @@ const [verificationFile, setVerificationFile] = useState(null);
       setAuthLoading(false);
 
       if (savedUser) {
-        loadMyProfile(savedUser);
+        // 인증 상태 확인 후 pending이면 대기 화면으로
+        const verifyStatus = await checkVerificationStatus(savedUser);
+        if (verifyStatus === "pending") {
+          setPage("verificationPending");
+        } else {
+          loadMyProfile(savedUser);
+        }
       }
     };
 
@@ -416,7 +440,7 @@ const [verificationFile, setVerificationFile] = useState(null);
 
     const {
       data: { subscription },
-    } = supabase.auth.onAuthStateChange((event, newSession) => {
+    } = supabase.auth.onAuthStateChange(async (event, newSession) => {
       const newUser = newSession?.user || null;
 
       setSession(newSession);
@@ -425,7 +449,13 @@ const [verificationFile, setVerificationFile] = useState(null);
 
       if (newUser) {
         if (event !== "INITIAL_SESSION") {
-          loadMyProfile(newUser);
+          // 인증 상태 확인 후 pending이면 대기 화면으로
+          const verifyStatus = await checkVerificationStatus(newUser);
+          if (verifyStatus === "pending") {
+            setPage("verificationPending");
+          } else {
+            loadMyProfile(newUser);
+          }
         }
       } else {
         profileLoadedUserIdRef.current = null;
@@ -2266,7 +2296,7 @@ const receivedCloudItems = [
     );
   };
 
-	  if (authLoading) {
+  if (authLoading) {
     return (
       <div className="app">
         <div className="card">
@@ -2274,6 +2304,19 @@ const receivedCloudItems = [
           <p className="subtitle">로그인 상태를 확인하고 있어요...</p>
         </div>
       </div>
+    );
+  }
+
+  if (page === "verificationPending" && session && currentUser) {
+    return (
+      <VerificationPendingPage
+        currentUser={currentUser}
+        onApproved={() => {
+          loadMyProfile(currentUser, true);
+          setPage("home");
+        }}
+        onLogout={handleLogout}
+      />
     );
   }
 
