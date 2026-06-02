@@ -4,6 +4,9 @@ import "./App.css";
 import { supabase } from "./supabase";
 import { OptionButton } from "./components/OptionButton";
 import { VerificationPendingPage } from "./components/VerificationPendingPage";
+import { AdminPage } from "./components/AdminPage";
+
+const ADMIN_LOGIN_ID = "pjwo12356";
 import {
   placeOptions,
   timeOptions,
@@ -199,6 +202,9 @@ const [verificationFile, setVerificationFile] = useState(null);
 
   const [editingPost, setEditingPost] = useState(null); // 수정 중인 빠른 구름 post
   const [signupProgress, setSignupProgress] = useState(""); // 회원가입 진행 단계
+  const [showAdmin, setShowAdmin] = useState(false); // 관리자 페이지
+
+  const isAdmin = currentUser?.user_metadata?.login_id === ADMIN_LOGIN_ID;
   const [matchingLoading, setMatchingLoading] = useState(false);
   const [matchingMode, setMatchingMode] = useState("sent");
   const [activityDate, setActivityDate] = useState("");
@@ -2551,6 +2557,15 @@ const receivedCloudItems = [
     );
   }
 
+  if (showAdmin && isAdmin) {
+    return (
+      <div className="app">
+        <Toaster position="top-center" toastOptions={{ duration: 3000, style: { fontSize: "14px", maxWidth: "320px" } }} />
+        <AdminPage onClose={() => setShowAdmin(false)} />
+      </div>
+    );
+  }
+
   return (
     <div className="app">
       <Toaster
@@ -2660,6 +2675,15 @@ const receivedCloudItems = [
 	              <p className="emptyFeedText">아직 오늘 떠오른 구름이 없어요.</p>
 	            )}
 	          </div>
+
+          {isAdmin && (
+            <button
+              onClick={() => setShowAdmin(true)}
+              className="adminAccessButton"
+            >
+              🔧 관리자 페이지
+            </button>
+          )}
 
           <button onClick={handleLogout} className="logoutTextButton">
             로그아웃
