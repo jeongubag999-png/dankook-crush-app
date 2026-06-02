@@ -195,6 +195,7 @@ const [verificationFile, setVerificationFile] = useState(null);
     claimer_message: "",
   });
 
+  const [editingPost, setEditingPost] = useState(null); // 수정 중인 빠른 구름 post
   const [matchingLoading, setMatchingLoading] = useState(false);
   const [matchingMode, setMatchingMode] = useState("sent");
   const [activityDate, setActivityDate] = useState("");
@@ -868,6 +869,7 @@ const hideSearchResult = (postId) => {
 
   const goBackStep = () => {
     if (crushStep === 1) {
+      setEditingPost(null);
       setPage("home");
       return;
     }
@@ -905,6 +907,25 @@ const hideSearchResult = (postId) => {
   const openSendPage = () => {
     if (!checkProfileRequired()) return;
 
+    setCrushStep(1);
+    setPage("send");
+  };
+
+  const openEditQuickCloud = (post) => {
+    if (!checkProfileRequired()) return;
+
+    // 기존 빠른 구름의 기본 정보를 crushPost에 미리 채워줌
+    setCrushPost({
+      ...emptyCrushPost,
+      target_gender: post.target_gender || "",
+      seen_date: post.seen_date || "",
+      place: post.place ? post.place.split(" - ")[0] : "",
+      custom_place: post.place && post.place.includes(" - ") ? post.place.split(" - ")[1] : "",
+      time_period: post.time_period || "",
+      message: post.message || "",
+    });
+
+    setEditingPost(post);
     setCrushStep(1);
     setPage("send");
   };
@@ -1092,23 +1113,38 @@ const hideSearchResult = (postId) => {
     setPostSubmitting(true);
 
     try {
-      const { error } = await supabase.from("crush_posts").insert([
-        {
-          seen_date: crushPost.seen_date,
-          place: getFinalPlace(),
-          time_period: crushPost.time_period,
-          hair_feature: finalHairFeature,
-          clothes_color: crushPost.top_color,
-          clothes_style: combinedStyle,
-          accessory: combinedAccessory,
-          message: crushPost.message,
-          sender_user_id: currentUser.id,
-          sender_nickname: profile.nickname,
-          sender_instagram: cleanInstagram(profile.instagram_id),
-          sender_gender: profile.gender,
-          target_gender: crushPost.target_gender,
-        },
-      ]);
+      const postData = {
+        seen_date: crushPost.seen_date,
+        place: getFinalPlace(),
+        time_period: crushPost.time_period,
+        hair_feature: finalHairFeature,
+        clothes_color: crushPost.top_color,
+        clothes_style: combinedStyle,
+        accessory: combinedAccessory,
+        message: crushPost.message,
+        sender_nickname: profile.nickname,
+        sender_instagram: cleanInstagram(profile.instagram_id),
+        sender_gender: profile.gender,
+        target_gender: crushPost.target_gender,
+      };
+
+      let error;
+
+      if (editingPost) {
+        // 빠른 구름 → 자세한 구름으로 업데이트
+        const { error: updateError } = await supabase
+          .from("crush_posts")
+          .update(postData)
+          .eq("id", editingPost.id)
+          .eq("sender_user_id", currentUser.id);
+        error = updateError;
+      } else {
+        // 새 구름 생성
+        const { error: insertError } = await supabase
+          .from("crush_posts")
+          .insert([{ ...postData, sender_user_id: currentUser.id }]);
+        error = insertError;
+      }
 
       if (error) {
         toast.error("구름 남기기에 실패했어요: " + error.message);
@@ -1118,7 +1154,8 @@ const hideSearchResult = (postId) => {
 
       localStorage.removeItem(getDraftKey());
 
-      toast.success("구름을 남겼어요!");
+      toast.success(editingPost ? "구름을 자세하게 업데이트했어요!" : "구름을 남겼어요!");
+      setEditingPost(null);
       resetCrushPost();
       setPage("sent");
     } finally {
@@ -2064,14 +2101,27 @@ const receivedCloudItems = [
 
         {mode === "answered" && claims.map((claim) => renderSentClaimCard(claim))}
 
-	        <button
-	          type="button"
-	          className="dangerButton"
-	          onClick={() => deleteMyPost(post.id)}
-	          disabled={deletingPostId === post.id}
-	        >
-	          {deletingPostId === post.id ? "삭제 중..." : "이 구름 삭제하기"}
-	        </button>
+        {post.clothes_style === "빠른 구름" && (
+          <div className="upgradeCloudBox">
+            <p>📝 빠른 구름이에요. 머리·옷 정보를 추가하면 상대가 본인인지 더 잘 알아볼 수 있어요.</p>
+            <button
+              type="button"
+              className="upgradeCloudButton"
+              onClick={() => openEditQuickCloud(post)}
+            >
+              ✎ 자세하게 수정하기
+            </button>
+          </div>
+        )}
+
+        <button
+          type="button"
+          className="dangerButton"
+          onClick={() => deleteMyPost(post.id)}
+          disabled={deletingPostId === post.id}
+        >
+          {deletingPostId === post.id ? "삭제 중..." : "이 구름 삭제하기"}
+        </button>
       </div>
     );
   };
@@ -2466,40 +2516,29 @@ const receivedCloudItems = [
 	            </p>
 	          </div>
 
-	          <div className="homeMainAction cloudActionBox">
-	            <button
-	              onClick={openQuickCloudPage}
-	              className="primaryHomeButton cloudPrimaryButton"
-	            >
-	              <span className="buttonEmoji">☁</span>
-		              <span>
-		                <b>빠른 구름 보내기</b>
-		                <small>날짜와 장소만으로 30초 안에 구름을 남겨요.</small>
-		              </span>
-	            </button>
+          <div className="homeMainAction cloudActionBox">
+            <button
+              onClick={openQuickCloudPage}
+              className="primaryHomeButton cloudPrimaryButton"
+            >
+              <span className="buttonEmoji">☁</span>
+              <span>
+                <b>구름 보내기</b>
+                <small>스쳐간 마음을 구름으로 남겨요.</small>
+              </span>
+            </button>
 
-	            <button
-	              onClick={openSendPage}
-	              className="secondaryHomeButton cloudSecondaryButton"
-	            >
-	              <span className="buttonEmoji">✎</span>
-		              <span>
-		                <b>자세한 구름 보내기</b>
-		                <small>착장과 분위기까지 담아 더 정확하게 찾아요.</small>
-		              </span>
-	            </button>
-	
-	            <button
-	              onClick={openSearchPage}
-	              className="secondaryHomeButton cloudSecondaryButton"
+            <button
+              onClick={openSearchPage}
+              className="secondaryHomeButton cloudSecondaryButton"
             >
               <span className="buttonEmoji">🔔</span>
-	              <span>
-	                <b>구름 확인하기</b>
-	                <small>나를 찾는 구름이 있는지 조심스럽게 확인해요.</small>
-	              </span>
-	            </button>
-	          </div>
+              <span>
+                <b>구름 확인하기</b>
+                <small>나를 찾는 구름이 있는지 조심스럽게 확인해요.</small>
+              </span>
+            </button>
+          </div>
 
 	          <div className="todayCloudFeed">
 	            <div className="todayCloudHeader">
@@ -2655,11 +2694,10 @@ const receivedCloudItems = [
 
 	      {page === "quickSend" && (
 	        <div className="card quickCloudCard">
-	          <h2>빠른 구름 보내기</h2>
-	          <p className="subtitle">
-	            지금 기억나는 것만 가볍게 남겨도 돼요. 자세한 정보는 나중에 더
-	            또렷한 구름으로 보내면 됩니다.
-	          </p>
+	          <h2>구름 보내기</h2>
+          <p className="subtitle">
+            기억나는 것만 가볍게 남겨요. 나중에 자세하게 수정할 수 있어요.
+          </p>
 
 	          <div className="quickGuideBox">
 	            <b>30초 구름</b>
@@ -2737,16 +2775,19 @@ const receivedCloudItems = [
 	            {postSubmitting ? "구름 보내는 중..." : "빠른 구름 보내기"}
 	          </button>
 
-	          <button
-	            type="button"
-	            className="white"
-	            onClick={() => {
-	              setCrushStep(1);
-	              setPage("send");
-	            }}
-	          >
-	            자세하게 보내기
-	          </button>
+          <div className="detailUpgradeHint">
+            <p>기억이 더 나요?</p>
+            <button
+              type="button"
+              className="detailUpgradeButton"
+              onClick={() => {
+                setCrushStep(1);
+                setPage("send");
+              }}
+            >
+              ✎ 머리·옷 정보까지 자세하게 남기기
+            </button>
+          </div>
 
 	          <button onClick={() => setPage("home")} className="white">
 	            홈으로
@@ -2756,7 +2797,13 @@ const receivedCloudItems = [
 
 	      {page === "send" && (
         <div className="card">
-          <h2>구름 남기기</h2>
+          <h2>{editingPost ? "구름 자세하게 수정하기" : "구름 남기기"}</h2>
+
+          {editingPost && (
+            <div className="editingBanner">
+              ✏️ 빠른 구름을 자세하게 수정하고 있어요. 완료하면 기존 구름이 업데이트돼요.
+            </div>
+          )}
 
           <p className="stepText">{crushStep} / 9</p>
 
