@@ -2360,9 +2360,11 @@ const receivedCloudItems = [
     return (
       <VerificationPendingPage
         currentUser={currentUser}
-        onApproved={() => {
-          loadMyProfile(currentUser, true);
-          setPage("home");
+        onApproved={async () => {
+          await loadMyProfile(currentUser, true);
+          // 프로필 미완성이면 프로필 설정 페이지로, 완성됐으면 홈으로
+          setPage("profile");
+          toast.success("인증이 승인됐어요! 프로필을 먼저 설정해주세요.");
         }}
         onLogout={handleLogout}
       />
