@@ -363,6 +363,9 @@ const [verificationFile, setVerificationFile] = useState(null);
   const checkVerificationStatus = async (user) => {
     if (!user) return "none";
 
+    // 관리자는 인증 없이 바로 통과
+    if (user.user_metadata?.login_id === ADMIN_LOGIN_ID) return "approved";
+
     const { data, error } = await supabase
       .from("dku_verifications")
       .select("status")
