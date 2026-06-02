@@ -2327,6 +2327,7 @@ const receivedCloudItems = [
   if (authLoading) {
     return (
       <div className="app">
+        <Toaster position="top-center" toastOptions={{ duration: 3000, style: { fontSize: "14px", maxWidth: "320px" } }} />
         <div className="card">
           <h1>단꿈</h1>
           <p className="subtitle">로그인 상태를 확인하고 있어요...</p>
@@ -2351,6 +2352,7 @@ const receivedCloudItems = [
   if (!session || !currentUser) {
     return (
       <div className="app">
+        <Toaster position="top-center" toastOptions={{ duration: 3000, style: { fontSize: "14px", maxWidth: "320px" } }} />
         <div className="card">
           <h1>단꿈</h1>
 
