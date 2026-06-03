@@ -94,6 +94,8 @@ export const hairColorOptions = [
 
 export const hatOptions = ["모자 착용", "모자 없음", "잘 모르겠음"];
 
+export const glassesOptions = ["안경 착용", "안경 없음", "잘 모르겠음"];
+
 export const bangsOptions = ["앞머리 있음", "앞머리 없음", "잘 모르겠음"];
 
 export const topTypeOptions = [

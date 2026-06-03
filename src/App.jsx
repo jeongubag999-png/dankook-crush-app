@@ -15,6 +15,7 @@ import {
   maleHairStyleOptions,
   hairColorOptions,
   hatOptions,
+  glassesOptions,
   bangsOptions,
   topTypeOptions,
   topColorOptions,
@@ -149,6 +150,7 @@ const [verificationFile, setVerificationFile] = useState(null);
     bottom_detail: "",
     bag_type: "",
     earphone_type: "",
+    glasses_type: "",
     item_detail: "",
     height_feeling: "",
     shoe_type: "",
@@ -177,6 +179,7 @@ const [verificationFile, setVerificationFile] = useState(null);
     top_color: "",
     bottom_type: "",
     bottom_color: "",
+    glasses_type: "",
   });
 
   const [searchResults, setSearchResults] = useState([]);
@@ -884,6 +887,16 @@ const getPostMatchScore = (post) => {
     reasons.push("하의 색상 일치");
   }
 
+  // 안경: "잘 모르겠음" 제외 후 매칭 (+10)
+  if (
+    searchForm.glasses_type &&
+    searchForm.glasses_type !== "잘 모르겠음" &&
+    containsMatch(post.accessory, searchForm.glasses_type)
+  ) {
+    score += 10;
+    reasons.push("안경 착용 여부 일치");
+  }
+
   return {
     score: Math.min(score, 98),
     reasons: [...new Set(reasons)].slice(0, 4),
@@ -1201,7 +1214,7 @@ const hideSearchResult = (postId) => {
       : "";
 
     const combinedStyle = `상의:${crushPost.top_type} ${crushPost.top_color}${topDetailText} / 하의:${getFinalBottomType()} ${crushPost.bottom_color}${bottomDetailText}`;
-    const combinedAccessory = `가방:${crushPost.bag_type} / 이어폰:${crushPost.earphone_type}${itemDetailText} / 키 느낌:${crushPost.height_feeling} / 신발:${crushPost.shoe_type}${shoeDetailText} / 상황:${getFinalSituation()} / 분위기:${getFinalMood()}`;
+    const combinedAccessory = `가방:${crushPost.bag_type} / 이어폰:${crushPost.earphone_type} / 안경:${crushPost.glasses_type || "잘 모르겠음"}${itemDetailText} / 키 느낌:${crushPost.height_feeling} / 신발:${crushPost.shoe_type}${shoeDetailText} / 상황:${getFinalSituation()} / 분위기:${getFinalMood()}`;
 
     setPostSubmitting(true);
 
@@ -3416,6 +3429,21 @@ const receivedCloudItems = [
               </div>
 
               <div className="formGroup">
+                <label className="formLabel">안경 착용 여부</label>
+                <div className="optionGrid">
+                  {glassesOptions.map((option) => (
+                    <OptionButton
+                      key={option}
+                      value={option}
+                      selected={crushPost.glasses_type === option}
+                      onClick={() => updateCrushPost("glasses_type", option)}
+                      full={option === "잘 모르겠음"}
+                    />
+                  ))}
+                </div>
+              </div>
+
+              <div className="formGroup">
                 <label className="formLabel">소지품 추가 설명 선택사항</label>
                 <input
                   placeholder="예: 검정 백팩에 키링, 노트북 파우치, 에어팟 맥스 느낌"
@@ -3987,6 +4015,21 @@ const receivedCloudItems = [
                     <option key={option}>{option}</option>
                   ))}
                 </select>
+              </div>
+
+              <div className="formGroup">
+                <label className="formLabel">안경 착용 여부</label>
+                <div className="optionGrid">
+                  {glassesOptions.map((option) => (
+                    <OptionButton
+                      key={option}
+                      value={option}
+                      selected={searchForm.glasses_type === option}
+                      onClick={() => setSearchForm({ ...searchForm, glasses_type: option })}
+                      full={option === "잘 모르겠음"}
+                    />
+                  ))}
+                </div>
               </div>
 
               <button onClick={() => setSearchStep(4)}>다음</button>
