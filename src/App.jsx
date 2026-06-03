@@ -4148,22 +4148,22 @@ const receivedCloudItems = [
             “{cleanMessage(post.message) || "남긴 메시지가 없어요."}”
           </p>
 
-	          <div className="resultActionRow">
-	            <button
-	              type="button"
-	              className={maybeReacted ? "maybeButton active" : "maybeButton"}
-	              onClick={() => {
-	                setMaybeReactionIds((prev) =>
-	                  prev.includes(post.id) ? prev : [...prev, post.id]
-	                );
-	              }}
-	            >
-	              {maybeReacted ? "몽글 표시 완료" : "나일 수도 있어요"}
-	            </button>
+          <div className="resultActionRow">
+            <button
+              type="button"
+              className={maybeReacted ? "maybeButton active" : "maybeButton"}
+              onClick={() => {
+                setMaybeReactionIds((prev) =>
+                  prev.includes(post.id) ? prev : [...prev, post.id]
+                );
+              }}
+            >
+              {maybeReacted ? "몽글 표시 완료" : "나일 수도 있어요"}
+            </button>
 
-	            <button
-	              onClick={() => {
-	                setSelectedPost(post);
+            <button
+              onClick={() => {
+                setSelectedPost(post);
                 setPage("claimForm");
               }}
             >
@@ -4178,6 +4178,48 @@ const receivedCloudItems = [
               이건 아닌 것 같아요
             </button>
           </div>
+
+          <button
+            type="button"
+            className="findOwnerButton"
+            onClick={async () => {
+              const topText = getPostTopText(post);
+              const hairParts = (post.hair_feature || "")
+                .split(" / ")
+                .filter((p) => p && p !== "잘 모르겠음")
+                .slice(0, 2)
+                .join(", ");
+
+              const shareText = [
+                `☁️ 단꿈에 네 구름이 떴을지도 몰라`,
+                ``,
+                `${post.seen_date ? `${formatDateLabel(post.seen_date)} ` : ""}${post.time_period || ""} ${post.place || ""}`,
+                `${post.target_gender || ""} / ${hairParts || ""}${topText ? ` / ${topText}` : ""}`,
+                ``,
+                `혹시 너야? 확인해봐 👇`,
+                window.location.origin,
+              ].join("\n");
+
+              if (navigator.share) {
+                try {
+                  await navigator.share({
+                    title: "☁️ 단꿈 - 이 구름 주인 찾아주기",
+                    text: shareText,
+                  });
+                } catch (e) {
+                  if (e.name !== "AbortError") {
+                    await navigator.clipboard.writeText(shareText);
+                    toast.success("링크가 복사됐어요! 친구에게 보내보세요.");
+                  }
+                }
+              } else {
+                await navigator.clipboard.writeText(shareText);
+                toast.success("복사됐어요! 친구에게 보내보세요.");
+              }
+            }}
+          >
+            ☁️ 이 구름 주인 찾아주기
+          </button>
         </div>
       );
     })}

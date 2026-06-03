@@ -3648,3 +3648,22 @@ textarea:focus {
   cursor: pointer;
   margin-bottom: 8px;
 }
+
+/* 이 구름 주인 찾아주기 버튼 */
+.findOwnerButton {
+  width: 100%;
+  padding: 11px;
+  margin-top: 8px;
+  background: linear-gradient(135deg, #eff6ff, #dbeafe);
+  color: #2563eb;
+  border: 1.5px solid #bfdbfe;
+  border-radius: 12px;
+  font-size: 14px;
+  font-weight: 600;
+  cursor: pointer;
+  transition: background 0.15s;
+}
+
+.findOwnerButton:active {
+  background: #dbeafe;
+}
