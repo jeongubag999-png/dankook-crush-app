@@ -3678,7 +3678,7 @@ const receivedCloudItems = [
               onClick={async () => {
                 const shareData = {
                   title: "단꿈 ☁️",
-                  text: "나 단꿈에 구름 남겼어. 혹시 너야? 단국대 캠퍼스 인연 찾기 앱",
+                  text: "단꿈에 너한테 보내는 구름 남겼어 ☁️ 확인해봐",
                   url: window.location.origin,
                 };
                 if (navigator.share) {
@@ -4148,36 +4148,14 @@ const receivedCloudItems = [
             “{cleanMessage(post.message) || "남긴 메시지가 없어요."}”
           </p>
 
-          <div className="resultActionRow">
-            <button
-              type="button"
-              className={maybeReacted ? "maybeButton active" : "maybeButton"}
-              onClick={() => {
-                setMaybeReactionIds((prev) =>
-                  prev.includes(post.id) ? prev : [...prev, post.id]
-                );
-              }}
-            >
-              {maybeReacted ? "몽글 표시 완료" : "나일 수도 있어요"}
-            </button>
-
-            <button
-              onClick={() => {
-                setSelectedPost(post);
-                setPage("claimForm");
-              }}
-            >
-              이거 나인 것 같아요
-            </button>
-
-            <button
-              type="button"
-              className="white dismissResultButton"
-              onClick={() => hideSearchResult(post.id)}
-            >
-              이건 아닌 것 같아요
-            </button>
-          </div>
+          <button
+            onClick={() => {
+              setSelectedPost(post);
+              setPage("claimForm");
+            }}
+          >
+            이거 나인 것 같아요
+          </button>
 
           <button
             type="button"
@@ -4191,12 +4169,12 @@ const receivedCloudItems = [
                 .join(", ");
 
               const shareText = [
-                `☁️ 단꿈에 네 구름이 떴을지도 몰라`,
+                `야 단꿈에 이거 너 아니야? ☁️`,
                 ``,
                 `${post.seen_date ? `${formatDateLabel(post.seen_date)} ` : ""}${post.time_period || ""} ${post.place || ""}`,
                 `${post.target_gender || ""} / ${hairParts || ""}${topText ? ` / ${topText}` : ""}`,
                 ``,
-                `혹시 너야? 확인해봐 👇`,
+                `확인해봐 👇`,
                 window.location.origin,
               ].join("\n");
 
@@ -4209,7 +4187,7 @@ const receivedCloudItems = [
                 } catch (e) {
                   if (e.name !== "AbortError") {
                     await navigator.clipboard.writeText(shareText);
-                    toast.success("링크가 복사됐어요! 친구에게 보내보세요.");
+                    toast.success("복사됐어요! 친구에게 보내보세요.");
                   }
                 }
               } else {
@@ -4219,6 +4197,14 @@ const receivedCloudItems = [
             }}
           >
             ☁️ 이 구름 주인 찾아주기
+          </button>
+
+          <button
+            type="button"
+            className="dismissTextButton"
+            onClick={() => hideSearchResult(post.id)}
+          >
+            이건 아닌 것 같아요
           </button>
         </div>
       );

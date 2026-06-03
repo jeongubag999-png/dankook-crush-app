@@ -3667,3 +3667,15 @@ textarea:focus {
 .findOwnerButton:active {
   background: #dbeafe;
 }
+
+/* 이건 아닌 것 같아요 텍스트 버튼 */
+.dismissTextButton {
+  width: 100%;
+  padding: 8px;
+  background: transparent;
+  border: none;
+  color: #9CA3AF;
+  font-size: 13px;
+  cursor: pointer;
+  text-align: center;
+}
