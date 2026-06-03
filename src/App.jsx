@@ -650,11 +650,26 @@ const [verificationFile, setVerificationFile] = useState(null);
         return;
       }
 
+      // ── profiles 테이블에 기본 정보 자동 저장 ──
+      await supabase.from("profiles").upsert(
+        [{
+          user_id: signedUpUser.id,
+          nickname: authForm.name.trim(),
+          student_year: authForm.student_id.trim(),
+          department: authForm.department.trim(),
+          gender: "",
+          instagram_id: "",
+          bio: "",
+        }],
+        { onConflict: "user_id" }
+      );
+
       // ── 완료: 세션/유저/페이지 한 번에 설정 ──
       setProfile((prev) => ({
         ...prev,
         nickname: authForm.name.trim(),
         student_year: authForm.student_id.trim(),
+        department: authForm.department.trim(),
       }));
       setSession(data.session || null);
       setCurrentUser(signedUpUser);
