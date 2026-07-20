@@ -1,4 +1,25 @@
+import { Camera, CameraResultType, CameraSource } from "@capacitor/camera";
+import { Capacitor } from "@capacitor/core";
 import { KOREA_TIME_ZONE, IMAGE_EXTENSIONS, MAX_IMAGE_SIZE } from "./constants";
+
+export const isNativeApp = () => Capacitor.isNativePlatform();
+
+export const pickImageFromLibrary = async () => {
+  const photo = await Camera.getPhoto({
+    quality: 80,
+    resultType: CameraResultType.Base64,
+    source: CameraSource.Photos,
+  });
+  if (!photo.base64String) return null;
+
+  const mediaType = `image/${photo.format}`;
+  const byteString = atob(photo.base64String);
+  const bytes = new Uint8Array(byteString.length);
+  for (let i = 0; i < byteString.length; i++) {
+    bytes[i] = byteString.charCodeAt(i);
+  }
+  return new File([bytes], `verification.${photo.format}`, { type: mediaType });
+};
 
 export const getKoreaDateString = (date = new Date()) => {
   const parts = new Intl.DateTimeFormat("en-CA", {

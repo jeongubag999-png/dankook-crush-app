@@ -5,6 +5,7 @@ import { supabase } from "./supabase";
 import { OptionButton } from "./components/OptionButton";
 import { VerificationPendingPage } from "./components/VerificationPendingPage";
 import { AdminPage } from "./components/AdminPage";
+import { PrivacyPolicyPage } from "./components/PrivacyPolicyPage";
 
 const ADMIN_LOGIN_IDS = ["pjwo12356", "djkim5882"];
 import {
@@ -46,6 +47,8 @@ import {
   getAccessoryValue,
   makeCloudTags,
   getWeatherComment,
+  isNativeApp,
+  pickImageFromLibrary,
 } from "./utils";
 
 function App() {
@@ -206,6 +209,9 @@ const [verificationFile, setVerificationFile] = useState(null);
   const [editingPost, setEditingPost] = useState(null); // 수정 중인 빠른 구름 post
   const [signupProgress, setSignupProgress] = useState(""); // 회원가입 진행 단계
   const [showAdmin, setShowAdmin] = useState(false); // 관리자 페이지
+  const [showPrivacyPolicy, setShowPrivacyPolicy] = useState(false);
+  const [blockedUserIds, setBlockedUserIds] = useState([]);
+  const [accountDeleting, setAccountDeleting] = useState(false);
 
   const isAdmin = ADMIN_LOGIN_IDS.includes(currentUser?.user_metadata?.login_id);
   const [matchingLoading, setMatchingLoading] = useState(false);
@@ -369,6 +375,17 @@ const [verificationFile, setVerificationFile] = useState(null);
     // 관리자는 인증 없이 바로 통과
     if (ADMIN_LOGIN_IDS.includes(user?.user_metadata?.login_id)) return "approved";
 
+    const { data: profileData } = await supabase
+      .from("profiles")
+      .select("is_deleted")
+      .eq("user_id", user.id)
+      .maybeSingle();
+
+    if (profileData?.is_deleted) {
+      await supabase.auth.signOut();
+      return "deleted";
+    }
+
     const { data, error } = await supabase
       .from("dku_verifications")
       .select("status")
@@ -445,7 +462,11 @@ const [verificationFile, setVerificationFile] = useState(null);
         // 인증 확인이 끝날 때까지 authLoading 유지 (홈 화면 노출 방지)
         const verifyStatus = await checkVerificationStatus(savedUser);
         if (!mounted) return;
-        if (verifyStatus === "pending" || verifyStatus === "incomplete") {
+        if (verifyStatus === "deleted") {
+          setSession(null);
+          setCurrentUser(null);
+          toast.error("탈퇴 처리된 계정이에요.");
+        } else if (verifyStatus === "pending" || verifyStatus === "incomplete") {
           setPage("verificationPending");
         } else {
           loadMyProfile(savedUser);
@@ -489,6 +510,25 @@ const [verificationFile, setVerificationFile] = useState(null);
   }, []);
 
   useEffect(() => {
+    if (!currentUser) {
+      setBlockedUserIds([]);
+      return;
+    }
+
+    supabase
+      .from("blocks")
+      .select("blocked_user_id")
+      .eq("blocker_user_id", currentUser.id)
+      .then(({ data, error }) => {
+        if (error) {
+          console.log(error);
+          return;
+        }
+        setBlockedUserIds((data || []).map((row) => row.blocked_user_id));
+      });
+  }, [currentUser]);
+
+  useEffect(() => {
     const scrollFocusedInputIntoView = (event) => {
       const target = event.target;
       const tagName = target?.tagName;
@@ -522,6 +562,22 @@ const [verificationFile, setVerificationFile] = useState(null);
 
     Promise.resolve().then(loadHomeTopWeatherPlace);
   }, [currentUser, loadHomeTopWeatherPlace]);
+
+  const handlePickVerificationFile = async () => {
+    try {
+      const file = await pickImageFromLibrary();
+      if (!file) return;
+
+      const fileError = validateImageFile(file, "학생 인증 이미지");
+      if (fileError) {
+        toast.error(fileError);
+        return;
+      }
+      setVerificationFile(file);
+    } catch {
+      // 사용자가 취소했거나 권한이 거부된 경우
+    }
+  };
 
   const handleSignUp = async () => {
     if (authSubmitting) return;
@@ -722,6 +778,11 @@ const handleLogin = async () => {
       // 로그인 후 인증 상태 확인
       const verifyStatus = await checkVerificationStatus(data.user);
 
+      if (verifyStatus === "deleted") {
+        toast.error("탈퇴 처리된 계정이에요.");
+        return;
+      }
+
       setSession(data.session);
       setCurrentUser(data.user);
 
@@ -759,6 +820,119 @@ const handleLogin = async () => {
 
     setAuthMode("login");
     setPage("home");
+  };
+
+  const handleAccountDeletion = async () => {
+    if (accountDeleting || !currentUser) return;
+
+    const ok = window.confirm(
+      "정말 탈퇴하시겠어요? 내가 띄운 구름, 받은 응답, 인증 정보가 모두 삭제되고 되돌릴 수 없어요."
+    );
+    if (!ok) return;
+
+    setAccountDeleting(true);
+
+    try {
+      const { data: myPosts } = await supabase
+        .from("crush_posts")
+        .select("id")
+        .eq("sender_user_id", currentUser.id);
+
+      const myPostIds = (myPosts || []).map((post) => post.id);
+
+      if (myPostIds.length > 0) {
+        await supabase.from("claims").delete().in("crush_post_id", myPostIds);
+        await supabase.from("cloud_views").delete().in("crush_post_id", myPostIds);
+      }
+
+      await supabase.from("claims").delete().eq("claimer_user_id", currentUser.id);
+      await supabase.from("cloud_views").delete().eq("viewer_user_id", currentUser.id);
+      await supabase.from("cloud_checks").delete().eq("checker_user_id", currentUser.id);
+      await supabase.from("crush_posts").delete().eq("sender_user_id", currentUser.id);
+      await supabase.from("dku_verifications").delete().eq("user_id", currentUser.id);
+
+      const { error } = await supabase
+        .from("profiles")
+        .update({
+          nickname: "탈퇴한 사용자",
+          instagram_id: "",
+          bio: "",
+          department: "",
+          student_year: "",
+          gender: "",
+          is_deleted: true,
+          deleted_at: new Date().toISOString(),
+        })
+        .eq("user_id", currentUser.id);
+
+      if (error) {
+        toast.error("탈퇴 처리에 실패했어요: " + error.message);
+        console.log(error);
+        return;
+      }
+
+      await supabase.auth.signOut();
+      setSession(null);
+      setCurrentUser(null);
+      resetProfile();
+      setPage("home");
+      toast.success("탈퇴가 완료됐어요. 그동안 이용해주셔서 감사해요.");
+    } finally {
+      setAccountDeleting(false);
+    }
+  };
+
+  const reportContent = async (targetType, targetId, targetUserId) => {
+    const reason = window.prompt(
+      "신고 사유를 간단히 적어주세요. (예: 부적절한 내용, 허위 정보 등)"
+    );
+    if (reason === null) return;
+
+    if (!reason.trim()) {
+      toast.error("신고 사유를 입력해주세요.");
+      return;
+    }
+
+    const { error } = await supabase.from("reports").insert([
+      {
+        reporter_user_id: currentUser.id,
+        target_type: targetType,
+        target_id: String(targetId),
+        target_user_id: targetUserId || null,
+        reason: reason.trim(),
+      },
+    ]);
+
+    if (error) {
+      toast.error("신고 접수에 실패했어요: " + error.message);
+      console.log(error);
+      return;
+    }
+
+    toast.success("신고가 접수됐어요. 확인 후 조치할게요.");
+  };
+
+  const blockUser = async (targetUserId, targetLabel) => {
+    if (!targetUserId) return;
+
+    const ok = window.confirm(
+      `${targetLabel || "이 사용자"}을(를) 차단할까요? 차단하면 서로의 구름을 볼 수 없어요.`
+    );
+    if (!ok) return;
+
+    const { error } = await supabase.from("blocks").upsert(
+      [{ blocker_user_id: currentUser.id, blocked_user_id: targetUserId }],
+      { onConflict: "blocker_user_id,blocked_user_id", ignoreDuplicates: true }
+    );
+
+    if (error) {
+      toast.error("차단에 실패했어요: " + error.message);
+      console.log(error);
+      return;
+    }
+
+    setBlockedUserIds((prev) => [...new Set([...prev, targetUserId])]);
+    toast.success("차단했어요.");
   };
 
   const saveDraft = () => {
@@ -1913,7 +2087,9 @@ const sendSecondCloudToClaim = async (claim) => {
   const progressPercent = (crushStep / 9) * 100;
   const searchProgressPercent = (searchStep / 5) * 100;
 
-  const sentClaimsByPostId = sentClaims.reduce((acc, claim) => {
+  const sentClaimsByPostId = sentClaims
+    .filter((claim) => !blockedUserIds.includes(claim.claimer_user_id))
+    .reduce((acc, claim) => {
     if (!acc[claim.crush_post_id]) {
       acc[claim.crush_post_id] = [];
     }
@@ -2019,7 +2195,9 @@ const receivedCloudItems = [
 );
 
   const visibleSearchResults = searchResults.filter(
-  (post) => !hiddenResultIds.includes(post.id)
+  (post) =>
+    !hiddenResultIds.includes(post.id) &&
+    !blockedUserIds.includes(post.sender_user_id)
 );
   const todayPlaceCounts = homeTodayClouds.reduce((acc, post) => {
     const place = getMainPlaceFromPost(post);
@@ -2135,6 +2313,23 @@ const receivedCloudItems = [
           </p>
         </div>
       )}
+
+      <div className="safetyActionRow">
+        <button
+          type="button"
+          className="dismissTextButton"
+          onClick={() => reportContent("claim", claim.id, claim.claimer_user_id)}
+        >
+          신고하기
+        </button>
+        <button
+          type="button"
+          className="dismissTextButton"
+          onClick={() => blockUser(claim.claimer_user_id, claim.claimer_nickname)}
+        >
+          차단하기
+        </button>
+      </div>
     </div>
   );
 };
@@ -2384,6 +2579,15 @@ const receivedCloudItems = [
     );
   }
 
+  if (showPrivacyPolicy) {
+    return (
+      <div className="app">
+        <Toaster position="top-center" toastOptions={{ duration: 3000, style: { fontSize: "14px", maxWidth: "320px" } }} />
+        <PrivacyPolicyPage onClose={() => setShowPrivacyPolicy(false)} />
+      </div>
+    );
+  }
+
   if (page === "verificationPending" && session && currentUser) {
     return (
       <VerificationPendingPage
@@ -2483,28 +2687,34 @@ const receivedCloudItems = [
 	    <li>이름과 학번이 보이는 화면</li>
 	    <li>학과와 재학 상태가 보이는 화면</li>
 	  </ul>
-		  <input
-		    type="file"
-		    accept="image/*"
-	    onChange={(e) => {
-	      const file = e.target.files[0];
-	      if (!file) {
-	        setVerificationFile(null);
-	        return;
-	      }
+	  {isNativeApp() ? (
+	    <button type="button" onClick={handlePickVerificationFile}>
+	      {verificationFile ? `📷 ${verificationFile.name}` : "📷 MY DKU 캡처 선택하기"}
+	    </button>
+	  ) : (
+	    <input
+	      type="file"
+	      accept="image/*"
+	      onChange={(e) => {
+	        const file = e.target.files[0];
+	        if (!file) {
+	          setVerificationFile(null);
+	          return;
+	        }
 
-	      const fileError = validateImageFile(file, "학생 인증 이미지");
+	        const fileError = validateImageFile(file, "학생 인증 이미지");
 
-	      if (fileError) {
-	        toast.error(fileError);
-	        e.target.value = "";
-	        setVerificationFile(null);
-	        return;
-	      }
+	        if (fileError) {
+	          toast.error(fileError);
+	          e.target.value = "";
+	          setVerificationFile(null);
+	          return;
+	        }
 
-	      setVerificationFile(file);
-	    }}
-	  />
+	        setVerificationFile(file);
+	      }}
+	    />
+	  )}
 	  <p className="helperText">
 	    민감한 알림 내용은 가려도 괜찮아요. 단, 이름/학번/학과는 확인 가능해야 해요.
 	  </p>
@@ -2585,6 +2795,14 @@ const receivedCloudItems = [
             로그인하지 않으면 홈 화면, 구름 남기기, 구름 확인 기능을 사용할 수
             없어요.
           </p>
+
+          <button
+            type="button"
+            className="logoutTextButton"
+            onClick={() => setShowPrivacyPolicy(true)}
+          >
+            개인정보처리방침
+          </button>
         </div>
       </div>
     );
@@ -2836,6 +3054,21 @@ const receivedCloudItems = [
 
           <button onClick={() => setPage("home")} className="white">
             홈으로
+          </button>
+
+          <button
+            onClick={() => setShowPrivacyPolicy(true)}
+            className="logoutTextButton"
+          >
+            개인정보처리방침
+          </button>
+
+          <button
+            onClick={handleAccountDeletion}
+            disabled={accountDeleting}
+            className="dangerButton"
+          >
+            {accountDeleting ? "탈퇴 처리 중..." : "회원탈퇴"}
           </button>
 	        </div>
 	      )}
@@ -4249,6 +4482,23 @@ const receivedCloudItems = [
           >
             이건 아닌 것 같아요
           </button>
+
+          <div className="safetyActionRow">
+            <button
+              type="button"
+              className="dismissTextButton"
+              onClick={() => reportContent("post", post.id, post.sender_user_id)}
+            >
+              신고하기
+            </button>
+            <button
+              type="button"
+              className="dismissTextButton"
+              onClick={() => blockUser(post.sender_user_id, post.sender_nickname)}
+            >
+              차단하기
+            </button>
+          </div>
         </div>
       );
     })}

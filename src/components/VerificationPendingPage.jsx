@@ -1,6 +1,6 @@
 import { useEffect, useRef, useState } from "react";
 import { supabase } from "../supabase";
-import { makeStorageFilePath, validateImageFile } from "../utils";
+import { makeStorageFilePath, validateImageFile, isNativeApp, pickImageFromLibrary } from "../utils";
 
 export function VerificationPendingPage({ currentUser, onApproved, onLogout }) {
   const [checking, setChecking] = useState(false);
@@ -123,7 +123,22 @@ export function VerificationPendingPage({ currentUser, onApproved, onLogout }) {
           <button
             type="button"
             className={retryFile ? "white" : ""}
-            onClick={() => fileInputRef.current?.click()}
+            onClick={async () => {
+              if (isNativeApp()) {
+                try {
+                  const file = await pickImageFromLibrary();
+                  if (!file) return;
+                  const err = validateImageFile(file, "학생 인증 이미지");
+                  if (err) { setRetryError(err); return; }
+                  setRetryFile(file);
+                  setRetryError("");
+                } catch {
+                  // 사용자가 취소했거나 권한이 거부된 경우
+                }
+                return;
+              }
+              fileInputRef.current?.click();
+            }}
             disabled={retryUploading}
           >
             {retryFile ? `📷 ${retryFile.name}` : "📷 MY DKU 캡처 선택하기"}

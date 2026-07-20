@@ -26,3 +26,19 @@ dist-ssr
 .env
 .vercel
 .env*
+
+# Capacitor native build outputs
+ios/App/Pods
+ios/App/build
+ios/App/App/public
+android/app/build
+android/build
+android/.gradle
+android/app/src/main/assets/public
+android/local.properties
+
+# Release signing (never commit)
+android/keystore/
+
+# Claude Code local config (may contain secrets from approved commands)
+.claude/
