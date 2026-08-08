@@ -190,15 +190,6 @@ const [verificationFile, setVerificationFile] = useState(null);
   const [selectedPost, setSelectedPost] = useState(null);
   const [maybeReactionIds, setMaybeReactionIds] = useState([]);
 
-  const [quickCloud, setQuickCloud] = useState({
-    target_gender: "",
-    seen_date: getKoreaDateString(),
-    place: "",
-    custom_place: "",
-    time_period: "",
-    message: "",
-  });
-
   const [claimForm, setClaimForm] = useState({
     claimer_nickname: "",
     claimer_instagram: "",
@@ -248,13 +239,6 @@ const [verificationFile, setVerificationFile] = useState(null);
 
   const updateCrushPost = (key, value) => {
     setCrushPost((prev) => ({
-      ...prev,
-      [key]: value,
-    }));
-  };
-
-  const updateQuickCloud = (key, value) => {
-    setQuickCloud((prev) => ({
       ...prev,
       [key]: value,
     }));
@@ -317,22 +301,6 @@ const [verificationFile, setVerificationFile] = useState(null);
     return mainPlace;
   };
 
-  const getQuickCloudPlace = () => {
-    const mainPlace = quickCloud.place;
-    const detailPlace = quickCloud.custom_place.trim();
-
-    if (!mainPlace) return "";
-
-    if (mainPlace === "기타/직접 입력") {
-      return detailPlace;
-    }
-
-    if (detailPlace) {
-      return `${mainPlace} - ${detailPlace}`;
-    }
-
-    return mainPlace;
-  };
 
   const getFinalBottomType = () => {
     if (crushPost.bottom_type === "기타" && crushPost.bottom_custom.trim()) {
@@ -574,8 +542,17 @@ const [verificationFile, setVerificationFile] = useState(null);
         return;
       }
       setVerificationFile(file);
-    } catch {
-      // 사용자가 취소했거나 권한이 거부된 경우
+    } catch (error) {
+      const message = error?.message || "";
+      if (message.toLowerCase().includes("cancel")) return;
+
+      if (message.toLowerCase().includes("denied")) {
+        toast.error("사진 접근 권한이 꺼져 있어요. 설정 > 단꿈 > 사진에서 권한을 켜주세요.");
+        return;
+      }
+
+      toast.error("사진을 불러오지 못했어요. 잠시 후 다시 시도해주세요.");
+      console.log(error);
     }
   };
 
@@ -1217,14 +1194,11 @@ const hideSearchResult = (postId) => {
     setPage("search");
   };
 
-  const openQuickCloudPage = () => {
+  const openNewCloudPage = () => {
     if (!checkProfileRequired()) return;
 
-    setQuickCloud((prev) => ({
-      ...prev,
-      seen_date: prev.seen_date || getKoreaDateString(),
-    }));
-    setPage("quickSend");
+    resetCrushPost();
+    setPage("send");
   };
 
   const openProfilePage = async () => {
@@ -1237,17 +1211,6 @@ const hideSearchResult = (postId) => {
   const resetCrushPost = () => {
     setCrushPost(emptyCrushPost);
     setCrushStep(1);
-  };
-
-  const resetQuickCloud = () => {
-    setQuickCloud({
-      target_gender: "",
-      seen_date: getKoreaDateString(),
-      place: "",
-      custom_place: "",
-      time_period: "",
-      message: "",
-    });
   };
 
   const saveProfile = async () => {
@@ -1437,66 +1400,6 @@ const hideSearchResult = (postId) => {
       toast.success(editingPost ? "구름을 자세하게 업데이트했어요!" : "구름을 남겼어요!");
       setEditingPost(null);
       resetCrushPost();
-      setPage("sent");
-    } finally {
-      setPostSubmitting(false);
-    }
-  };
-
-  const saveQuickCloud = async () => {
-    if (postSubmitting) return;
-
-    if (!checkProfileRequired()) return;
-
-    if (!quickCloud.target_gender) {
-      toast.error("찾는 사람의 성별을 선택해주세요.");
-      return;
-    }
-
-    if (!quickCloud.seen_date) {
-      toast.error("날짜를 선택해주세요.");
-      return;
-    }
-
-    if (!getQuickCloudPlace()) {
-      toast.error("장소를 선택하거나 직접 입력해주세요.");
-      return;
-    }
-
-    const quickMessage = quickCloud.message.trim();
-
-    setPostSubmitting(true);
-
-    try {
-      const { error } = await supabase.from("crush_posts").insert([
-        {
-          seen_date: quickCloud.seen_date,
-          place: getQuickCloudPlace(),
-          time_period: quickCloud.time_period || "잘 모르겠음",
-          hair_feature: "빠른 구름 / 잘 모르겠음",
-          clothes_color: "잘 모르겠음",
-          clothes_style: "빠른 구름",
-          accessory: "빠른 구름",
-          message:
-            quickMessage ||
-            "스쳐간 마음을 구름으로 남겨요. 자세한 기억은 아직 흐릿해요.",
-          sender_user_id: currentUser.id,
-          sender_nickname: profile.nickname,
-          sender_instagram: cleanInstagram(profile.instagram_id),
-          sender_gender: profile.gender,
-          target_gender: quickCloud.target_gender,
-        },
-      ]);
-
-      if (error) {
-        toast.error("빠른 구름 보내기에 실패했어요: " + error.message);
-        console.log(error);
-        return;
-      }
-
-      toast.success("빠른 구름을 보냈어요!");
-      resetQuickCloud();
-      loadHomeTopWeatherPlace();
       setPage("sent");
     } finally {
       setPostSubmitting(false);
@@ -2521,7 +2424,7 @@ const receivedCloudItems = [
         key: "send",
         label: "보내기",
         icon: "+",
-        active: page === "send" || page === "quickSend" || page === "sent",
+        active: page === "send" || page === "sent",
         onClick: openSendPage,
       },
       {
@@ -2875,7 +2778,7 @@ const receivedCloudItems = [
 
           <div className="homeMainAction cloudActionBox">
             <button
-              onClick={openQuickCloudPage}
+              onClick={openNewCloudPage}
               className="primaryHomeButton cloudPrimaryButton"
             >
               <span className="buttonEmoji">☁</span>
@@ -3070,109 +2973,6 @@ const receivedCloudItems = [
           >
             {accountDeleting ? "탈퇴 처리 중..." : "회원탈퇴"}
           </button>
-	        </div>
-	      )}
-
-	      {page === "quickSend" && (
-	        <div className="card quickCloudCard">
-	          <h2>구름 보내기</h2>
-          <p className="subtitle">
-            기억나는 것만 가볍게 남겨요. 나중에 자세하게 수정할 수 있어요.
-          </p>
-
-	          <div className="quickGuideBox">
-	            <b>30초 구름</b>
-	            <span>성별, 날짜, 장소만 있으면 바로 보낼 수 있어요.</span>
-	          </div>
-
-	          <div className="formGroup">
-	            <label className="formLabel">찾는 사람의 성별</label>
-	            <div className="optionGrid">
-	              {genderOptions.map((option) => (
-	                <OptionButton
-	                  key={option}
-	                  value={option}
-	                  selected={quickCloud.target_gender === option}
-	                  onClick={() => updateQuickCloud("target_gender", option)}
-	                />
-	              ))}
-	            </div>
-	          </div>
-
-	          <div className="formGroup">
-	            <label className="formLabel">마주친 날짜</label>
-	            <input
-	              type="date"
-	              value={quickCloud.seen_date}
-	              onChange={(e) => updateQuickCloud("seen_date", e.target.value)}
-	            />
-	          </div>
-
-	          <div className="formGroup">
-	            <label className="formLabel">시간대</label>
-	            <select
-	              value={quickCloud.time_period}
-	              onChange={(e) => updateQuickCloud("time_period", e.target.value)}
-	            >
-	              <option value="">시간이 흐릿해도 괜찮아요</option>
-	              {timeOptions.map((option) => (
-	                <option key={option}>{option}</option>
-	              ))}
-	            </select>
-	          </div>
-
-	          <div className="formGroup">
-	            <label className="formLabel">장소</label>
-	            <select
-	              value={quickCloud.place}
-	              onChange={(e) =>
-	                setQuickCloud({
-	                  ...quickCloud,
-	                  place: e.target.value,
-	                  custom_place: "",
-	                })
-	              }
-	            >
-	              <option value="">장소 선택</option>
-	              {placeOptions.map((option) => (
-	                <option key={option}>{option}</option>
-	              ))}
-	            </select>
-	          </div>
-
-	          <input
-	            placeholder="구체적인 위치 예: 도서관 1층, 혜당관 앞"
-	            value={quickCloud.custom_place}
-	            onChange={(e) => updateQuickCloud("custom_place", e.target.value)}
-	          />
-
-	          <textarea
-	            placeholder="한 줄 구름 예: 오늘 분위기가 좋아 보여서 구름 남겨요."
-	            value={quickCloud.message}
-	            onChange={(e) => updateQuickCloud("message", e.target.value)}
-	          />
-
-	          <button onClick={saveQuickCloud} disabled={postSubmitting}>
-	            {postSubmitting ? "구름 보내는 중..." : "빠른 구름 보내기"}
-	          </button>
-
-          <div className="detailUpgradeHint">
-            <p>기억이 더 나요?</p>
-            <button
-              type="button"
-              className="detailUpgradeButton"
-              onClick={() => {
-                setCrushStep(1);
-                setPage("send");
-              }}
-            >
-              ✎ 머리·옷 정보까지 자세하게 남기기
-            </button>
-          </div>
-
-	          <button onClick={() => setPage("home")} className="white">
-	            홈으로
-	          </button>
 	        </div>
 	      )}
 

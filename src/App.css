@@ -3083,32 +3083,6 @@ textarea:focus {
   font-weight: 800;
 }
 
-.quickCloudCard .quickGuideBox {
-  display: flex;
-  align-items: center;
-  justify-content: space-between;
-  gap: 12px;
-  margin: 16px 0;
-  padding: 14px;
-  border: 1px solid #dceeff;
-  border-radius: 18px;
-  background: linear-gradient(135deg, #eef8ff, #fff);
-  text-align: left;
-}
-
-.quickGuideBox b {
-  color: #2477d4;
-  font-size: 14px;
-  font-weight: 900;
-}
-
-.quickGuideBox span {
-  color: var(--muted);
-  font-size: 12px;
-  line-height: 1.4;
-  font-weight: 800;
-}
-
 .primaryHomeButton,
 .secondaryHomeButton {
   min-height: 70px;
@@ -3335,30 +3309,6 @@ textarea:focus {
 
 .shareButton:active {
   background: #1d4ed8;
-}
-
-/* 자세하게 남기기 힌트 (빠른 구름 페이지) */
-.detailUpgradeHint {
-  text-align: center;
-  margin: 4px 0 8px;
-}
-
-.detailUpgradeHint p {
-  font-size: 13px;
-  color: #6B7280;
-  margin: 0 0 8px;
-}
-
-.detailUpgradeButton {
-  width: 100%;
-  padding: 11px;
-  background: transparent;
-  color: #2563eb;
-  border: 1.5px solid #2563eb;
-  border-radius: 12px;
-  font-size: 14px;
-  font-weight: 600;
-  cursor: pointer;
 }
 
 /* 빠른 구름 수정 유도 박스 (내 구름 관리) */
@@ -3710,4 +3660,8 @@ textarea:focus {
 
 .privacyPolicyBody li {
   margin-bottom: 4px;
+}
+
+.app {
+  padding-top: max(24px, env(safe-area-inset-top));
 }
