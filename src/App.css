@@ -210,10 +210,17 @@ textarea {
 }
 
 .stepText {
-  margin: -4px 0 14px;
+  margin: -12px 0 14px;
   font-size: 13px;
   color: #b19f98;
   font-weight: 800;
+}
+
+.sendStepTitle {
+  margin-bottom: 2px;
+  font-size: 21px;
+  font-weight: 700;
+  color: #4b4540;
 }
 
 .progressBar {
@@ -233,7 +240,7 @@ textarea {
 }
 
 .questionTitle {
-  margin: 8px 0 10px;
+  margin: 8px 0 4px;
   font-size: 23px;
   line-height: 1.35;
   letter-spacing: -0.9px;
@@ -1329,6 +1336,14 @@ body {
   line-height: 1.25;
   letter-spacing: -0.4px;
   color: #175f9f;
+}
+
+.skyHome .primaryHomeButton b {
+  color: #3e3a8c;
+}
+
+.skyHome .primaryHomeButton small {
+  color: #6a5a9c;
 }
 
 .skyHome .primaryHomeButton small,
@@ -2849,6 +2864,7 @@ textarea:focus {
 
 .skyHome .homeLogo,
 .homeLogo {
+  margin: 0 0 2px;
   font-size: 44px;
   letter-spacing: 0;
   color: var(--ink);
@@ -2856,8 +2872,8 @@ textarea:focus {
 
 .skyHome .homeSlogan,
 .homeSlogan {
-  margin: 14px 0 8px;
-  font-size: 22px;
+  margin: 4px 0 8px;
+  font-size: 17px;
   line-height: 1.35;
   letter-spacing: 0;
   color: var(--ink);
@@ -2894,7 +2910,7 @@ textarea:focus {
 
 .appIntroBox.trustStrip p {
   display: flex;
-  min-height: 72px;
+  min-height: 78px;
   flex-direction: column;
   justify-content: center;
   gap: 4px;
@@ -2908,12 +2924,12 @@ textarea:focus {
 
 .appIntroBox.trustStrip b {
   color: var(--ink);
-  font-size: 12px;
+  font-size: 15px;
 }
 
 .appIntroBox.trustStrip span {
   color: var(--muted);
-  font-size: 11px;
+  font-size: 12px;
   line-height: 1.25;
   font-weight: 700;
 }
@@ -3091,9 +3107,9 @@ textarea:focus {
 
 .primaryHomeButton {
   background:
-    radial-gradient(circle at 22% 32%, rgba(255, 255, 255, 0.32), transparent 28%),
-    linear-gradient(135deg, #62bdff, #2477d4);
-  box-shadow: 0 14px 30px rgba(47, 128, 237, 0.22);
+    radial-gradient(circle at 22% 28%, rgba(255, 255, 255, 0.65), transparent 34%),
+    linear-gradient(135deg, #bfe6ff 0%, #d8c9ff 55%, #ffd1e6 100%);
+  box-shadow: 0 14px 30px rgba(196, 168, 255, 0.28);
 }
 
 .secondaryHomeButton {
@@ -3235,7 +3251,7 @@ textarea:focus {
 
   .skyHome .homeSlogan,
   .homeSlogan {
-    font-size: 20px;
+    font-size: 16px;
   }
 
   .appIntroBox.trustStrip {
@@ -3664,4 +3680,77 @@ textarea:focus {
 
 .app {
   padding-top: max(24px, env(safe-area-inset-top));
+}
+
+.optionGrid .optionButton.iconOption {
+  display: flex;
+  align-items: center;
+  justify-content: center;
+}
+
+.optionButtonIcon {
+  font-size: 24px;
+  line-height: 1;
+}
+
+.stepActions .iconOnlyButton {
+  font-size: 22px;
+}
+
+.questionTitle {
+  font-size: 18px;
+  font-weight: 700;
+  color: #4b4540;
+  letter-spacing: -0.3px;
+}
+
+.optionGrid .optionButton.iconOption.selected {
+  background: var(--surface-soft);
+  color: #344054;
+  border: 2px solid #2477d4;
+  box-shadow: none;
+}
+
+.inlineGenderIcon {
+  display: inline-flex;
+  vertical-align: middle;
+  margin-left: 4px;
+}
+
+.inlineGenderIcon svg {
+  width: 18px;
+  height: 18px;
+}
+
+.qaDetails {
+  margin-top: 6px;
+}
+
+.qaDetails summary.qaToggleLabel {
+  display: inline-flex;
+  list-style: none;
+  cursor: pointer;
+  font-size: 12px;
+  font-weight: 700;
+  color: var(--brand-strong);
+}
+
+.qaDetails summary.qaToggleLabel::-webkit-details-marker {
+  display: none;
+}
+
+.qaToggleLabel::after {
+  content: "자세히 보기 ▾";
+}
+
+.qaDetails[open] summary.qaToggleLabel {
+  margin-bottom: 6px;
+}
+
+.qaDetails[open] .qaToggleLabel::after {
+  content: "접기 ▴";
+}
+
+.qaBody p:first-child {
+  margin-top: 0;
 }

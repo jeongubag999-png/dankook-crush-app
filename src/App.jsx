@@ -3,6 +3,7 @@ import toast, { Toaster } from "react-hot-toast";
 import "./App.css";
 import { supabase } from "./supabase";
 import { OptionButton } from "./components/OptionButton";
+import { GenderFemaleIcon, GenderMaleIcon, HomeIcon } from "./components/Icons";
 import { VerificationPendingPage } from "./components/VerificationPendingPage";
 import { AdminPage } from "./components/AdminPage";
 import { PrivacyPolicyPage } from "./components/PrivacyPolicyPage";
@@ -1085,21 +1086,27 @@ const hideSearchResult = (postId) => {
           <strong>장소:</strong> {post.place || "-"}
         </p>
 
-        <p>
-          <strong>머리:</strong> {post.hair_feature || "-"}
-        </p>
+        <details className="qaDetails">
+          <summary className="qaToggleLabel" />
 
-        <p>
-          <strong>상의:</strong> {topText || "-"}
-        </p>
+          <div className="qaBody">
+            <p>
+              <strong>머리:</strong> {post.hair_feature || "-"}
+            </p>
 
-        <p>
-          <strong>하의:</strong> {bottomText || "-"}
-        </p>
+            <p>
+              <strong>상의:</strong> {topText || "-"}
+            </p>
 
-        <p>
-          <strong>소지품/상황:</strong> {accessoryText || "-"}
-        </p>
+            <p>
+              <strong>하의:</strong> {bottomText || "-"}
+            </p>
+
+            <p>
+              <strong>소지품/상황:</strong> {accessoryText || "-"}
+            </p>
+          </div>
+        </details>
       </div>
     );
   };
@@ -1390,7 +1397,7 @@ const hideSearchResult = (postId) => {
       }
 
       if (error) {
-        toast.error("구름 남기기에 실패했어요: " + error.message);
+        toast.error("구름 보내기에 실패했어요: " + error.message);
         console.log(error);
         return;
       }
@@ -2695,7 +2702,7 @@ const receivedCloudItems = [
           )}
 
           <p className="notice">
-            로그인하지 않으면 홈 화면, 구름 남기기, 구름 확인 기능을 사용할 수
+            로그인하지 않으면 홈 화면, 구름 보내기, 구름 확인 기능을 사용할 수
             없어요.
           </p>
 
@@ -2750,7 +2757,9 @@ const receivedCloudItems = [
 	            </p>
 	
 	            <p className="homeDescription">
-	  호감은 조금 쑥스러우니까, 단꿈에서는 구름으로 보내고 서로 원할 때만 이어져요.
+	  호감은 조금 쑥스러우니까,
+  <br />
+  단꿈에서는 구름으로 보내고 서로 원할 때만 이어져요.
 </p>
 
 <div className="homeWeatherTicker">
@@ -2839,9 +2848,6 @@ const receivedCloudItems = [
             </button>
           )}
 
-          <button onClick={handleLogout} className="logoutTextButton">
-            로그아웃
-          </button>
         </div>
       )}
 
@@ -2966,6 +2972,10 @@ const receivedCloudItems = [
             개인정보처리방침
           </button>
 
+          <button onClick={handleLogout} className="logoutTextButton">
+            로그아웃
+          </button>
+
           <button
             onClick={handleAccountDeletion}
             disabled={accountDeleting}
@@ -2978,7 +2988,7 @@ const receivedCloudItems = [
 
 	      {page === "send" && (
         <div className="card">
-          <h2>{editingPost ? "구름 자세하게 수정하기" : "구름 남기기"}</h2>
+          <h2 className="sendStepTitle">{editingPost ? "구름 자세하게 수정하기" : "구름 보내기"}</h2>
 
           {editingPost && (
             <div className="editingBanner">
@@ -3020,6 +3030,7 @@ const receivedCloudItems = [
                   <OptionButton
                     key={option}
                     value={option}
+                    icon={option === "여자" ? <GenderFemaleIcon /> : <GenderMaleIcon />}
                     selected={crushPost.target_gender === option}
                     onClick={() => selectTargetGenderAndNext(option)}
                   />
@@ -3699,14 +3710,18 @@ const receivedCloudItems = [
               </div>
 
 	              <button onClick={saveCrushPost} disabled={postSubmitting}>
-	                {postSubmitting ? "구름 남기는 중..." : "그날의 구름 남기기"}
+	                {postSubmitting ? "구름 보내는 중..." : "그날의 구름 보내기"}
 	              </button>
             </>
           )}
 
           <div className="stepActions">
-            <button onClick={goBackStep} className="white">
-              {crushStep === 1 ? "홈으로" : "이전"}
+            <button
+              onClick={goBackStep}
+              className={`white ${crushStep === 1 ? "iconOnlyButton" : ""}`}
+              aria-label={crushStep === 1 ? "홈으로" : undefined}
+            >
+              {crushStep === 1 ? <HomeIcon /> : "이전"}
             </button>
 
             <button
@@ -3774,7 +3789,7 @@ const receivedCloudItems = [
 
       {page === "search" && (
         <div className="card">
-          <h2>구름 확인하기</h2>
+          <h2 className="sendStepTitle">구름 확인하기</h2>
 
           <p className="stepText">{searchStep} / 5</p>
 
@@ -3786,13 +3801,28 @@ const receivedCloudItems = [
           </div>
 
           <p className="subtitle">
-            한 번에 전부 고르지 않고, 구름 띄우기처럼 한 단계씩 확인해요.
-            날짜와 머리 정보는 필수이고, 착장은 기억나는 만큼만 골라주세요.
+            한 번에 전부 고르지 않고,
+            <br />
+            구름 띄우기처럼 한 단계씩 확인해요.
+            <br />
+            날짜와 머리 정보는 필수이고,
+            <br />
+            착장은 기억나는 만큼만 골라주세요.
           </p>
 
           <div className="summaryBox">
             <p>
               <strong>내 성별:</strong> {profile.gender || "-"}
+              {profile.gender === "여자" && (
+                <span className="inlineGenderIcon">
+                  <GenderFemaleIcon />
+                </span>
+              )}
+              {profile.gender === "남자" && (
+                <span className="inlineGenderIcon">
+                  <GenderMaleIcon />
+                </span>
+              )}
             </p>
             <p>프로필 성별 기준으로 나를 찾는 구름만 자동으로 확인해요.</p>
           </div>
@@ -3801,8 +3831,11 @@ const receivedCloudItems = [
             <>
               <h3 className="questionTitle">언제 있었나요?</h3>
               <p className="questionDesc">
-                상대가 구름을 남긴 날짜와 내가 그 사람을 마주쳤던 날짜가 맞아야
-                확인할 수 있어요. 정확하지 않다면 가장 가까운 날짜를 선택해보세요.
+                상대가 구름을 남긴 날짜와
+                <br />
+                내가 그 사람을 마주쳤던 날짜가 맞아야 확인할 수 있어요.
+                <br />
+                정확하지 않다면 가장 가까운 날짜를 선택해보세요.
               </p>
 
               <div className="formGroup">

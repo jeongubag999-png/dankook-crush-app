@@ -1,9 +1,10 @@
-export const OptionButton = ({ value, selected, onClick, full }) => (
+export const OptionButton = ({ value, selected, onClick, full, icon }) => (
   <button
     type="button"
-    className={`optionButton ${selected ? "selected" : ""} ${full ? "fullOption" : ""}`}
+    className={`optionButton ${selected ? "selected" : ""} ${full ? "fullOption" : ""} ${icon ? "iconOption" : ""}`}
     onClick={onClick}
+    aria-label={icon ? value : undefined}
   >
-    {value}
+    {icon ? <span className="optionButtonIcon">{icon}</span> : value}
   </button>
 );
