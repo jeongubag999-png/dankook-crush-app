@@ -3,8 +3,14 @@ export const OptionButton = ({ value, selected, onClick, full, icon }) => (
     type="button"
     className={`optionButton ${selected ? "selected" : ""} ${full ? "fullOption" : ""} ${icon ? "iconOption" : ""}`}
     onClick={onClick}
-    aria-label={icon ? value : undefined}
   >
-    {icon ? <span className="optionButtonIcon">{icon}</span> : value}
+    {icon ? (
+      <>
+        <span className="optionButtonIcon">{icon}</span>
+        <span className="optionLabel">{value}</span>
+      </>
+    ) : (
+      value
+    )}
   </button>
 );

@@ -1,9 +1,29 @@
 import { useCallback, useEffect, useRef, useState } from "react";
 import toast, { Toaster } from "react-hot-toast";
 import "./App.css";
+import "./theme-v2.css";
 import { supabase } from "./supabase";
 import { OptionButton } from "./components/OptionButton";
-import { GenderFemaleIcon, GenderMaleIcon, HomeIcon } from "./components/Icons";
+import {
+  GenderFemaleIcon,
+  GenderMaleIcon,
+  HomeIcon,
+  PlusIcon,
+  SearchIcon,
+  ListIcon,
+  BellIcon,
+  PersonIcon,
+  ChevronRightIcon,
+  ShieldCheckIcon,
+  UsersIcon,
+  TrashIcon,
+  CalendarIcon,
+  GearIcon,
+  PaperPlaneIcon,
+  ChatIcon,
+  ClockIcon,
+} from "./components/Icons";
+import { StepProgress } from "./components/StepProgress";
 import { VerificationPendingPage } from "./components/VerificationPendingPage";
 import { AdminPage } from "./components/AdminPage";
 import { PrivacyPolicyPage } from "./components/PrivacyPolicyPage";
@@ -1994,8 +2014,6 @@ const sendSecondCloudToClaim = async (claim) => {
     }
   };
 
-  const progressPercent = (crushStep / 9) * 100;
-  const searchProgressPercent = (searchStep / 5) * 100;
 
   const sentClaimsByPostId = sentClaims
     .filter((claim) => !blockedUserIds.includes(claim.claimer_user_id))
@@ -2423,28 +2441,28 @@ const receivedCloudItems = [
       {
         key: "home",
         label: "홈",
-        icon: "⌂",
+        icon: <HomeIcon size={20} />,
         active: page === "home",
         onClick: () => setPage("home"),
       },
       {
         key: "send",
         label: "보내기",
-        icon: "+",
+        icon: <PlusIcon size={20} />,
         active: page === "send" || page === "sent",
         onClick: openSendPage,
       },
       {
         key: "search",
         label: "확인",
-        icon: "⌕",
+        icon: <SearchIcon size={20} />,
         active: page === "search" || page === "result" || page === "reply",
         onClick: openSearchPage,
       },
       {
         key: "matching",
         label: "내 구름",
-        icon: "≡",
+        icon: <ListIcon size={20} />,
         active: page === "matching" || page === "claim",
         onClick: () => {
           setMatchingMode("sent");
@@ -2454,7 +2472,7 @@ const receivedCloudItems = [
       {
         key: "profile",
         label: "프로필",
-        icon: "◦",
+        icon: <PersonIcon size={20} />,
         active: page === "profile",
         onClick: openProfilePage,
       },
@@ -2737,107 +2755,144 @@ const receivedCloudItems = [
         }}
       />
       {page === "home" && (
-        <div className="homeCard skyHome">
-          <div className="skyDecor cloudA">☁</div>
-          <div className="skyDecor cloudB">☁</div>
-          <div className="skyDecor starA">✦</div>
-          <div className="skyDecor starB">✧</div>
-
-          <div className="homeTop">
-            <div className="brandBadge">DKU CLOUD MATCHING</div>
-
-            <div className="cloudLogo">☁</div>
-
-	            <h1 className="homeLogo">단꿈</h1>
-	
-	            <p className="homeSlogan">
-	              스쳐간 마음을
-	              <br />
-	              구름처럼 가볍게
-	            </p>
-	
-	            <p className="homeDescription">
-	  호감은 조금 쑥스러우니까,
-  <br />
-  단꿈에서는 구름으로 보내고 서로 원할 때만 이어져요.
-</p>
-
-<div className="homeWeatherTicker">
-  <div className="homeWeatherTickerTrack">
-    <span>{homeWeatherTickerText}</span>
-    <span>{homeWeatherTickerText}</span>
-  </div>
-</div>
-</div>
-
-	<div className="appIntroBox homeIntroBox trustStrip">
-	            <p>
-	              <b>학생 인증</b>
-	              <span>단국대 구성원 중심</span>
-	            </p>
-	            <p>
-	              <b>상호 수락</b>
-	              <span>원할 때만 인스타 공개</span>
-	            </p>
-	            <p>
-	              <b>삭제 가능</b>
-	              <span>내가 남긴 구름 관리</span>
-	            </p>
-	          </div>
-
-          <div className="homeMainAction cloudActionBox">
-            <button
-              onClick={openNewCloudPage}
-              className="primaryHomeButton cloudPrimaryButton"
-            >
-              <span className="buttonEmoji">☁</span>
-              <span>
-                <b>구름 보내기</b>
-                <small>스쳐간 마음을 구름으로 남겨요.</small>
-              </span>
-            </button>
-
-            <button
-              onClick={openSearchPage}
-              className="secondaryHomeButton cloudSecondaryButton"
-            >
-              <span className="buttonEmoji">🔔</span>
-              <span>
-                <b>구름 확인하기</b>
-                <small>나를 찾는 구름이 있는지 조심스럽게 확인해요.</small>
-              </span>
-            </button>
+        <div className="homeV2">
+          <div className="homeV2Header">
+            <div className="homeV2Greeting">
+              <p>안녕하세요! 👋</p>
+              <h1>
+                오늘도 좋은 구름이
+                <br />
+                떠오르길 바랄게요.
+              </h1>
+            </div>
+            <div className="homeV2IconRow">
+              <button
+                type="button"
+                className="homeV2IconBtn"
+                aria-label="알림"
+                onClick={() => {
+                  setMatchingMode("notifications");
+                  openMatchingPage();
+                }}
+              >
+                <BellIcon size={19} />
+              </button>
+              <button
+                type="button"
+                className="homeV2IconBtn"
+                aria-label="프로필"
+                onClick={openProfilePage}
+              >
+                <PersonIcon size={19} />
+              </button>
+            </div>
           </div>
 
-	          <div className="todayCloudFeed">
-	            <div className="todayCloudHeader">
-	              <div>
-	                <p className="miniTitle">오늘의 단국대 구름</p>
-	                <p>지금 캠퍼스 어디에 구름이 머무는지 가볍게 구경해요.</p>
-	              </div>
-	              <b className="todayCloudCount">{homeTodayClouds.length}개</b>
-	            </div>
+          <button
+            type="button"
+            className="homeV2Banner"
+            onClick={() => {
+              setWeatherDate(getKoreaDateString());
+              openWeatherPage();
+            }}
+          >
+            <span className="homeWeatherTickerTrack">
+              <span>☁️ {homeWeatherTickerText}</span>
+            </span>
+            <ChevronRightIcon size={16} />
+          </button>
 
-	            {topTodayPlaces.length > 0 ? (
-	              <div className="placeChipRow">
-	                {topTodayPlaces.map((item) => (
-	                  <button
-	                    type="button"
-	                    key={item.place}
-	                    className="placeCloudChip"
-	                    onClick={() => {
-	                      setWeatherDate(getKoreaDateString());
-	                      openWeatherPage();
-	                    }}
-	                  >
-	                    {item.place} <b>{item.count}</b>
-	                  </button>
-	                ))}
-	              </div>
-	            ) : (
-	              <p className="emptyFeedText">아직 오늘 떠오른 구름이 없어요.</p>
-	            )}
-	          </div>
+          <button type="button" onClick={openNewCloudPage} className="homeV2ActionCard">
+            <span className="homeV2ActionIcon">☁️</span>
+            <span className="homeV2ActionText">
+              <b>구름 보내기</b>
+              <small>스쳐간 마음을 구름으로 남겨요.</small>
+            </span>
+            <span className="homeV2ActionChevron">
+              <ChevronRightIcon />
+            </span>
+          </button>
+
+          <button type="button" onClick={openSearchPage} className="homeV2ActionCard">
+            <span className="homeV2ActionIcon amber">🔔</span>
+            <span className="homeV2ActionText">
+              <b>구름 확인하기</b>
+              <small>나를 찾는 구름이 있는지 확인해요.</small>
+            </span>
+            <span className="homeV2ActionChevron">
+              <ChevronRightIcon />
+            </span>
+          </button>
+
+          <div className="homeV2TodayCard">
+            <div className="homeV2TodayHeader">
+              <div>
+                <b>오늘의 단국대 구름</b>
+                <p>지금 캠퍼스 어디에 구름이 머무는지 구경해요.</p>
+              </div>
+              <button
+                type="button"
+                className="homeV2SeeAll"
+                onClick={() => {
+                  setWeatherDate(getKoreaDateString());
+                  openWeatherPage();
+                }}
+              >
+                전체 보기 ›
+              </button>
+            </div>
+
+            {topTodayPlaces.length > 0 ? (
+              <div className="placeChipRow">
+                {topTodayPlaces.map((item) => (
+                  <button
+                    type="button"
+                    key={item.place}
+                    className="placeCloudChip"
+                    onClick={() => {
+                      setWeatherDate(getKoreaDateString());
+                      openWeatherPage();
+                    }}
+                  >
+                    {item.place} <b>{item.count}</b>
+                  </button>
+                ))}
+              </div>
+            ) : (
+              <div className="homeV2TodayEmpty">
+                <span className="homeV2TodayEmoji">☁️ ☁️</span>
+                <p>
+                  아직 오늘 떠오른 구름이 없어요.
+                  <br />
+                  첫 구름의 주인공이 되어보세요!
+                </p>
+              </div>
+            )}
+          </div>
+
+          <div className="homeV2TrustRow">
+            <div className="homeV2TrustItem">
+              <span className="homeV2TrustIcon">
+                <ShieldCheckIcon size={17} />
+              </span>
+              <b>단국대 구성원 중심</b>
+              <span>안전한 캠퍼스 서비스</span>
+            </div>
+            <div className="homeV2TrustItem">
+              <span className="homeV2TrustIcon">
+                <UsersIcon size={17} />
+              </span>
+              <b>서로 동의할 때만 공개</b>
+              <span>원할 때만 인스타 공개</span>
+            </div>
+            <div className="homeV2TrustItem">
+              <span className="homeV2TrustIcon">
+                <TrashIcon size={17} />
+              </span>
+              <b>내가 남긴 구름은 삭제 가능</b>
+              <span>언제든 관리할 수 있어요</span>
+            </div>
+          </div>
 
           {isAdmin && (
             <button
@@ -2847,20 +2902,34 @@ const receivedCloudItems = [
               🔧 관리자 페이지
             </button>
           )}
-
         </div>
       )}
 
 	      {page === "profile" && (
 	        <div className="card">
-          <h2>마이페이지</h2>
+          <div className="mypageHeaderRow">
+            <h2>마이페이지</h2>
+            <button
+              type="button"
+              className="mypageGearBtn"
+              aria-label="설정"
+              onClick={() => setShowPrivacyPolicy(true)}
+            >
+              <GearIcon size={18} />
+            </button>
+          </div>
 
           <div className="mypageHero">
-            <p className="mypageGreeting">
-              {profile.nickname || "단꿈러"}님의 구름 보관함
-            </p>
-            <p>프로필, 내가 띄운 구름, 받은 알림을 한곳에서 관리해요.</p>
+            <div className="mypageAvatar">☁️</div>
+            <div className="mypageHeroBody">
+              <div className="mypageHeroNameRow">
+                <b>{profile.nickname || "단꿈러"}</b>
+                <span className="mypageEditBadge">프로필 편집</span>
+              </div>
+              <p>내가 남긴 구름과 받은 알림을 한곳에서 관리해요.</p>
+            </div>
           </div>
+
           <div className="myCloudHeroBox">
              <p className="myCloudHeroTitle">☁️ 나에게 온 구름 {receivedCloudCount}개</p>
              <p className="myCloudHeroDesc">
@@ -2888,24 +2957,48 @@ const receivedCloudItems = [
 
           <div className="mypageQuickMenu">
             <button
-              className="white"
+              type="button"
+              className="mypageMenuRow"
               onClick={() => {
                 setMatchingMode("sent");
                 openMatchingPage();
               }}
             >
-              내가 보낸 구름 관리
+              <span className="mypageMenuIcon blue">
+                <PaperPlaneIcon size={18} />
+              </span>
+              <span className="mypageMenuBody">
+                <b>내가 보낸 구름 관리</b>
+                <span>내가 남긴 구름과 응답 현황을 확인해요.</span>
+              </span>
+              <span className="mypageMenuChevron">
+                <ChevronRightIcon size={18} />
+              </span>
             </button>
             <button
-              className="white"
+              type="button"
+              className="mypageMenuRow"
               onClick={() => {
                 setMatchingMode("notifications");
                 openMatchingPage();
               }}
             >
-              알림 보기
+              <span className="mypageMenuIcon amber">
+                <BellIcon size={18} />
+              </span>
+              <span className="mypageMenuBody">
+                <b>알림 보기</b>
+                <span>새로운 구름, 응답 등 알림을 확인해요.</span>
+              </span>
+              <span className="mypageMenuChevron">
+                <ChevronRightIcon size={18} />
+              </span>
             </button>
           </div>
+
+          <h3 className="manageSectionTitle" style={{ marginTop: 22, textAlign: "left" }}>
+            프로필 정보 수정
+          </h3>
 
           <input
             placeholder="닉네임 예: 정우23"
@@ -2998,12 +3091,7 @@ const receivedCloudItems = [
 
           <p className="stepText">{crushStep} / 9</p>
 
-          <div className="progressBar">
-            <div
-              className="progressFill"
-              style={{ width: `${progressPercent}%` }}
-            />
-          </div>
+          <StepProgress total={9} current={crushStep} />
 
           <div className="draftActionRow">
             <button type="button" className="white smallButton" onClick={saveDraft}>
@@ -3793,12 +3881,7 @@ const receivedCloudItems = [
 
           <p className="stepText">{searchStep} / 5</p>
 
-          <div className="progressBar">
-            <div
-              className="progressFill"
-              style={{ width: `${searchProgressPercent}%` }}
-            />
-          </div>
+          <StepProgress total={5} current={searchStep} />
 
           <p className="subtitle">
             한 번에 전부 고르지 않고,
@@ -4559,12 +4642,40 @@ const receivedCloudItems = [
 )}
       {page === "matching" && (
         <div className="card manageCard">
-          <h2>내 구름 관리</h2>
-
-          <p className="subtitle">
-            내가 띄운 구름, 받은 구름, 알림, 날짜별 활동 기록을 한눈에 확인할 수
-            있어요.
-          </p>
+          <div className="manageHeaderRow">
+            <div>
+              <h2>내 구름</h2>
+              <p className="subtitle">
+                내가 남긴 구름과 받은 구름을 한눈에 확인해보세요.
+              </p>
+            </div>
+            <div className="manageHeaderIcons">
+              <button
+                type="button"
+                className={
+                  matchingMode === "notifications"
+                    ? "manageHeaderIconBtn active"
+                    : "manageHeaderIconBtn"
+                }
+                aria-label="알림"
+                onClick={() => setMatchingMode("notifications")}
+              >
+                <BellIcon size={17} />
+              </button>
+              <button
+                type="button"
+                className={
+                  matchingMode === "calendar"
+                    ? "manageHeaderIconBtn active"
+                    : "manageHeaderIconBtn"
+                }
+                aria-label="날짜별 기록"
+                onClick={() => setMatchingMode("calendar")}
+              >
+                <CalendarIcon size={17} />
+              </button>
+            </div>
+          </div>
 
           <div className="manageTabs fourTabs">
             <button
@@ -4582,38 +4693,29 @@ const receivedCloudItems = [
             >
               받은 구름
             </button>
-
-            <button
-              className={
-                matchingMode === "notifications" ? "manageTab active" : "manageTab"
-              }
-              onClick={() => setMatchingMode("notifications")}
-            >
-              알림
-            </button>
-
-            <button
-              className={
-                matchingMode === "calendar" ? "manageTab active" : "manageTab"
-              }
-              onClick={() => setMatchingMode("calendar")}
-            >
-              날짜별 기록
-            </button>
           </div>
 
           <div className="manageSummaryGrid">
             <div className="manageSummaryItem">
+              <span className="manageSummaryIcon">
+                <PaperPlaneIcon size={16} />
+              </span>
               <span>띄운 구름</span>
               <b>{mySentPosts.length}</b>
             </div>
 
             <div className="manageSummaryItem">
+              <span className="manageSummaryIcon">
+                <ChatIcon size={16} />
+              </span>
               <span>도착 응답</span>
               <b>{totalSentResponseCount}</b>
             </div>
 
             <div className="manageSummaryItem">
+              <span className="manageSummaryIcon">
+                <ClockIcon size={16} />
+              </span>
               <span>나에게 온 구름</span>
               <b>{receivedCloudCount}</b>
             </div>
