@@ -4,6 +4,7 @@ import "./App.css";
 import "./theme-v2.css";
 import { supabase } from "./supabase";
 import { OptionButton } from "./components/OptionButton";
+import { ChatRoom } from "./components/ChatRoom";
 import {
   GenderFemaleIcon,
   GenderMaleIcon,
@@ -241,8 +242,12 @@ const [verificationFile, setVerificationFile] = useState(null);
   const [searchSubmitting, setSearchSubmitting] = useState(false);
   const [claimSubmitting, setClaimSubmitting] = useState(false);
   const [secondCloudSubmittingId, setSecondCloudSubmittingId] = useState(null);
-  const [acceptingClaimId, setAcceptingClaimId] = useState(null);
   const [deletingPostId, setDeletingPostId] = useState(null);
+  const [claimActionSubmittingId, setClaimActionSubmittingId] = useState(null);
+  const [chatPreviewClaim, setChatPreviewClaim] = useState(null);
+  const [chatPreviewProfile, setChatPreviewProfile] = useState(null);
+  const [chatActionSubmitting, setChatActionSubmitting] = useState(false);
+  const [activeChatRoomId, setActiveChatRoomId] = useState(null);
 
   const [mySentPosts, setMySentPosts] = useState([]);
   const [sentClaims, setSentClaims] = useState([]);
@@ -429,6 +434,24 @@ const [verificationFile, setVerificationFile] = useState(null);
         student_year: user?.user_metadata?.student_id || "",
       }));
     }
+  };
+
+  const fetchPublicProfile = async (userId) => {
+    if (!userId) return null;
+
+    const { data, error } = await supabase
+      .from("profiles_public")
+      .select("nickname, department, student_year, bio")
+      .eq("user_id", userId)
+      .maybeSingle();
+
+    if (error) {
+      console.log(error);
+      toast.error("프로필을 불러오지 못했어요.");
+      return null;
+    }
+
+    return data;
   };
 
   useEffect(() => {
@@ -982,6 +1005,8 @@ const handleLogin = async () => {
     toast.success("임시저장을 삭제했어요.");
   };
 
+const MATCH_THRESHOLD = 50;
+
 const normalizeMatchText = (value) => {
   if (!value || value === "잘 모르겠음") return "";
   return String(value).replace(/\s/g, "").toLowerCase();
@@ -1461,7 +1486,7 @@ const hideSearchResult = (postId) => {
       return;
     }
 
-    const finalResults = (data || [])
+    const scoredResults = (data || [])
       .filter((post) => post.sender_user_id !== currentUser.id)
       .map((post) => {
         const match = getPostMatchScore(post);
@@ -1472,6 +1497,9 @@ const hideSearchResult = (postId) => {
         };
       })
       .sort((a, b) => (b.match_score || 0) - (a.match_score || 0));
+    const finalResults = scoredResults.filter(
+      (post) => post.match_score >= MATCH_THRESHOLD
+    );
     const finalSearchHairFeature = getFinalSearchHairFeature();
 
     const { error: checkLogError } = await supabase.from("cloud_checks").insert([
@@ -1508,14 +1536,15 @@ const hideSearchResult = (postId) => {
     console.log(checkLogError);
   }
 
-    if (finalResults.length > 0) {
+    if (scoredResults.length > 0) {
       const viewedAt = new Date().toISOString();
-      const viewRows = finalResults.map((post) => ({
+      const viewRows = scoredResults.map((post) => ({
         crush_post_id: String(post.id),
         viewer_user_id: currentUser.id,
         viewer_nickname: profile.nickname,
         viewer_instagram: cleanInstagram(profile.instagram_id),
         viewed_at: viewedAt,
+        match_score: post.match_score,
       }));
 
       const { error: viewError } = await supabase
@@ -1799,6 +1828,12 @@ const hideSearchResult = (postId) => {
     setPage("matching");
     await loadMyActivityData();
   };
+  const openChatsPage = async () => {
+    if (!checkProfileRequired()) return;
+
+    setPage("chats");
+    await loadMyActivityData();
+  };
   const loadCloudWeather = async (targetDate = weatherDate) => {
   if (!checkProfileRequired()) return;
 
@@ -1865,6 +1900,11 @@ const sendSecondCloudToView = async (view) => {
 
   if (view.second_cloud_sent_at) {
     toast.error("이미 뭉게구름을 보냈어요.");
+    return;
+  }
+
+  if (view.match_score == null || view.match_score < MATCH_THRESHOLD) {
+    toast.error("일치도가 낮아 뭉게구름을 보낼 수 없어요.");
     return;
   }
 
@@ -1947,27 +1987,146 @@ const sendSecondCloudToClaim = async (claim) => {
     setSecondCloudSubmittingId(null);
   }
 };
-  const acceptClaim = async (claimId) => {
-    if (acceptingClaimId) return;
+  const requestChat = async (claimId) => {
+    if (claimActionSubmittingId) return;
 
-    setAcceptingClaimId(claimId);
+    setClaimActionSubmittingId(claimId);
 
     try {
       const { error } = await supabase
         .from("claims")
-        .update({ status: "accepted" })
+        .update({ status: "chat_requested", responded_at: new Date().toISOString() })
         .eq("id", claimId);
 
       if (error) {
-        toast.error("수락에 실패했어요: " + error.message);
+        toast.error("대화 요청에 실패했어요: " + error.message);
         console.log(error);
         return;
       }
 
-      toast.success("매칭을 수락했어요! 이제 서로의 인스타를 확인할 수 있어요.");
+      toast.success("대화 요청을 보냈어요.");
       openMatchingPage();
     } finally {
-      setAcceptingClaimId(null);
+      setClaimActionSubmittingId(null);
+    }
+  };
+
+  const rejectClaim = async (claimId, rejectedBy) => {
+    if (claimActionSubmittingId) return;
+
+    const ok = window.confirm("이 응답을 거절할까요?");
+    if (!ok) return;
+
+    setClaimActionSubmittingId(claimId);
+
+    try {
+      const { error } = await supabase
+        .from("claims")
+        .update({
+          status: "rejected",
+          rejected_by: rejectedBy,
+          responded_at: new Date().toISOString(),
+        })
+        .eq("id", claimId);
+
+      if (error) {
+        toast.error("거절에 실패했어요: " + error.message);
+        console.log(error);
+        return;
+      }
+
+      toast.success("거절했어요.");
+      openMatchingPage();
+    } finally {
+      setClaimActionSubmittingId(null);
+    }
+  };
+
+  const openChatPreview = async (claim) => {
+    setChatPreviewClaim(claim);
+    setChatPreviewProfile(null);
+    setPage("chatPreview");
+
+    const senderUserId = claim.post?.sender_user_id;
+    if (!senderUserId) return;
+
+    const p = await fetchPublicProfile(senderUserId);
+    setChatPreviewProfile(p);
+  };
+
+  const openChatRoom = (roomId) => {
+    if (!roomId) return;
+    setActiveChatRoomId(roomId);
+    setPage("chatRoom");
+  };
+
+  const acceptChatRequest = async (claim) => {
+    if (!claim?.id || chatActionSubmitting) return;
+
+    setChatActionSubmitting(true);
+
+    try {
+      const { error: claimError } = await supabase
+        .from("claims")
+        .update({ status: "chat_accepted", responded_at: new Date().toISOString() })
+        .eq("id", claim.id);
+
+      if (claimError) {
+        toast.error("수락에 실패했어요: " + claimError.message);
+        console.log(claimError);
+        return;
+      }
+
+      const { data: room, error: roomError } = await supabase
+        .from("chat_rooms")
+        .upsert(
+          [
+            {
+              claim_id: claim.id,
+              crush_post_id: claim.crush_post_id,
+              sender_user_id: claim.post?.sender_user_id,
+              claimer_user_id: claim.claimer_user_id,
+            },
+          ],
+          { onConflict: "claim_id", ignoreDuplicates: true }
+        )
+        .select()
+        .maybeSingle();
+
+      if (roomError) {
+        toast.error("채팅방을 여는데 실패했어요: " + roomError.message);
+        console.log(roomError);
+        return;
+      }
+
+      let roomId = room?.id;
+
+      if (!roomId) {
+        const { data: existingRoom, error: fetchRoomError } = await supabase
+          .from("chat_rooms")
+          .select("id")
+          .eq("claim_id", claim.id)
+          .maybeSingle();
+
+        if (fetchRoomError) {
+          console.log(fetchRoomError);
+        }
+        roomId = existingRoom?.id;
+      }
+
+      const { error: chatRoomLinkError } = await supabase
+        .from("claims")
+        .update({ chat_room_id: roomId })
+        .eq("id", claim.id);
+
+      if (chatRoomLinkError) {
+        console.log(chatRoomLinkError);
+      }
+
+      toast.success("대화를 수락했어요!");
+      openChatRoom(roomId);
+    } finally {
+      setChatActionSubmitting(false);
     }
   };
 
@@ -2086,6 +2245,23 @@ const receivedCloudItems = [
     (claim) => claim.status === "accepted"
   ).length;
 
+  const myChatRooms = [
+    ...sentClaims
+      .filter((claim) => claim.status === "chat_accepted" && claim.chat_room_id)
+      .map((claim) => ({
+        chatRoomId: claim.chat_room_id,
+        otherNickname: claim.claimer_nickname || "상대",
+        updatedAt: claim.responded_at || claim.created_at,
+      })),
+    ...receivedClaims
+      .filter((claim) => claim.status === "chat_accepted" && claim.chat_room_id)
+      .map((claim) => ({
+        chatRoomId: claim.chat_room_id,
+        otherNickname: claim.post?.sender_nickname || "상대",
+        updatedAt: claim.responded_at || claim.created_at,
+      })),
+  ].sort((a, b) => new Date(b.updatedAt) - new Date(a.updatedAt));
+
   const activityDateOptions = [
   ...new Set([
     ...mySentPosts.map((post) => post.seen_date).filter(Boolean),
@@ -2195,7 +2371,11 @@ const receivedCloudItems = [
       <p>
         상태:{" "}
         <b>
-          {claim.status === "accepted" ? "매칭 수락됨" : "응답 대기 중"}
+          {claim.status === "accepted" && "매칭 수락됨(레거시)"}
+          {claim.status === "chat_requested" && "대화 요청함"}
+          {claim.status === "chat_accepted" && "대화 중"}
+          {claim.status === "rejected" && "거절됨"}
+          {claim.status === "pending" && "응답 대기 중"}
         </b>
       </p>
 
@@ -2220,14 +2400,42 @@ const receivedCloudItems = [
       )}
 
       {claim.status === "pending" && (
-	        <button
-	          onClick={() => acceptClaim(claim.id)}
-	          disabled={acceptingClaimId === claim.id}
-	        >
-	          {acceptingClaimId === claim.id
-	            ? "수락 중..."
-	            : "이 사람 맞아요, 인스타 교환하기"}
-	        </button>
+        <div className="claimActionRow">
+          <button
+            onClick={() => requestChat(claim.id)}
+            disabled={claimActionSubmittingId === claim.id}
+          >
+            {claimActionSubmittingId === claim.id ? "요청 중..." : "대화하기"}
+          </button>
+          <button
+            type="button"
+            className="white"
+            onClick={() => rejectClaim(claim.id, "sender")}
+            disabled={claimActionSubmittingId === claim.id}
+          >
+            거절
+          </button>
+        </div>
+      )}
+
+      {claim.status === "chat_requested" && (
+        <div className="noticeBox">
+          <p>대화 요청을 보냈어요. 상대의 수락을 기다리고 있어요.</p>
+        </div>
+      )}
+
+      {claim.status === "chat_accepted" && (
+        <button onClick={() => openChatRoom(claim.chat_room_id)}>
+          채팅방 열기
+        </button>
+      )}
+
+      {claim.status === "rejected" && (
+        <p className="notice">
+          {claim.rejected_by === "sender"
+            ? "이 응답을 거절했어요."
+            : "상대가 대화를 원하지 않았어요."}
+        </p>
       )}
 
       {claim.status === "accepted" && (
@@ -2311,7 +2519,7 @@ const receivedCloudItems = [
           <div className="mungaeSentBox">
             <p>☁️ 뭉게구름을 보냈어요.</p>
           </div>
-        ) : (
+        ) : view.match_score != null && view.match_score >= MATCH_THRESHOLD ? (
 	          <button
 	            type="button"
 	            className="secondCloudButton"
@@ -2322,6 +2530,8 @@ const receivedCloudItems = [
 	              ? "구름 보내는 중..."
 	              : "☁️ 구름 보내기"}
 	          </button>
+        ) : (
+          <p className="helperText">일치도가 낮아 뭉게구름을 보낼 수 없어요.</p>
         )}
       </div>
     ))}
@@ -2371,6 +2581,9 @@ const receivedCloudItems = [
                 {post.seen_date}, {post.time_period}, {post.place}
               </b>
             </p>
+            <p>
+              구름을 보낸 사람: <b>{post.sender_nickname || "-"}</b>
+            </p>
 
             {renderPostQuestionAnswer(post)}
 
@@ -2409,15 +2622,38 @@ const receivedCloudItems = [
         <p>
           상태:{" "}
           <b>
-            {claim.status === "accepted" ? "매칭 수락됨" : "상대 수락 대기 중"}
+            {claim.status === "accepted" && "매칭 수락됨(레거시)"}
+            {claim.status === "chat_requested" && "대화 요청 도착"}
+            {claim.status === "chat_accepted" && "대화 중"}
+            {claim.status === "rejected" && "거절됨"}
+            {claim.status === "pending" && "상대 응답 대기 중"}
           </b>
         </p>
 
         {claim.status === "pending" && (
           <div className="noticeBox">
-            <p>아직 상대가 인스타 교환을 수락하지 않았어요.</p>
-            <p>상대가 수락하면 서로의 인스타가 공개돼요.</p>
+            <p>아직 상대가 응답하지 않았어요.</p>
           </div>
+        )}
+
+        {claim.status === "chat_requested" && (
+          <button onClick={() => openChatPreview(claim)}>
+            상대가 대화를 원해요, 확인하기
+          </button>
+        )}
+
+        {claim.status === "chat_accepted" && (
+          <button onClick={() => openChatRoom(claim.chat_room_id)}>
+            채팅방 열기
+          </button>
+        )}
+
+        {claim.status === "rejected" && (
+          <p className="notice">
+            {claim.rejected_by === "claimer"
+              ? "이 대화를 거절했어요."
+              : "아쉽지만 이번엔 연결되지 않았어요."}
+          </p>
         )}
 
         {claim.status === "accepted" && (
@@ -2470,11 +2706,11 @@ const receivedCloudItems = [
         },
       },
       {
-        key: "profile",
-        label: "프로필",
-        icon: <PersonIcon size={20} />,
-        active: page === "profile",
-        onClick: openProfilePage,
+        key: "chats",
+        label: "채팅",
+        icon: <ChatIcon size={20} />,
+        active: page === "chats" || page === "chatRoom" || page === "chatPreview",
+        onClick: openChatsPage,
       },
     ];
 
@@ -4506,6 +4742,95 @@ const receivedCloudItems = [
           <button onClick={() => setPage("home")} className="white">
             홈으로
           </button>
+        </div>
+      )}
+      {page === "chatPreview" && (
+        <div className="card">
+          <h2>대화 요청이 왔어요</h2>
+
+          {!chatPreviewProfile ? (
+            <p className="notice">불러오는 중이에요...</p>
+          ) : (
+            <div className="noticeBox">
+              <p>
+                <b>{chatPreviewProfile.nickname}</b>
+              </p>
+              <p>
+                {chatPreviewProfile.department} {chatPreviewProfile.student_year}학번
+              </p>
+              <p className="message">
+                “{chatPreviewProfile.bio || "한줄소개가 없어요."}”
+              </p>
+            </div>
+          )}
+
+          <button
+            onClick={() => acceptChatRequest(chatPreviewClaim)}
+            disabled={chatActionSubmitting || !chatPreviewProfile}
+          >
+            {chatActionSubmitting ? "수락 중..." : "대화 수락하기"}
+          </button>
+
+          <button
+            type="button"
+            className="white"
+            onClick={() => rejectClaim(chatPreviewClaim.id, "claimer")}
+          >
+            거절
+          </button>
+
+          <button onClick={() => setPage("matching")} className="white">
+            내 구름 관리로 가기
+          </button>
+        </div>
+      )}
+      {page === "chatRoom" && activeChatRoomId && (
+        <ChatRoom
+          roomId={activeChatRoomId}
+          currentUserId={currentUser.id}
+          onClose={() => setPage("chats")}
+        />
+      )}
+      {page === "chats" && (
+        <div className="card manageCard">
+          <div className="manageHeaderRow">
+            <div>
+              <h2>채팅</h2>
+              <p className="subtitle">
+                대화가 수락된 상대와 여기서 이어갈 수 있어요.
+              </p>
+            </div>
+          </div>
+
+          {matchingLoading && <p className="notice">불러오는 중이에요...</p>}
+
+          {!matchingLoading && (
+            <div className="manageSection">
+              {myChatRooms.length === 0 && (
+                <p className="noticeBox">
+                  아직 대화 중인 채팅방이 없어요. 대화 요청이 수락되면 여기에
+                  표시돼요.
+                </p>
+              )}
+
+              {myChatRooms.map((room) => (
+                <button
+                  type="button"
+                  key={room.chatRoomId}
+                  className="chatRoomListItem"
+                  onClick={() => openChatRoom(room.chatRoomId)}
+                >
+                  <span className="chatRoomListIcon">💬</span>
+                  <span className="chatRoomListInfo">
+                    <b>{room.otherNickname}</b>
+                    <span className="helperText">
+                      {formatShortDateTime(room.updatedAt)}
+                    </span>
+                  </span>
+                </button>
+              ))}
+            </div>
+          )}
         </div>
       )}
       {page === "weather" && (

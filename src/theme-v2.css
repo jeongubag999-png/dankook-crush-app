@@ -764,7 +764,7 @@ body {
 
 .app .manageTabs.fourTabs {
   display: grid;
-  grid-template-columns: 1fr 1fr;
+  grid-template-columns: repeat(var(--manage-tab-count, 2), 1fr);
   background: var(--v2-surface-soft);
   border-radius: 999px;
   padding: 4px;
@@ -778,8 +778,10 @@ body {
   border-radius: 999px;
   color: var(--v2-muted);
   font-weight: 700;
-  padding: 10px 6px;
+  font-size: 13px;
+  padding: 10px 4px;
   box-shadow: none;
+  white-space: nowrap;
 }
 
 .app .manageTabs.fourTabs .manageTab.active {
@@ -862,4 +864,99 @@ body {
   border: 1px solid var(--v2-line);
   border-radius: var(--v2-radius-md);
   text-align: left;
+}
+
+/* ----- 대화하기/거절, 채팅 ----- */
+
+.app .claimActionRow {
+  display: flex;
+  gap: 8px;
+}
+
+.app .claimActionRow button {
+  flex: 1;
+}
+
+.app .chatRoomCard {
+  display: flex;
+  flex-direction: column;
+  height: min(72vh, 640px);
+}
+
+.app .chatMessageList {
+  flex: 1;
+  overflow-y: auto;
+  display: flex;
+  flex-direction: column;
+  gap: 8px;
+  padding: 4px 2px;
+}
+
+.app .chatBubble {
+  max-width: 78%;
+  padding: 10px 14px;
+  border-radius: var(--v2-radius-sm);
+  font-size: 14.5px;
+  line-height: 1.4;
+  word-break: break-word;
+}
+
+.app .chatBubble.mine {
+  align-self: flex-end;
+  background: linear-gradient(135deg, var(--v2-blue) 0%, var(--v2-blue-dark) 100%);
+  color: #fff;
+  border-bottom-right-radius: 4px;
+}
+
+.app .chatBubble.theirs {
+  align-self: flex-start;
+  background: var(--v2-surface-soft);
+  color: var(--v2-ink);
+  border: 1px solid var(--v2-line);
+  border-bottom-left-radius: 4px;
+}
+
+.app .chatInputRow {
+  display: flex;
+  gap: 8px;
+  margin-top: 10px;
+}
+
+.app .chatInputRow input {
+  flex: 1;
+  border: 1px solid var(--v2-line);
+  background: var(--v2-surface-soft);
+  border-radius: var(--v2-radius-sm);
+  padding: 10px 14px;
+  color: var(--v2-ink);
+  font-family: inherit;
+}
+
+.app .chatInputRow button {
+  white-space: nowrap;
+}
+
+.app .chatRoomListItem {
+  display: flex;
+  align-items: center;
+  gap: 12px;
+  width: 100%;
+  background: var(--v2-surface);
+  border: 1px solid var(--v2-line);
+  border-radius: var(--v2-radius-md);
+  padding: 14px 16px;
+  margin-bottom: 8px;
+  box-shadow: none;
+  color: var(--v2-ink);
+  text-align: left;
+}
+
+.app .chatRoomListIcon {
+  font-size: 20px;
+}
+
+.app .chatRoomListInfo {
+  display: flex;
+  flex-direction: column;
+  gap: 2px;
 }
