@@ -46,10 +46,7 @@ import {
   bottomColorOptions,
   bagOptions,
   earphoneOptions,
-  heightFeelingOptions,
   shoeOptions,
-  togetherSituationOptions,
-  moodOptions,
   matchOptions,
 } from "./constants";
 import {
@@ -64,6 +61,7 @@ import {
   cleanMessage,
   formatChatListTime,
   makeHairFeature,
+  getOxLabel,
   cleanTagText,
   getPostTopText,
   getPostBottomText,
@@ -180,13 +178,8 @@ const [verificationFile, setVerificationFile] = useState(null);
     earphone_type: "",
     glasses_type: "",
     item_detail: "",
-    height_feeling: "",
     shoe_type: "",
     shoe_detail: "",
-    together_situation: "",
-    situation_detail: "",
-    mood: "",
-    mood_detail: "",
     message: "",
   };
 
@@ -345,22 +338,6 @@ const [verificationFile, setVerificationFile] = useState(null);
     if (!crushPost.outer_type) return "";
     if (crushPost.outer_type === "아우터 없음") return "아우터 없음";
     return `${crushPost.outer_type}${crushPost.outer_color ? ` ${crushPost.outer_color}` : ""}`;
-  };
-
-  const getFinalSituation = () => {
-    if (crushPost.situation_detail.trim()) {
-      return `${crushPost.together_situation} / 자세히:${crushPost.situation_detail.trim()}`;
-    }
-
-    return crushPost.together_situation;
-  };
-
-  const getFinalMood = () => {
-    if (crushPost.mood_detail.trim()) {
-      return `${crushPost.mood} / 자세히:${crushPost.mood_detail.trim()}`;
-    }
-
-    return crushPost.mood;
   };
 
   const resetProfile = () => {
@@ -1102,7 +1079,7 @@ const getPostMatchScore = (post) => {
     containsMatch(post.accessory, searchForm.glasses_type)
   ) {
     score += 10;
-    reasons.push("안경 착용 여부 일치");
+    reasons.push("안경 일치");
   }
 
   return {
@@ -1361,7 +1338,7 @@ const hideSearchResult = (postId) => {
     const finalHairFeature = getFinalHairFeature();
 
     if (!finalHairFeature || !crushPost.glasses_type) {
-      toast.error("머리 색깔, 모자 유무, 앞머리 유무, 안경 착용 여부를 선택해주세요.");
+      toast.error("머리 색깔, 모자, 앞머리, 안경를 선택해주세요.");
       setCrushStep(3);
       return;
     }
@@ -1372,9 +1349,10 @@ const hideSearchResult = (postId) => {
       !crushPost.outer_type ||
       (crushPost.outer_type !== "아우터 없음" && !crushPost.outer_color) ||
       !getFinalBottomType() ||
-      !crushPost.bottom_color
+      !crushPost.bottom_color ||
+      !crushPost.shoe_type
     ) {
-      toast.error("상의, 아우터, 하의 종류와 색상을 선택해주세요.");
+      toast.error("상의, 아우터, 하의, 신발을 선택해주세요.");
       setCrushStep(4);
       return;
     }
@@ -1382,17 +1360,6 @@ const hideSearchResult = (postId) => {
     if (!crushPost.bag_type || !crushPost.earphone_type) {
       toast.error("가방과 이어폰 정보를 선택해주세요.");
       setCrushStep(5);
-      return;
-    }
-
-    if (
-      !crushPost.height_feeling ||
-      !crushPost.shoe_type ||
-      !crushPost.together_situation ||
-      !crushPost.mood
-    ) {
-      toast.error("키 느낌, 신발, 같이 있었던 상황, 분위기를 선택해주세요.");
-      setCrushStep(6);
       return;
     }
 
@@ -1413,7 +1380,7 @@ const hideSearchResult = (postId) => {
       : "";
 
     const combinedStyle = `상의:${crushPost.top_type} ${crushPost.top_color}${topDetailText} / 아우터:${getFinalOuter()} / 하의:${getFinalBottomType()} ${crushPost.bottom_color}${bottomDetailText}`;
-    const combinedAccessory = `가방:${crushPost.bag_type} / 이어폰:${crushPost.earphone_type} / 안경:${crushPost.glasses_type || "잘 모르겠음"}${itemDetailText} / 키 느낌:${crushPost.height_feeling} / 신발:${crushPost.shoe_type}${shoeDetailText} / 상황:${getFinalSituation()} / 분위기:${getFinalMood()}`;
+    const combinedAccessory = `가방:${crushPost.bag_type} / 이어폰:${crushPost.earphone_type} / 안경:${crushPost.glasses_type || "잘 모르겠음"}${itemDetailText} / 신발:${crushPost.shoe_type}${shoeDetailText}`;
 
     setPostSubmitting(true);
 
@@ -3371,9 +3338,9 @@ const receivedCloudItems = [
             </div>
           )}
 
-          <p className="stepText">{crushStep} / 7</p>
+          <p className="stepText">{crushStep} / 6</p>
 
-          <StepProgress total={7} current={crushStep} />
+          <StepProgress total={6} current={crushStep} />
 
           <div className="draftActionRow">
             <button type="button" className="white smallButton" onClick={saveDraft}>
@@ -3503,8 +3470,8 @@ const receivedCloudItems = [
               </h3>
               <p className="questionDesc">
                 {crushPost.target_gender === "여자"
-                  ? "머리스타일, 머리 색깔, 모자 유무, 앞머리 유무, 안경 착용 여부를 순서대로 선택해주세요."
-                  : "머리 색깔, 모자 유무, 앞머리 유무, 안경 착용 여부를 순서대로 선택해주세요."}
+                  ? "머리스타일, 머리 색깔, 모자, 앞머리, 안경를 순서대로 선택해주세요."
+                  : "머리 색깔, 모자, 앞머리, 안경를 순서대로 선택해주세요."}
               </p>
 
               {crushPost.target_gender === "여자" ? (
@@ -3548,7 +3515,7 @@ const receivedCloudItems = [
                   </div>
 
                   <div className="formGroup">
-                    <label className="formLabel">모자 유무</label>
+                    <label className="formLabel">모자</label>
                     <div className="optionGrid">
                       {hatOptions.map((option) => (
                         <OptionButton
@@ -3556,6 +3523,7 @@ const receivedCloudItems = [
                           value={option}
                           selected={crushPost.female_hat === option}
                           onClick={() => updateCrushPost("female_hat", option)}
+                          label={getOxLabel(option)}
                           full={option === "잘 모르겠음"}
                         />
                       ))}
@@ -3563,7 +3531,7 @@ const receivedCloudItems = [
                   </div>
 
                   <div className="formGroup">
-                    <label className="formLabel">앞머리 유무</label>
+                    <label className="formLabel">앞머리</label>
                     <div className="optionGrid">
                       {bangsOptions.map((option) => (
                         <OptionButton
@@ -3571,6 +3539,7 @@ const receivedCloudItems = [
                           value={option}
                           selected={crushPost.female_bangs === option}
                           onClick={() => updateCrushPost("female_bangs", option)}
+                          label={getOxLabel(option)}
                           full={option === "잘 모르겠음"}
                         />
                       ))}
@@ -3595,7 +3564,7 @@ const receivedCloudItems = [
                   </div>
 
                   <div className="formGroup">
-                    <label className="formLabel">모자 유무</label>
+                    <label className="formLabel">모자</label>
                     <div className="optionGrid">
                       {hatOptions.map((option) => (
                         <OptionButton
@@ -3603,6 +3572,7 @@ const receivedCloudItems = [
                           value={option}
                           selected={crushPost.male_hat === option}
                           onClick={() => updateCrushPost("male_hat", option)}
+                          label={getOxLabel(option)}
                           full={option === "잘 모르겠음"}
                         />
                       ))}
@@ -3610,7 +3580,7 @@ const receivedCloudItems = [
                   </div>
 
                   <div className="formGroup">
-                    <label className="formLabel">앞머리 유무</label>
+                    <label className="formLabel">앞머리</label>
                     <div className="optionGrid">
                       {bangsOptions.map((option) => (
                         <OptionButton
@@ -3618,6 +3588,7 @@ const receivedCloudItems = [
                           value={option}
                           selected={crushPost.male_bangs === option}
                           onClick={() => updateCrushPost("male_bangs", option)}
+                          label={getOxLabel(option)}
                           full={option === "잘 모르겠음"}
                         />
                       ))}
@@ -3627,7 +3598,7 @@ const receivedCloudItems = [
               )}
 
               <div className="formGroup">
-                <label className="formLabel">안경 착용 여부</label>
+                <label className="formLabel">안경</label>
                 <div className="optionGrid">
                   {glassesOptions.map((option) => (
                     <OptionButton
@@ -3635,6 +3606,7 @@ const receivedCloudItems = [
                       value={option}
                       selected={crushPost.glasses_type === option}
                       onClick={() => updateCrushPost("glasses_type", option)}
+                      label={getOxLabel(option)}
                       full={option === "잘 모르겠음"}
                     />
                   ))}
@@ -3645,7 +3617,7 @@ const receivedCloudItems = [
                 onClick={() => {
                   if (!getFinalHairFeature() || !crushPost.glasses_type) {
                     toast.error(
-                      "머리 색깔, 모자 유무, 앞머리 유무, 안경 착용 여부를 선택해주세요."
+                      "머리 색깔, 모자, 앞머리, 안경를 선택해주세요."
                     );
                     return;
                   }
@@ -3783,6 +3755,31 @@ const receivedCloudItems = [
                 </p>
               </div>
 
+              <div className="formGroup">
+                <label className="formLabel">신발</label>
+                <select
+                  value={crushPost.shoe_type}
+                  onChange={(e) => updateCrushPost("shoe_type", e.target.value)}
+                >
+                  <option value="">신발 선택</option>
+                  {shoeOptions.map((option) => (
+                    <option key={option}>{option}</option>
+                  ))}
+                </select>
+              </div>
+
+              <div className="formGroup">
+                <label className="formLabel">신발 추가 설명 선택사항</label>
+                <input
+                  placeholder="예: 흰색 나이키 운동화 느낌, 검정 컨버스, 크록스에 지비츠"
+                  value={crushPost.shoe_detail}
+                  onChange={(e) => updateCrushPost("shoe_detail", e.target.value)}
+                />
+                <p className="helperText">
+                  브랜드를 몰라도 색, 모양, 느낌만 적어도 괜찮아요.
+                </p>
+              </div>
+
               <button
                 onClick={() => {
                   if (
@@ -3791,9 +3788,10 @@ const receivedCloudItems = [
                     !crushPost.outer_type ||
                     (crushPost.outer_type !== "아우터 없음" && !crushPost.outer_color) ||
                     !getFinalBottomType() ||
-                    !crushPost.bottom_color
+                    !crushPost.bottom_color ||
+                    !crushPost.shoe_type
                   ) {
-                    toast.error("상의, 아우터, 하의 종류와 색상을 선택해주세요.");
+                    toast.error("상의, 아우터, 하의, 신발을 선택해주세요.");
                     return;
                   }
                   setCrushStep(5);
@@ -3808,7 +3806,7 @@ const receivedCloudItems = [
             <>
               <h3 className="questionTitle">소지품이 기억나나요?</h3>
               <p className="questionDesc">
-                가방 유무와 이어폰/헤드셋 여부를 선택해주세요.
+                가방과 이어폰/헤드셋 여부를 선택해주세요.
               </p>
 
               <div className="formGroup">
@@ -3820,6 +3818,7 @@ const receivedCloudItems = [
                       value={option}
                       selected={crushPost.bag_type === option}
                       onClick={() => updateCrushPost("bag_type", option)}
+                      label={getOxLabel(option)}
                       full={option === "잘 모르겠음"}
                     />
                   ))}
@@ -3866,121 +3865,6 @@ const receivedCloudItems = [
           )}
 
           {crushStep === 6 && (
-            <>
-              <h3 className="questionTitle">그때의 느낌을 조금 더 알려주세요</h3>
-              <p className="questionDesc">
-                키 느낌, 신발, 같이 있었던 상황, 분위기는 상대가 본인인지
-                알아보는 데 도움이 돼요.
-              </p>
-
-              <div className="formGroup">
-                <label className="formLabel">키 느낌</label>
-                <select
-                  value={crushPost.height_feeling}
-                  onChange={(e) =>
-                    updateCrushPost("height_feeling", e.target.value)
-                  }
-                >
-                  <option value="">키 느낌 선택</option>
-                  {heightFeelingOptions.map((option) => (
-                    <option key={option}>{option}</option>
-                  ))}
-                </select>
-              </div>
-
-              <div className="formGroup">
-                <label className="formLabel">신발</label>
-                <select
-                  value={crushPost.shoe_type}
-                  onChange={(e) => updateCrushPost("shoe_type", e.target.value)}
-                >
-                  <option value="">신발 선택</option>
-                  {shoeOptions.map((option) => (
-                    <option key={option}>{option}</option>
-                  ))}
-                </select>
-              </div>
-
-              <div className="formGroup">
-                <label className="formLabel">신발 추가 설명 선택사항</label>
-                <input
-                  placeholder="예: 흰색 나이키 운동화 느낌, 검정 컨버스, 크록스에 지비츠"
-                  value={crushPost.shoe_detail}
-                  onChange={(e) => updateCrushPost("shoe_detail", e.target.value)}
-                />
-                <p className="helperText">
-                  브랜드를 몰라도 색, 모양, 느낌만 적어도 괜찮아요.
-                </p>
-              </div>
-
-              <div className="formGroup">
-                <label className="formLabel">같이 있었던 상황</label>
-                <select
-                  value={crushPost.together_situation}
-                  onChange={(e) =>
-                    updateCrushPost("together_situation", e.target.value)
-                  }
-                >
-                  <option value="">상황 선택</option>
-                  {togetherSituationOptions.map((option) => (
-                    <option key={option}>{option}</option>
-                  ))}
-                </select>
-              </div>
-
-              <div className="formGroup">
-                <label className="formLabel">상황 자세히 적기</label>
-                <input
-                  placeholder="예: 학식 먹는 중, 술집 앞에서 대화 중, 친구 기다리는 중"
-                  value={crushPost.situation_detail}
-                  onChange={(e) =>
-                    updateCrushPost("situation_detail", e.target.value)
-                  }
-                />
-              </div>
-
-              <div className="formGroup">
-                <label className="formLabel">분위기</label>
-                <select
-                  value={crushPost.mood}
-                  onChange={(e) => updateCrushPost("mood", e.target.value)}
-                >
-                  <option value="">분위기 선택</option>
-                  {moodOptions.map((option) => (
-                    <option key={option}>{option}</option>
-                  ))}
-                </select>
-              </div>
-
-              <div className="formGroup">
-                <label className="formLabel">분위기 자세히 적기</label>
-                <input
-                  placeholder="예: 웃는 모습이 밝았음, 차분하고 조용한 느낌"
-                  value={crushPost.mood_detail}
-                  onChange={(e) => updateCrushPost("mood_detail", e.target.value)}
-                />
-              </div>
-
-              <button
-                onClick={() => {
-                  if (
-                    !crushPost.height_feeling ||
-                    !crushPost.shoe_type ||
-                    !crushPost.together_situation ||
-                    !crushPost.mood
-                  ) {
-                    toast.error("키 느낌, 신발, 같이 있었던 상황, 분위기를 선택해주세요.");
-                    return;
-                  }
-                  setCrushStep(7);
-                }}
-              >
-                다음
-              </button>
-            </>
-          )}
-
-          {crushStep === 7 && (
             <>
               <h3 className="questionTitle">마지막으로 확인해주세요</h3>
               <p className="questionDesc">
@@ -4037,18 +3921,6 @@ const receivedCloudItems = [
                   </p>
                 )}
                 <p>
-                  <strong>소지품:</strong> {crushPost.bag_type || "-"},{" "}
-                  {crushPost.earphone_type || "-"}
-                </p>
-                {crushPost.item_detail.trim() && (
-                  <p>
-                    <strong>소지품 추가 설명:</strong> {crushPost.item_detail.trim()}
-                  </p>
-                )}
-                <p>
-                  <strong>키 느낌:</strong> {crushPost.height_feeling || "-"}
-                </p>
-                <p>
                   <strong>신발:</strong> {crushPost.shoe_type || "-"}
                 </p>
                 {crushPost.shoe_detail.trim() && (
@@ -4057,11 +3929,14 @@ const receivedCloudItems = [
                   </p>
                 )}
                 <p>
-                  <strong>상황:</strong> {getFinalSituation() || "-"}
+                  <strong>소지품:</strong> {crushPost.bag_type || "-"},{" "}
+                  {crushPost.earphone_type || "-"}
                 </p>
-                <p>
-                  <strong>분위기:</strong> {getFinalMood() || "-"}
-                </p>
+                {crushPost.item_detail.trim() && (
+                  <p>
+                    <strong>소지품 추가 설명:</strong> {crushPost.item_detail.trim()}
+                  </p>
+                )}
               </div>
 
 	              <button onClick={saveCrushPost} disabled={postSubmitting}>
@@ -4217,7 +4092,7 @@ const receivedCloudItems = [
             <>
               <h3 className="questionTitle">내 머리 정보가 기억나나요?</h3>
               <p className="questionDesc">
-                머리스타일, 머리 색깔, 모자 유무, 앞머리 유무를 골라주세요.
+                머리스타일, 머리 색깔, 모자, 앞머리를 골라주세요.
                 잘 모르겠는 항목은 “잘 모르겠음”을 선택해도 돼요.
               </p>
 
@@ -4272,7 +4147,7 @@ const receivedCloudItems = [
                   </div>
 
                   <div className="formGroup">
-                    <label className="formLabel">모자 유무</label>
+                    <label className="formLabel">모자</label>
                     <div className="optionGrid">
                       {hatOptions.map((option) => (
                         <OptionButton
@@ -4282,6 +4157,7 @@ const receivedCloudItems = [
                           onClick={() =>
                             setSearchForm({ ...searchForm, female_hat: option })
                           }
+                          label={getOxLabel(option)}
                           full={option === "잘 모르겠음"}
                         />
                       ))}
@@ -4289,7 +4165,7 @@ const receivedCloudItems = [
                   </div>
 
                   <div className="formGroup">
-                    <label className="formLabel">앞머리 유무</label>
+                    <label className="formLabel">앞머리</label>
                     <div className="optionGrid">
                       {bangsOptions.map((option) => (
                         <OptionButton
@@ -4302,6 +4178,7 @@ const receivedCloudItems = [
                               female_bangs: option,
                             })
                           }
+                          label={getOxLabel(option)}
                           full={option === "잘 모르겠음"}
                         />
                       ))}
@@ -4328,7 +4205,7 @@ const receivedCloudItems = [
                   </div>
 
                   <div className="formGroup">
-                    <label className="formLabel">모자 유무</label>
+                    <label className="formLabel">모자</label>
                     <div className="optionGrid">
                       {hatOptions.map((option) => (
                         <OptionButton
@@ -4338,6 +4215,7 @@ const receivedCloudItems = [
                           onClick={() =>
                             setSearchForm({ ...searchForm, male_hat: option })
                           }
+                          label={getOxLabel(option)}
                           full={option === "잘 모르겠음"}
                         />
                       ))}
@@ -4345,7 +4223,7 @@ const receivedCloudItems = [
                   </div>
 
                   <div className="formGroup">
-                    <label className="formLabel">앞머리 유무</label>
+                    <label className="formLabel">앞머리</label>
                     <div className="optionGrid">
                       {bangsOptions.map((option) => (
                         <OptionButton
@@ -4355,6 +4233,7 @@ const receivedCloudItems = [
                           onClick={() =>
                             setSearchForm({ ...searchForm, male_bangs: option })
                           }
+                          label={getOxLabel(option)}
                           full={option === "잘 모르겠음"}
                         />
                       ))}
@@ -4417,7 +4296,7 @@ const receivedCloudItems = [
               </div>
 
               <div className="formGroup">
-                <label className="formLabel">안경 착용 여부</label>
+                <label className="formLabel">안경</label>
                 <div className="optionGrid">
                   {glassesOptions.map((option) => (
                     <OptionButton
@@ -4425,6 +4304,7 @@ const receivedCloudItems = [
                       value={option}
                       selected={searchForm.glasses_type === option}
                       onClick={() => setSearchForm({ ...searchForm, glasses_type: option })}
+                      label={getOxLabel(option)}
                       full={option === "잘 모르겠음"}
                     />
                   ))}

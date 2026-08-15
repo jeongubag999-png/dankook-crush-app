@@ -185,8 +185,6 @@ export const earphoneOptions = [
   "잘 모르겠음",
 ];
 
-export const heightFeelingOptions = ["크다", "보통이다", "작다", "잘 모르겠음"];
-
 export const shoeOptions = [
   "운동화",
   "컨버스/반스 느낌",
@@ -194,32 +192,6 @@ export const shoeOptions = [
   "부츠",
   "샌들/슬리퍼",
   "크록스",
-  "잘 모르겠음",
-];
-
-export const togetherSituationOptions = [
-  "이동 중이었음",
-  "공부/과제 중이었음",
-  "밥 먹는 중이었음",
-  "카페에 있었음",
-  "기다리는 중이었음",
-  "통화 중이었음",
-  "대화 중이었음",
-  "술자리/모임 중이었음",
-  "잘 모르겠음",
-];
-
-export const moodOptions = [
-  "강아지상 느낌",
-  "고양이상 느낌",
-  "차분한 분위기",
-  "밝고 활발한 분위기",
-  "귀여운 분위기",
-  "시크한 분위기",
-  "깔끔한 분위기",
-  "힙한 분위기",
-  "따뜻한 분위기",
-  "조용한 분위기",
   "잘 모르겠음",
 ];
 

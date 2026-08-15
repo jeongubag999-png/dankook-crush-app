@@ -1,4 +1,4 @@
-export const OptionButton = ({ value, selected, onClick, full, icon }) => (
+export const OptionButton = ({ value, label, selected, onClick, full, icon }) => (
   <button
     type="button"
     className={`optionButton ${selected ? "selected" : ""} ${full ? "fullOption" : ""} ${icon ? "iconOption" : ""}`}
@@ -7,10 +7,10 @@ export const OptionButton = ({ value, selected, onClick, full, icon }) => (
     {icon ? (
       <>
         <span className="optionButtonIcon">{icon}</span>
-        <span className="optionLabel">{value}</span>
+        <span className="optionLabel">{label ?? value}</span>
       </>
     ) : (
-      value
+      label ?? value
     )}
   </button>
 );

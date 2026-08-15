@@ -140,6 +140,11 @@ export const cleanMessage = (message) => {
   return message.replace(/\[찾는 성별:\s*.*?\]\s*/, "");
 };
 
+export const getOxLabel = (option) => {
+  if (!option || option === "잘 모르겠음") return option;
+  return option.endsWith("없음") ? "X" : "O";
+};
+
 export const makeHairFeature = (style, color, hat, bangs) => {
   if (!color || !hat || !bangs) return "";
   return [style, color, hat, bangs].filter(Boolean).join(" / ");
