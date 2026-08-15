@@ -43,6 +43,7 @@ import {
   topColorOptions,
   outerTypeOptions,
   bottomTypeOptions,
+  femaleBottomTypeOptions,
   bottomColorOptions,
   bagOptions,
   earphoneOptions,
@@ -3716,7 +3717,10 @@ const receivedCloudItems = [
                   onChange={(e) => updateCrushPost("bottom_type", e.target.value)}
                 >
                   <option value="">하의 종류 선택</option>
-                  {bottomTypeOptions.map((option) => (
+                  {(crushPost.target_gender === "여자"
+                    ? femaleBottomTypeOptions
+                    : bottomTypeOptions
+                  ).map((option) => (
                     <option key={option}>{option}</option>
                   ))}
                 </select>
@@ -4341,7 +4345,10 @@ const receivedCloudItems = [
                   }
                 >
                   <option value="">하의 종류 선택</option>
-                  {bottomTypeOptions.map((option) => (
+                  {(profile.gender === "여자"
+                    ? femaleBottomTypeOptions
+                    : bottomTypeOptions
+                  ).map((option) => (
                     <option key={option}>{option}</option>
                   ))}
                 </select>
