@@ -141,8 +141,8 @@ export const cleanMessage = (message) => {
 };
 
 export const makeHairFeature = (style, color, hat, bangs) => {
-  if (!style || !color || !hat || !bangs) return "";
-  return `${style} / ${color} / ${hat} / ${bangs}`;
+  if (!color || !hat || !bangs) return "";
+  return [style, color, hat, bangs].filter(Boolean).join(" / ");
 };
 
 export const cleanTagText = (text) => {
@@ -159,10 +159,10 @@ export const cleanTagText = (text) => {
 export const getPostTopText = (post) => {
   const clothesStyleText = post.clothes_style || "";
   if (!clothesStyleText) return "";
-  if (clothesStyleText.includes("하의:")) {
-    return cleanTagText(clothesStyleText.split("하의:")[0].replace("상의:", "").trim());
-  }
-  return cleanTagText(clothesStyleText.replace("상의:", "").trim());
+  const rawTopText = clothesStyleText.includes("하의:")
+    ? clothesStyleText.split("하의:")[0].replace("상의:", "").trim()
+    : clothesStyleText.replace("상의:", "").trim();
+  return cleanTagText(rawTopText.replace(/\/\s*$/, "").trim());
 };
 
 export const getPostBottomText = (post) => {

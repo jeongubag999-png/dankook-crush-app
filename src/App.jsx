@@ -35,13 +35,13 @@ import {
   timeOptions,
   genderOptions,
   femaleHairStyleOptions,
-  maleHairStyleOptions,
   hairColorOptions,
   hatOptions,
   glassesOptions,
   bangsOptions,
   topTypeOptions,
   topColorOptions,
+  outerTypeOptions,
   bottomTypeOptions,
   bottomColorOptions,
   bagOptions,
@@ -170,6 +170,8 @@ const [verificationFile, setVerificationFile] = useState(null);
     top_type: "",
     top_color: "",
     top_detail: "",
+    outer_type: "",
+    outer_color: "",
     bottom_type: "",
     bottom_color: "",
     bottom_custom: "",
@@ -332,11 +334,17 @@ const [verificationFile, setVerificationFile] = useState(null);
 
 
   const getFinalBottomType = () => {
-    if (crushPost.bottom_type === "기타" && crushPost.bottom_custom.trim()) {
-      return `기타:${crushPost.bottom_custom.trim()}`;
+    if (crushPost.bottom_type === "기타 하의" && crushPost.bottom_custom.trim()) {
+      return `기타 하의:${crushPost.bottom_custom.trim()}`;
     }
 
     return crushPost.bottom_type;
+  };
+
+  const getFinalOuter = () => {
+    if (!crushPost.outer_type) return "";
+    if (crushPost.outer_type === "아우터 없음") return "아우터 없음";
+    return `${crushPost.outer_type}${crushPost.outer_color ? ` ${crushPost.outer_color}` : ""}`;
   };
 
   const getFinalSituation = () => {
@@ -1340,41 +1348,40 @@ const hideSearchResult = (postId) => {
       return;
     }
 
-    if (!crushPost.seen_date || !crushPost.time_period) {
-      toast.error("날짜와 시간을 선택해주세요.");
+    if (
+      !crushPost.seen_date ||
+      !crushPost.time_period ||
+      !getFinalPlace()
+    ) {
+      toast.error("날짜, 시간, 장소를 모두 선택해주세요.");
       setCrushStep(2);
-      return;
-    }
-
-    if (!getFinalPlace()) {
-      toast.error("장소를 선택하거나 직접 입력해주세요.");
-      setCrushStep(3);
       return;
     }
 
     const finalHairFeature = getFinalHairFeature();
 
-    if (!finalHairFeature) {
-      toast.error("머리스타일, 머리 색깔, 모자 유무, 앞머리 유무를 선택해주세요.");
+    if (!finalHairFeature || !crushPost.glasses_type) {
+      toast.error("머리 색깔, 모자 유무, 앞머리 유무, 안경 착용 여부를 선택해주세요.");
+      setCrushStep(3);
+      return;
+    }
+
+    if (
+      !crushPost.top_type ||
+      !crushPost.top_color ||
+      !crushPost.outer_type ||
+      (crushPost.outer_type !== "아우터 없음" && !crushPost.outer_color) ||
+      !getFinalBottomType() ||
+      !crushPost.bottom_color
+    ) {
+      toast.error("상의, 아우터, 하의 종류와 색상을 선택해주세요.");
       setCrushStep(4);
-      return;
-    }
-
-    if (!crushPost.top_type || !crushPost.top_color) {
-      toast.error("상의 종류와 색상을 선택해주세요.");
-      setCrushStep(5);
-      return;
-    }
-
-    if (!getFinalBottomType() || !crushPost.bottom_color) {
-      toast.error("하의 종류와 색상을 선택해주세요.");
-      setCrushStep(6);
       return;
     }
 
     if (!crushPost.bag_type || !crushPost.earphone_type) {
       toast.error("가방과 이어폰 정보를 선택해주세요.");
-      setCrushStep(7);
+      setCrushStep(5);
       return;
     }
 
@@ -1385,7 +1392,7 @@ const hideSearchResult = (postId) => {
       !crushPost.mood
     ) {
       toast.error("키 느낌, 신발, 같이 있었던 상황, 분위기를 선택해주세요.");
-      setCrushStep(8);
+      setCrushStep(6);
       return;
     }
 
@@ -1405,7 +1412,7 @@ const hideSearchResult = (postId) => {
       ? ` / 신발 설명:${crushPost.shoe_detail.trim()}`
       : "";
 
-    const combinedStyle = `상의:${crushPost.top_type} ${crushPost.top_color}${topDetailText} / 하의:${getFinalBottomType()} ${crushPost.bottom_color}${bottomDetailText}`;
+    const combinedStyle = `상의:${crushPost.top_type} ${crushPost.top_color}${topDetailText} / 아우터:${getFinalOuter()} / 하의:${getFinalBottomType()} ${crushPost.bottom_color}${bottomDetailText}`;
     const combinedAccessory = `가방:${crushPost.bag_type} / 이어폰:${crushPost.earphone_type} / 안경:${crushPost.glasses_type || "잘 모르겠음"}${itemDetailText} / 키 느낌:${crushPost.height_feeling} / 신발:${crushPost.shoe_type}${shoeDetailText} / 상황:${getFinalSituation()} / 분위기:${getFinalMood()}`;
 
     setPostSubmitting(true);
@@ -3364,9 +3371,9 @@ const receivedCloudItems = [
             </div>
           )}
 
-          <p className="stepText">{crushStep} / 9</p>
+          <p className="stepText">{crushStep} / 7</p>
 
-          <StepProgress total={9} current={crushStep} />
+          <StepProgress total={7} current={crushStep} />
 
           <div className="draftActionRow">
             <button type="button" className="white smallButton" onClick={saveDraft}>
@@ -3404,10 +3411,11 @@ const receivedCloudItems = [
 
           {crushStep === 2 && (
             <>
-              <h3 className="questionTitle">언제 마주쳤나요?</h3>
+              <h3 className="questionTitle">언제, 어디에서 마주쳤나요?</h3>
               <p className="questionDesc">
-                시간은 24시간을 2시간 단위로 나누었어요. 기억나는 시간대를
-                골라주세요.
+                시간은 24시간을 2시간 단위로 나누었어요. 먼저 큰 장소를
+                선택하고, 아래에 구체적인 위치를 적어주세요. 예: 무용관 선택
+                후 “앞 편의점”, 학교 앞 상권/거리 선택 후 “○○술집 앞”
               </p>
 
               <div className="formGroup">
@@ -3431,29 +3439,6 @@ const receivedCloudItems = [
                   ))}
                 </select>
               </div>
-
-              <button
-                onClick={() => {
-                  if (!crushPost.seen_date || !crushPost.time_period) {
-                    toast.error("날짜와 시간을 선택해주세요.");
-                    return;
-                  }
-                  setCrushStep(3);
-                }}
-              >
-                다음
-              </button>
-            </>
-          )}
-
-          {crushStep === 3 && (
-            <>
-              <h3 className="questionTitle">어디에서 봤나요?</h3>
-              <p className="questionDesc">
-                먼저 큰 장소를 선택하고, 아래에 구체적인 위치를 적어주세요.
-                예: 무용관 선택 후 “앞 편의점”, 학교 앞 상권/거리 선택 후
-                “○○술집 앞”
-              </p>
 
               <div className="formGroup">
                 <label className="formLabel">큰 장소</label>
@@ -3495,11 +3480,15 @@ const receivedCloudItems = [
 
               <button
                 onClick={() => {
+                  if (!crushPost.seen_date || !crushPost.time_period) {
+                    toast.error("날짜와 시간을 선택해주세요.");
+                    return;
+                  }
                   if (!getFinalPlace()) {
                     toast.error("장소를 선택하거나 직접 입력해주세요.");
                     return;
                   }
-                  setCrushStep(4);
+                  setCrushStep(3);
                 }}
               >
                 다음
@@ -3507,14 +3496,15 @@ const receivedCloudItems = [
             </>
           )}
 
-          {crushStep === 4 && (
+          {crushStep === 3 && (
             <>
               <h3 className="questionTitle">
                 {crushPost.target_gender || "상대"}의 머리 정보가 기억나나요?
               </h3>
               <p className="questionDesc">
-                머리스타일, 머리 색깔, 모자 유무, 앞머리 유무를 순서대로
-                선택해주세요.
+                {crushPost.target_gender === "여자"
+                  ? "머리스타일, 머리 색깔, 모자 유무, 앞머리 유무, 안경 착용 여부를 순서대로 선택해주세요."
+                  : "머리 색깔, 모자 유무, 앞머리 유무, 안경 착용 여부를 순서대로 선택해주세요."}
               </p>
 
               {crushPost.target_gender === "여자" ? (
@@ -3590,21 +3580,6 @@ const receivedCloudItems = [
               ) : (
                 <>
                   <div className="formGroup">
-                    <label className="formLabel">머리스타일</label>
-                    <div className="optionGrid">
-                      {maleHairStyleOptions.map((option) => (
-                        <OptionButton
-                          key={option}
-                          value={option}
-                          selected={crushPost.male_hair_style === option}
-                          onClick={() => updateCrushPost("male_hair_style", option)}
-                          full={option === "잘 모르겠음"}
-                        />
-                      ))}
-                    </div>
-                  </div>
-
-                  <div className="formGroup">
                     <label className="formLabel">머리 색깔</label>
                     <div className="optionGrid">
                       {hairColorOptions.map((option) => (
@@ -3651,15 +3626,30 @@ const receivedCloudItems = [
                 </>
               )}
 
+              <div className="formGroup">
+                <label className="formLabel">안경 착용 여부</label>
+                <div className="optionGrid">
+                  {glassesOptions.map((option) => (
+                    <OptionButton
+                      key={option}
+                      value={option}
+                      selected={crushPost.glasses_type === option}
+                      onClick={() => updateCrushPost("glasses_type", option)}
+                      full={option === "잘 모르겠음"}
+                    />
+                  ))}
+                </div>
+              </div>
+
               <button
                 onClick={() => {
-                  if (!getFinalHairFeature()) {
+                  if (!getFinalHairFeature() || !crushPost.glasses_type) {
                     toast.error(
-                      "머리스타일, 머리 색깔, 모자 유무, 앞머리 유무를 선택해주세요."
+                      "머리 색깔, 모자 유무, 앞머리 유무, 안경 착용 여부를 선택해주세요."
                     );
                     return;
                   }
-                  setCrushStep(5);
+                  setCrushStep(4);
                 }}
               >
                 다음
@@ -3667,12 +3657,12 @@ const receivedCloudItems = [
             </>
           )}
 
-          {crushStep === 5 && (
+          {crushStep === 4 && (
             <>
-              <h3 className="questionTitle">상의가 기억나나요?</h3>
+              <h3 className="questionTitle">상의·아우터·하의가 기억나나요?</h3>
               <p className="questionDesc">
-                상의 종류와 색상을 각각 선택해주세요. 정확히 몰라도 가장 가까운
-                항목을 고르면 돼요. 예: 블라우스나 셔츠는 “셔츠/블라우스”로
+                종류와 색상을 각각 선택해주세요. 정확히 몰라도 가장 가까운
+                항목을 고르면 돼요. 아우터를 안 입고 있었다면 “아우터 없음”을
                 선택해주세요.
               </p>
 
@@ -3714,28 +3704,33 @@ const receivedCloudItems = [
                 </p>
               </div>
 
-              <button
-                onClick={() => {
-                  if (!crushPost.top_type || !crushPost.top_color) {
-                    toast.error("상의 종류와 색상을 선택해주세요.");
-                    return;
-                  }
-                  setCrushStep(6);
-                }}
-              >
-                다음
-              </button>
-            </>
-          )}
+              <div className="formGroup">
+                <label className="formLabel">아우터 종류</label>
+                <select
+                  value={crushPost.outer_type}
+                  onChange={(e) => updateCrushPost("outer_type", e.target.value)}
+                >
+                  <option value="">아우터 종류 선택</option>
+                  {outerTypeOptions.map((option) => (
+                    <option key={option}>{option}</option>
+                  ))}
+                </select>
+              </div>
 
-          {crushStep === 6 && (
-            <>
-              <h3 className="questionTitle">하의가 기억나나요?</h3>
-              <p className="questionDesc">
-                하의 종류와 색상을 각각 선택해주세요. 정확히 몰라도 가장 가까운
-                항목을 고르면 돼요. 예: 청반바지, 면반바지처럼 재질이 달라도
-                짧은 바지면 “반바지”를 선택하면 돼요.
-              </p>
+              {crushPost.outer_type && crushPost.outer_type !== "아우터 없음" && (
+                <div className="formGroup">
+                  <label className="formLabel">아우터 색상</label>
+                  <select
+                    value={crushPost.outer_color}
+                    onChange={(e) => updateCrushPost("outer_color", e.target.value)}
+                  >
+                    <option value="">아우터 색상 선택</option>
+                    {topColorOptions.map((option) => (
+                      <option key={option}>{option}</option>
+                    ))}
+                  </select>
+                </div>
+              )}
 
               <div className="formGroup">
                 <label className="formLabel">하의 종류</label>
@@ -3750,7 +3745,7 @@ const receivedCloudItems = [
                 </select>
               </div>
 
-              {crushPost.bottom_type === "기타" && (
+              {crushPost.bottom_type === "기타 하의" && (
                 <div className="formGroup">
                   <label className="formLabel">하의 기타 설명</label>
                   <input
@@ -3790,11 +3785,18 @@ const receivedCloudItems = [
 
               <button
                 onClick={() => {
-                  if (!getFinalBottomType() || !crushPost.bottom_color) {
-                    toast.error("하의 종류와 색상을 선택해주세요.");
+                  if (
+                    !crushPost.top_type ||
+                    !crushPost.top_color ||
+                    !crushPost.outer_type ||
+                    (crushPost.outer_type !== "아우터 없음" && !crushPost.outer_color) ||
+                    !getFinalBottomType() ||
+                    !crushPost.bottom_color
+                  ) {
+                    toast.error("상의, 아우터, 하의 종류와 색상을 선택해주세요.");
                     return;
                   }
-                  setCrushStep(7);
+                  setCrushStep(5);
                 }}
               >
                 다음
@@ -3802,24 +3804,26 @@ const receivedCloudItems = [
             </>
           )}
 
-          {crushStep === 7 && (
+          {crushStep === 5 && (
             <>
               <h3 className="questionTitle">소지품이 기억나나요?</h3>
               <p className="questionDesc">
-                가방과 이어폰/헤드셋 여부를 선택해주세요.
+                가방 유무와 이어폰/헤드셋 여부를 선택해주세요.
               </p>
 
               <div className="formGroup">
                 <label className="formLabel">가방</label>
-                <select
-                  value={crushPost.bag_type}
-                  onChange={(e) => updateCrushPost("bag_type", e.target.value)}
-                >
-                  <option value="">가방 선택</option>
+                <div className="optionGrid">
                   {bagOptions.map((option) => (
-                    <option key={option}>{option}</option>
+                    <OptionButton
+                      key={option}
+                      value={option}
+                      selected={crushPost.bag_type === option}
+                      onClick={() => updateCrushPost("bag_type", option)}
+                      full={option === "잘 모르겠음"}
+                    />
                   ))}
-                </select>
+                </div>
               </div>
 
               <div className="formGroup">
@@ -3833,21 +3837,6 @@ const receivedCloudItems = [
                     <option key={option}>{option}</option>
                   ))}
                 </select>
-              </div>
-
-              <div className="formGroup">
-                <label className="formLabel">안경 착용 여부</label>
-                <div className="optionGrid">
-                  {glassesOptions.map((option) => (
-                    <OptionButton
-                      key={option}
-                      value={option}
-                      selected={crushPost.glasses_type === option}
-                      onClick={() => updateCrushPost("glasses_type", option)}
-                      full={option === "잘 모르겠음"}
-                    />
-                  ))}
-                </div>
               </div>
 
               <div className="formGroup">
@@ -3868,7 +3857,7 @@ const receivedCloudItems = [
                     toast.error("가방과 이어폰 정보를 선택해주세요.");
                     return;
                   }
-                  setCrushStep(8);
+                  setCrushStep(6);
                 }}
               >
                 다음
@@ -3876,7 +3865,7 @@ const receivedCloudItems = [
             </>
           )}
 
-          {crushStep === 8 && (
+          {crushStep === 6 && (
             <>
               <h3 className="questionTitle">그때의 느낌을 조금 더 알려주세요</h3>
               <p className="questionDesc">
@@ -3983,7 +3972,7 @@ const receivedCloudItems = [
                     toast.error("키 느낌, 신발, 같이 있었던 상황, 분위기를 선택해주세요.");
                     return;
                   }
-                  setCrushStep(9);
+                  setCrushStep(7);
                 }}
               >
                 다음
@@ -3991,7 +3980,7 @@ const receivedCloudItems = [
             </>
           )}
 
-          {crushStep === 9 && (
+          {crushStep === 7 && (
             <>
               <h3 className="questionTitle">마지막으로 확인해주세요</h3>
               <p className="questionDesc">
@@ -4035,6 +4024,9 @@ const receivedCloudItems = [
                     <strong>상의 추가 설명:</strong> {crushPost.top_detail.trim()}
                   </p>
                 )}
+                <p>
+                  <strong>아우터:</strong> {getFinalOuter() || "-"}
+                </p>
                 <p>
                   <strong>하의:</strong> {crushPost.bottom_color || "-"}{" "}
                   {getFinalBottomType() || "-"}
@@ -4318,23 +4310,6 @@ const receivedCloudItems = [
                 </>
               ) : (
                 <>
-                  <div className="formGroup">
-                    <label className="formLabel">내 머리스타일</label>
-                    <div className="optionGrid">
-                      {maleHairStyleOptions.map((option) => (
-                        <OptionButton
-                          key={option}
-                          value={option}
-                          selected={searchForm.male_hair_style === option}
-                          onClick={() =>
-                            setSearchForm({ ...searchForm, male_hair_style: option })
-                          }
-                          full={option === "잘 모르겠음"}
-                        />
-                      ))}
-                    </div>
-                  </div>
-
                   <div className="formGroup">
                     <label className="formLabel">머리 색깔</label>
                     <div className="optionGrid">
