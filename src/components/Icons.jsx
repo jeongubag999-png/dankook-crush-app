@@ -164,6 +164,12 @@ export const ChevronRightIcon = ({ size = 20 }) => (
   </svg>
 );
 
+export const ChevronLeftIcon = ({ size = 20 }) => (
+  <svg width={size} height={size} {...outlineIconProps}>
+    <path d="m15 5-7 7 7 7" />
+  </svg>
+);
+
 export const CloudOutlineIcon = ({ size = 22 }) => (
   <svg width={size} height={size} {...outlineIconProps}>
     <path d="M7 18a4 4 0 0 1-.5-7.97 5 5 0 0 1 9.7-2.03A4.5 4.5 0 0 1 17 18H7z" />

@@ -62,6 +62,7 @@ import {
   formatDateLabel,
   formatShortDateTime,
   cleanMessage,
+  formatChatListTime,
   makeHairFeature,
   cleanTagText,
   getPostTopText,
@@ -248,6 +249,8 @@ const [verificationFile, setVerificationFile] = useState(null);
   const [chatPreviewProfile, setChatPreviewProfile] = useState(null);
   const [chatActionSubmitting, setChatActionSubmitting] = useState(false);
   const [activeChatRoomId, setActiveChatRoomId] = useState(null);
+  const [activeChatRoomNickname, setActiveChatRoomNickname] = useState("");
+  const [chatLastMessages, setChatLastMessages] = useState({});
 
   const [mySentPosts, setMySentPosts] = useState([]);
   const [sentClaims, setSentClaims] = useState([]);
@@ -1666,6 +1669,32 @@ const hideSearchResult = (postId) => {
   }
 };
 
+  const loadChatPreviews = async (roomIds) => {
+    if (!roomIds || roomIds.length === 0) {
+      setChatLastMessages({});
+      return;
+    }
+
+    const { data, error } = await supabase
+      .from("chat_messages")
+      .select("chat_room_id, body, created_at")
+      .in("chat_room_id", roomIds)
+      .order("created_at", { ascending: false });
+
+    if (error) {
+      console.log(error);
+      return;
+    }
+
+    const map = {};
+    (data || []).forEach((m) => {
+      if (!map[m.chat_room_id]) {
+        map[m.chat_room_id] = { body: m.body, created_at: m.created_at };
+      }
+    });
+    setChatLastMessages(map);
+  };
+
   const loadMyActivityData = async () => {
     if (!currentUser) return false;
 
@@ -1817,6 +1846,15 @@ const hideSearchResult = (postId) => {
       post: viewPosts.find((item) => String(item.id) === String(view.crush_post_id)) || null,
     }));
     setReceivedCloudViews(combinedReceivedViews);
+
+    const chatRoomIds = [
+      ...finalSentClaims,
+      ...combinedReceivedClaims,
+    ]
+      .filter((claim) => claim.status === "chat_accepted" && claim.chat_room_id)
+      .map((claim) => claim.chat_room_id);
+
+    loadChatPreviews([...new Set(chatRoomIds)]);
 
     setMatchingLoading(false);
     return true;
@@ -2054,9 +2092,10 @@ const sendSecondCloudToClaim = async (claim) => {
     setChatPreviewProfile(p);
   };
 
-  const openChatRoom = (roomId) => {
+  const openChatRoom = (roomId, nickname = "") => {
     if (!roomId) return;
     setActiveChatRoomId(roomId);
+    setActiveChatRoomNickname(nickname);
     setPage("chatRoom");
   };
 
@@ -2124,7 +2163,7 @@ const sendSecondCloudToClaim = async (claim) => {
       }
 
       toast.success("대화를 수락했어요!");
-      openChatRoom(roomId);
+      openChatRoom(roomId, chatPreviewProfile?.nickname || claim.post?.sender_nickname);
     } finally {
       setChatActionSubmitting(false);
     }
@@ -2425,7 +2464,7 @@ const receivedCloudItems = [
       )}
 
       {claim.status === "chat_accepted" && (
-        <button onClick={() => openChatRoom(claim.chat_room_id)}>
+        <button onClick={() => openChatRoom(claim.chat_room_id, claim.claimer_nickname)}>
           채팅방 열기
         </button>
       )}
@@ -2643,7 +2682,7 @@ const receivedCloudItems = [
         )}
 
         {claim.status === "chat_accepted" && (
-          <button onClick={() => openChatRoom(claim.chat_room_id)}>
+          <button onClick={() => openChatRoom(claim.chat_room_id, claim.post?.sender_nickname)}>
             채팅방 열기
           </button>
         )}
@@ -4788,6 +4827,7 @@ const receivedCloudItems = [
         <ChatRoom
           roomId={activeChatRoomId}
           currentUserId={currentUser.id}
+          otherNickname={activeChatRoomNickname}
           onClose={() => setPage("chats")}
         />
       )}
@@ -4813,22 +4853,33 @@ const receivedCloudItems = [
                 </p>
               )}
 
-              {myChatRooms.map((room) => (
-                <button
-                  type="button"
-                  key={room.chatRoomId}
-                  className="chatRoomListItem"
-                  onClick={() => openChatRoom(room.chatRoomId)}
-                >
-                  <span className="chatRoomListIcon">💬</span>
-                  <span className="chatRoomListInfo">
-                    <b>{room.otherNickname}</b>
-                    <span className="helperText">
-                      {formatShortDateTime(room.updatedAt)}
+              {myChatRooms.map((room) => {
+                const preview = chatLastMessages[room.chatRoomId];
+                const previewTime = preview?.created_at || room.updatedAt;
+                const initial = (room.otherNickname || "구").trim().charAt(0) || "구";
+
+                return (
+                  <button
+                    type="button"
+                    key={room.chatRoomId}
+                    className="chatRoomListItem"
+                    onClick={() => openChatRoom(room.chatRoomId, room.otherNickname)}
+                  >
+                    <span className="chatRoomListAvatar">{initial}</span>
+                    <span className="chatRoomListInfo">
+                      <span className="chatRoomListTopRow">
+                        <b>{room.otherNickname}</b>
+                        <span className="chatRoomListTime">
+                          {formatChatListTime(previewTime)}
+                        </span>
+                      </span>
+                      <span className="chatRoomListPreview">
+                        {preview?.body || "대화를 시작해보세요."}
+                      </span>
                     </span>
-                  </span>
-                </button>
-              ))}
+                  </button>
+                );
+              })}
             </div>
           )}
         </div>
@@ -5246,7 +5297,7 @@ const receivedCloudItems = [
 	          </button>
 	        </div>
 	      )}
-	      {renderBottomNav()}
+	      {page !== "chatRoom" && renderBottomNav()}
 	    </div>
 	  );
 	}

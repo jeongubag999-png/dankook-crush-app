@@ -877,64 +877,222 @@ body {
   flex: 1;
 }
 
-.app .chatRoomCard {
-  display: flex;
-  flex-direction: column;
-  height: min(72vh, 640px);
+/* ===== 채팅방 (카톡 스타일 전체화면) ===== */
+
+body.chatRoomOpen {
+  position: fixed;
+  overflow: hidden;
+  width: 100%;
+  height: 100%;
 }
 
-.app .chatMessageList {
-  flex: 1;
-  overflow-y: auto;
+.app .chatRoomScreen {
+  position: fixed;
+  inset: 0;
+  z-index: 60;
   display: flex;
   flex-direction: column;
-  gap: 8px;
-  padding: 4px 2px;
+  height: 100dvh;
+  background: var(--v2-surface-soft);
+}
+
+.app .chatRoomHeader {
+  flex: 0 0 auto;
+  display: flex;
+  align-items: center;
+  gap: 4px;
+  padding: max(14px, env(safe-area-inset-top)) 8px 12px;
+  background: var(--v2-surface);
+  border-bottom: 1px solid var(--v2-line);
+}
+
+.app .chatRoomBackBtn {
+  width: 40px;
+  height: 40px;
+  min-height: 40px;
+  flex: 0 0 auto;
+  margin-top: 0;
+  padding: 0;
+  border-radius: 50%;
+  background: transparent;
+  box-shadow: none;
+  color: var(--v2-ink);
+  display: flex;
+  align-items: center;
+  justify-content: center;
+}
+
+.app .chatRoomBackBtn:hover {
+  background: var(--v2-surface-soft);
+  transform: none;
+  box-shadow: none;
+}
+
+.app .chatRoomHeaderInfo {
+  flex: 1;
+  display: flex;
+  justify-content: center;
+}
+
+.app .chatRoomHeaderName {
+  font-size: 16px;
+  font-weight: 800;
+  color: var(--v2-ink);
+}
+
+.app .chatRoomHeaderSpacer {
+  width: 40px;
+  flex: 0 0 auto;
+}
+
+.app .chatRoomMessages {
+  flex: 1 1 auto;
+  overflow-y: auto;
+  -webkit-overflow-scrolling: touch;
+  display: flex;
+  flex-direction: column;
+  padding: 14px 14px 6px;
+}
+
+.app .chatEmptyState {
+  margin: auto;
+  text-align: center;
+  color: var(--v2-muted);
+}
+
+.app .chatEmptyIcon {
+  font-size: 34px;
+  display: block;
+  margin-bottom: 6px;
+}
+
+.app .chatEmptyState p {
+  margin: 2px 0;
+  font-size: 14px;
+}
+
+.app .chatDateDivider {
+  display: flex;
+  justify-content: center;
+  margin: 18px 0 10px;
+}
+
+.app .chatDateDivider span {
+  font-size: 12px;
+  color: var(--v2-muted);
+  background: rgba(136, 148, 171, 0.12);
+  padding: 4px 12px;
+  border-radius: 999px;
+}
+
+.app .chatMessageRow {
+  display: flex;
+  align-items: flex-end;
+  gap: 6px;
+  max-width: 100%;
+}
+
+.app .chatMessageRow.theirs {
+  justify-content: flex-start;
+}
+
+.app .chatMessageRow.mine {
+  justify-content: flex-end;
+}
+
+.app .chatAvatar {
+  width: 30px;
+  height: 30px;
+  flex: 0 0 auto;
+  border-radius: 50%;
+  background: var(--v2-blue-soft);
+  color: var(--v2-blue-dark);
+  font-size: 13px;
+  font-weight: 800;
+  display: flex;
+  align-items: center;
+  justify-content: center;
 }
 
 .app .chatBubble {
-  max-width: 78%;
+  max-width: 68%;
   padding: 10px 14px;
-  border-radius: var(--v2-radius-sm);
+  border-radius: 18px;
   font-size: 14.5px;
-  line-height: 1.4;
+  line-height: 1.45;
   word-break: break-word;
+  white-space: pre-wrap;
 }
 
 .app .chatBubble.mine {
-  align-self: flex-end;
-  background: linear-gradient(135deg, var(--v2-blue) 0%, var(--v2-blue-dark) 100%);
+  background: var(--v2-blue);
   color: #fff;
-  border-bottom-right-radius: 4px;
+  border-bottom-right-radius: 5px;
 }
 
 .app .chatBubble.theirs {
-  align-self: flex-start;
-  background: var(--v2-surface-soft);
+  background: var(--v2-surface);
   color: var(--v2-ink);
   border: 1px solid var(--v2-line);
-  border-bottom-left-radius: 4px;
+  border-bottom-left-radius: 5px;
 }
 
-.app .chatInputRow {
-  display: flex;
-  gap: 8px;
-  margin-top: 10px;
-}
-
-.app .chatInputRow input {
-  flex: 1;
-  border: 1px solid var(--v2-line);
-  background: var(--v2-surface-soft);
-  border-radius: var(--v2-radius-sm);
-  padding: 10px 14px;
-  color: var(--v2-ink);
-  font-family: inherit;
-}
-
-.app .chatInputRow button {
+.app .chatBubbleTime {
+  flex: 0 0 auto;
+  font-size: 10.5px;
+  color: var(--v2-muted);
+  padding-bottom: 2px;
   white-space: nowrap;
 }
+
+.app .chatRoomInputBar {
+  flex: 0 0 auto;
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  padding: 10px 12px max(10px, env(safe-area-inset-bottom));
+  background: var(--v2-surface);
+  border-top: 1px solid var(--v2-line);
+}
+
+.app .chatRoomInputBar input {
+  flex: 1 1 auto;
+  width: auto;
+  height: 42px;
+  min-height: 42px;
+  margin-top: 0;
+  border: none;
+  background: var(--v2-surface-soft);
+  border-radius: 21px;
+  padding: 0 16px;
+  color: var(--v2-ink);
+  font-family: inherit;
+  font-size: 14.5px;
+}
+
+.app .chatSendBtn {
+  flex: 0 0 auto;
+  width: 42px;
+  height: 42px;
+  min-height: 42px;
+  margin-top: 0;
+  padding: 0;
+  border-radius: 50%;
+  background: var(--v2-blue);
+  color: #fff;
+  box-shadow: none;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+}
+
+.app .chatSendBtn:disabled {
+  background: var(--v2-line);
+  color: var(--v2-muted);
+  opacity: 1;
+}
+
+/* ===== 채팅 목록 ===== */
 
 .app .chatRoomListItem {
   display: flex;
@@ -951,12 +1109,52 @@ body {
   text-align: left;
 }
 
-.app .chatRoomListIcon {
-  font-size: 20px;
+.app .chatRoomListAvatar {
+  width: 44px;
+  height: 44px;
+  flex: 0 0 auto;
+  border-radius: 50%;
+  background: var(--v2-blue-soft);
+  color: var(--v2-blue-dark);
+  font-size: 17px;
+  font-weight: 800;
+  display: flex;
+  align-items: center;
+  justify-content: center;
 }
 
 .app .chatRoomListInfo {
+  flex: 1 1 auto;
+  min-width: 0;
   display: flex;
   flex-direction: column;
-  gap: 2px;
+  gap: 3px;
+}
+
+.app .chatRoomListTopRow {
+  display: flex;
+  align-items: baseline;
+  justify-content: space-between;
+  gap: 8px;
+}
+
+.app .chatRoomListTopRow b {
+  font-size: 15px;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+
+.app .chatRoomListTime {
+  flex: 0 0 auto;
+  font-size: 11.5px;
+  color: var(--v2-muted);
+}
+
+.app .chatRoomListPreview {
+  font-size: 13px;
+  color: var(--v2-ink-soft);
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
 }

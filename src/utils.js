@@ -92,6 +92,49 @@ export const formatShortDateTime = (dateTimeText) => {
   return `${date.getMonth() + 1}/${date.getDate()} ${String(date.getHours()).padStart(2, "0")}:${String(date.getMinutes()).padStart(2, "0")}`;
 };
 
+const WEEKDAY_LABELS_KR = ["일", "월", "화", "수", "목", "금", "토"];
+
+export const formatChatBubbleTime = (dateTimeText) => {
+  if (!dateTimeText) return "";
+  const date = new Date(dateTimeText);
+  if (Number.isNaN(date.getTime())) return "";
+  const hours = date.getHours();
+  const period = hours < 12 ? "오전" : "오후";
+  const displayHour = hours % 12 === 0 ? 12 : hours % 12;
+  return `${period} ${displayHour}:${String(date.getMinutes()).padStart(2, "0")}`;
+};
+
+export const formatChatListTime = (dateTimeText) => {
+  if (!dateTimeText) return "";
+  const date = new Date(dateTimeText);
+  if (Number.isNaN(date.getTime())) return "";
+
+  const now = new Date();
+  if (date.toDateString() === now.toDateString()) {
+    return formatChatBubbleTime(dateTimeText);
+  }
+
+  const yesterday = new Date(now);
+  yesterday.setDate(now.getDate() - 1);
+  if (date.toDateString() === yesterday.toDateString()) return "어제";
+
+  return `${date.getMonth() + 1}/${date.getDate()}`;
+};
+
+export const formatChatDateDivider = (dateTimeText) => {
+  if (!dateTimeText) return "";
+  const date = new Date(dateTimeText);
+  if (Number.isNaN(date.getTime())) return "";
+  return `${date.getFullYear()}년 ${date.getMonth() + 1}월 ${date.getDate()}일 ${WEEKDAY_LABELS_KR[date.getDay()]}요일`;
+};
+
+export const isSameChatDay = (aText, bText) => {
+  const a = new Date(aText);
+  const b = new Date(bText);
+  if (Number.isNaN(a.getTime()) || Number.isNaN(b.getTime())) return false;
+  return a.toDateString() === b.toDateString();
+};
+
 export const cleanMessage = (message) => {
   if (!message) return "";
   return message.replace(/\[찾는 성별:\s*.*?\]\s*/, "");
