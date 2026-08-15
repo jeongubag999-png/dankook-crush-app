@@ -3358,8 +3358,9 @@ const receivedCloudItems = [
             <>
               <h3 className="questionTitle">누구를 찾고 있나요?</h3>
               <p className="questionDesc">
-                구름을 남기고 싶은 사람이 남자인지 여자인지 선택해주세요. 선택한
-                성별에 맞춰 머리스타일과 인상착의 질문이 달라져요.
+                구름을 남기고 싶은 사람이 남자인지 여자인지 선택해주세요.
+                <br />
+                선택한 성별에 맞춰 머리스타일과 인상착의 질문이 달라져요.
               </p>
 
               <div className="optionGrid">
@@ -3380,9 +3381,11 @@ const receivedCloudItems = [
             <>
               <h3 className="questionTitle">언제, 어디에서 마주쳤나요?</h3>
               <p className="questionDesc">
-                시간은 24시간을 2시간 단위로 나누었어요. 먼저 큰 장소를
-                선택하고, 아래에 구체적인 위치를 적어주세요. 예: 무용관 선택
-                후 “앞 편의점”, 학교 앞 상권/거리 선택 후 “○○술집 앞”
+                시간은 24시간을 2시간 단위로 나누었어요.
+                <br />
+                먼저 큰 장소를 선택하고, 아래에 구체적인 위치를 적어주세요.
+                <br />
+                예: 무용관 선택 후 “앞 편의점”, 학교 앞 상권/거리 선택 후 “○○술집 앞”
               </p>
 
               <div className="formGroup">
@@ -3470,8 +3473,8 @@ const receivedCloudItems = [
               </h3>
               <p className="questionDesc">
                 {crushPost.target_gender === "여자"
-                  ? "머리스타일, 머리 색깔, 모자, 앞머리, 안경를 순서대로 선택해주세요."
-                  : "머리 색깔, 모자, 앞머리, 안경를 순서대로 선택해주세요."}
+                  ? "머리스타일, 머리 색깔, 모자, 앞머리, 안경을 순서대로 선택해주세요."
+                  : "머리 색깔, 모자, 앞머리, 안경을 순서대로 선택해주세요."}
               </p>
 
               {crushPost.target_gender === "여자" ? (
@@ -3633,9 +3636,11 @@ const receivedCloudItems = [
             <>
               <h3 className="questionTitle">상의·아우터·하의가 기억나나요?</h3>
               <p className="questionDesc">
-                종류와 색상을 각각 선택해주세요. 정확히 몰라도 가장 가까운
-                항목을 고르면 돼요. 아우터를 안 입고 있었다면 “아우터 없음”을
-                선택해주세요.
+                종류와 색상을 각각 선택해주세요.
+                <br />
+                정확히 몰라도 가장 가까운 항목을 고르면 돼요.
+                <br />
+                아우터를 안 입고 있었다면 “아우터 없음”을 선택해주세요.
               </p>
 
               <div className="formGroup">
@@ -4093,6 +4098,7 @@ const receivedCloudItems = [
               <h3 className="questionTitle">내 머리 정보가 기억나나요?</h3>
               <p className="questionDesc">
                 머리스타일, 머리 색깔, 모자, 앞머리를 골라주세요.
+                <br />
                 잘 모르겠는 항목은 “잘 모르겠음”을 선택해도 돼요.
               </p>
 
@@ -4260,9 +4266,11 @@ const receivedCloudItems = [
             <>
               <h3 className="questionTitle">상의가 기억나나요?</h3>
               <p className="questionDesc">
-                정확히 몰라도 가장 가까운 걸 골라주세요. 예: 블라우스나 셔츠는
-                “셔츠/블라우스”를 선택하면 돼요. 기억이 안 나면 “잘 모르겠음”을
-                선택해주세요.
+                정확히 몰라도 가장 가까운 걸 골라주세요.
+                <br />
+                예: 블라우스나 셔츠는 “셔츠/블라우스”를 선택하면 돼요.
+                <br />
+                기억이 안 나면 “잘 모르겠음”을 선택해주세요.
               </p>
 
               <div className="formGroup">
@@ -4319,8 +4327,9 @@ const receivedCloudItems = [
             <>
               <h3 className="questionTitle">하의가 기억나나요?</h3>
               <p className="questionDesc">
-                청반바지, 면반바지처럼 재질이 달라도 짧은 바지면 “반바지”를
-                선택하면 돼요. 기억이 안 나면 “잘 모르겠음”을 선택해주세요.
+                청반바지, 면반바지처럼 재질이 달라도 짧은 바지면 “반바지”를 선택하면 돼요.
+                <br />
+                기억이 안 나면 “잘 모르겠음”을 선택해주세요.
               </p>
 
               <div className="formGroup">
@@ -4361,8 +4370,9 @@ const receivedCloudItems = [
             <>
               <h3 className="questionTitle">마지막으로 확인해주세요</h3>
               <p className="questionDesc">
-                아래 정보로 나를 찾는 구름을 확인해요. 상의와 하의는 선택하지
-                않았거나 “잘 모르겠음”이면 검색 조건에서 제외돼요.
+                아래 정보로 나를 찾는 구름을 확인해요.
+                <br />
+                상의와 하의는 선택하지 않았거나 “잘 모르겠음”이면 검색 조건에서 제외돼요.
               </p>
 
               <div className="summaryBox">
