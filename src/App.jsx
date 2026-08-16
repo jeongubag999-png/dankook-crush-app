@@ -1001,7 +1001,28 @@ const handleLogin = async () => {
     toast.success("임시저장을 삭제했어요.");
   };
 
-const MATCH_THRESHOLD = 50;
+// 날짜·성별은 DB 쿼리에서 이미 정확히 일치하는 것만 가져오므로(or/not 필터),
+// 점수에는 관여하지 않음. 30%는 "머리만 입력하고 그게 전부 맞은 경우"의
+// 점수와 같아서, 이걸 최소 통과선으로 잡음.
+const MATCH_THRESHOLD = 30;
+
+const HAIR_WEIGHT = 30;
+
+// "탈부착 난이도" 기준 배점: 하루 종일 잘 안 바뀌는 항목(상의/하의/신발)이 가장 높고,
+// 실내외 이동하며 벗었다 입었다 하는 항목(안경/아우터)은 중간, 두고 다니거나
+// 뺐다 꼈다 하는 항목(가방/이어폰)이 가장 낮음. 머리 30 + 나머지 70 = 100점 만점.
+const FIELD_WEIGHTS = {
+  top_type: 9,
+  top_color: 9,
+  bottom_type: 9,
+  bottom_color: 9,
+  shoe_type: 9,
+  glasses_type: 6,
+  outer_type: 6,
+  outer_color: 6,
+  bag_type: 4,
+  earphone_type: 3,
+};
 
 const normalizeMatchText = (value) => {
   if (!value || value === "잘 모르겠음") return "";
@@ -1021,127 +1042,51 @@ const containsMatch = (source, target) => {
 };
 
 const getPostMatchScore = (post) => {
-  // 날짜·성별은 DB 쿼리에서 이미 필터링됨 → 기본 20점
-  let score = 20;
-  const reasons = ["날짜·성별 일치"];
+  let score = 0;
+  const reasons = [];
 
-  // 머리: "잘 모르겠음" 제외 후 항목별 매칭 (최대 +30)
+  // 머리: 항목(스타일/색/모자/앞머리)별로 "잘 모르겠음" 제외 후 비교.
+  // 입력한 항목 중 맞은 비율만큼 30점을 부분 배점 (all-or-nothing 아님).
   const searchHair = getFinalSearchHairFeature();
-  if (searchHair && post.hair_feature) {
+  if (searchHair) {
     const searchHairParts = searchHair
       .split(" / ")
       .filter((p) => p && p !== "잘 모르겠음");
-    const matchedHairCount = searchHairParts.filter((part) =>
-      containsMatch(post.hair_feature, part)
-    ).length;
-    if (matchedHairCount > 0) {
-      score += Math.min(30, matchedHairCount * 10);
-      reasons.push(`머리 ${matchedHairCount}개 항목 일치`);
+    if (searchHairParts.length > 0) {
+      const matchedHairCount = searchHairParts.filter((part) =>
+        containsMatch(post.hair_feature, part)
+      ).length;
+      const hairRatio = matchedHairCount / searchHairParts.length;
+      if (hairRatio > 0) {
+        score += HAIR_WEIGHT * hairRatio;
+      }
+      if (matchedHairCount > 0) {
+        reasons.push(`머리 ${matchedHairCount}개 항목 일치`);
+      }
     }
   }
 
-  // 상의 종류: "잘 모르겠음" 제외 후 매칭 (+15)
-  if (
-    searchForm.top_type &&
-    searchForm.top_type !== "잘 모르겠음" &&
-    containsMatch(post.clothes_style, searchForm.top_type)
-  ) {
-    score += 15;
-    reasons.push("상의 종류 일치");
-  }
+  const checkField = (formValue, weight, matchSource, label) => {
+    if (!formValue || formValue === "잘 모르겠음") return;
+    if (containsMatch(matchSource, formValue)) {
+      score += weight;
+      reasons.push(`${label} 일치`);
+    }
+  };
 
-  // 상의 색상: "잘 모르겠음" 제외 후 매칭 (+15)
-  if (
-    searchForm.top_color &&
-    searchForm.top_color !== "잘 모르겠음" &&
-    containsMatch(post.clothes_style, searchForm.top_color)
-  ) {
-    score += 15;
-    reasons.push("상의 색상 일치");
-  }
-
-  // 하의 종류: "잘 모르겠음" 제외 후 매칭 (+10)
-  if (
-    searchForm.bottom_type &&
-    searchForm.bottom_type !== "잘 모르겠음" &&
-    containsMatch(post.clothes_style, searchForm.bottom_type)
-  ) {
-    score += 10;
-    reasons.push("하의 종류 일치");
-  }
-
-  // 하의 색상: "잘 모르겠음" 제외 후 매칭 (+10)
-  if (
-    searchForm.bottom_color &&
-    searchForm.bottom_color !== "잘 모르겠음" &&
-    containsMatch(post.clothes_style, searchForm.bottom_color)
-  ) {
-    score += 10;
-    reasons.push("하의 색상 일치");
-  }
-
-  // 안경: "잘 모르겠음" 제외 후 매칭 (+10)
-  if (
-    searchForm.glasses_type &&
-    searchForm.glasses_type !== "잘 모르겠음" &&
-    containsMatch(post.accessory, searchForm.glasses_type)
-  ) {
-    score += 10;
-    reasons.push("안경 일치");
-  }
-
-  // 아우터 종류: "잘 모르겠음" 제외 후 매칭 (+10)
-  if (
-    searchForm.outer_type &&
-    searchForm.outer_type !== "잘 모르겠음" &&
-    containsMatch(post.clothes_style, searchForm.outer_type)
-  ) {
-    score += 10;
-    reasons.push("아우터 일치");
-  }
-
-  // 아우터 색상: "잘 모르겠음" 제외 후 매칭 (+5)
-  if (
-    searchForm.outer_color &&
-    searchForm.outer_color !== "잘 모르겠음" &&
-    containsMatch(post.clothes_style, searchForm.outer_color)
-  ) {
-    score += 5;
-    reasons.push("아우터 색상 일치");
-  }
-
-  // 신발: "잘 모르겠음" 제외 후 매칭 (+10)
-  if (
-    searchForm.shoe_type &&
-    searchForm.shoe_type !== "잘 모르겠음" &&
-    containsMatch(post.accessory, searchForm.shoe_type)
-  ) {
-    score += 10;
-    reasons.push("신발 일치");
-  }
-
-  // 가방: "잘 모르겠음" 제외 후 매칭 (+10)
-  if (
-    searchForm.bag_type &&
-    searchForm.bag_type !== "잘 모르겠음" &&
-    containsMatch(post.accessory, searchForm.bag_type)
-  ) {
-    score += 10;
-    reasons.push("가방 일치");
-  }
-
-  // 이어폰: "잘 모르겠음" 제외 후 매칭 (+5)
-  if (
-    searchForm.earphone_type &&
-    searchForm.earphone_type !== "잘 모르겠음" &&
-    containsMatch(post.accessory, searchForm.earphone_type)
-  ) {
-    score += 5;
-    reasons.push("이어폰 일치");
-  }
+  checkField(searchForm.glasses_type, FIELD_WEIGHTS.glasses_type, post.accessory, "안경");
+  checkField(searchForm.top_type, FIELD_WEIGHTS.top_type, post.clothes_style, "상의 종류");
+  checkField(searchForm.top_color, FIELD_WEIGHTS.top_color, post.clothes_style, "상의 색상");
+  checkField(searchForm.outer_type, FIELD_WEIGHTS.outer_type, post.clothes_style, "아우터");
+  checkField(searchForm.outer_color, FIELD_WEIGHTS.outer_color, post.clothes_style, "아우터 색상");
+  checkField(searchForm.bottom_type, FIELD_WEIGHTS.bottom_type, post.clothes_style, "하의 종류");
+  checkField(searchForm.bottom_color, FIELD_WEIGHTS.bottom_color, post.clothes_style, "하의 색상");
+  checkField(searchForm.shoe_type, FIELD_WEIGHTS.shoe_type, post.accessory, "신발");
+  checkField(searchForm.bag_type, FIELD_WEIGHTS.bag_type, post.accessory, "가방");
+  checkField(searchForm.earphone_type, FIELD_WEIGHTS.earphone_type, post.accessory, "이어폰");
 
   return {
-    score: Math.min(score, 98),
+    score: Math.round(Math.min(100, score)),
     reasons: [...new Set(reasons)].slice(0, 4),
   };
 };
