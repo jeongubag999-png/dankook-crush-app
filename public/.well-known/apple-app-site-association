@@ -1,0 +1,15 @@
+{
+  "applinks": {
+    "apps": [],
+    "details": [
+      {
+        "appID": "3MKCWSUVMF.com.dankookdream.app",
+        "paths": [
+          "NOT /privacy.html",
+          "NOT /child-safety.html",
+          "*"
+        ]
+      }
+    ]
+  }
+}

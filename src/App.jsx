@@ -1,5 +1,6 @@
 import { useCallback, useEffect, useRef, useState } from "react";
 import toast, { Toaster } from "react-hot-toast";
+import { App as CapacitorApp } from "@capacitor/app";
 import "./App.css";
 import "./theme-v2.css";
 import { supabase } from "./supabase";
@@ -523,6 +524,29 @@ const [verificationFile, setVerificationFile] = useState(null);
     return () => {
       mounted = false;
       subscription.unsubscribe();
+    };
+  }, []);
+
+  useEffect(() => {
+    let listenerHandle;
+
+    CapacitorApp.addListener("appUrlOpen", (event) => {
+      try {
+        const url = new URL(event.url);
+        const postId = url.searchParams.get("post");
+        if (postId) {
+          guestPreviewFetchedRef.current = false;
+          setSharedPostId(postId);
+        }
+      } catch (e) {
+        console.log(e);
+      }
+    }).then((handle) => {
+      listenerHandle = handle;
+    });
+
+    return () => {
+      listenerHandle?.remove();
     };
   }, []);
 
