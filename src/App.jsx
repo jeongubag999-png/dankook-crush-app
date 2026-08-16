@@ -4,6 +4,7 @@ import "./App.css";
 import "./theme-v2.css";
 import { supabase } from "./supabase";
 import { OptionButton } from "./components/OptionButton";
+import { SearchableSelect } from "./components/SearchableSelect";
 import { ChatRoom } from "./components/ChatRoom";
 import {
   GenderFemaleIcon,
@@ -40,6 +41,7 @@ import {
   glassesOptions,
   bangsOptions,
   topTypeOptions,
+  femaleTopTypeOptions,
   topColorOptions,
   outerTypeOptions,
   bottomTypeOptions,
@@ -199,8 +201,13 @@ const [verificationFile, setVerificationFile] = useState(null);
     male_bangs: "",
     top_type: "",
     top_color: "",
+    outer_type: "",
+    outer_color: "",
     bottom_type: "",
     bottom_color: "",
+    shoe_type: "",
+    bag_type: "",
+    earphone_type: "",
     glasses_type: "",
   });
 
@@ -1081,6 +1088,56 @@ const getPostMatchScore = (post) => {
   ) {
     score += 10;
     reasons.push("안경 일치");
+  }
+
+  // 아우터 종류: "잘 모르겠음" 제외 후 매칭 (+10)
+  if (
+    searchForm.outer_type &&
+    searchForm.outer_type !== "잘 모르겠음" &&
+    containsMatch(post.clothes_style, searchForm.outer_type)
+  ) {
+    score += 10;
+    reasons.push("아우터 일치");
+  }
+
+  // 아우터 색상: "잘 모르겠음" 제외 후 매칭 (+5)
+  if (
+    searchForm.outer_color &&
+    searchForm.outer_color !== "잘 모르겠음" &&
+    containsMatch(post.clothes_style, searchForm.outer_color)
+  ) {
+    score += 5;
+    reasons.push("아우터 색상 일치");
+  }
+
+  // 신발: "잘 모르겠음" 제외 후 매칭 (+10)
+  if (
+    searchForm.shoe_type &&
+    searchForm.shoe_type !== "잘 모르겠음" &&
+    containsMatch(post.accessory, searchForm.shoe_type)
+  ) {
+    score += 10;
+    reasons.push("신발 일치");
+  }
+
+  // 가방: "잘 모르겠음" 제외 후 매칭 (+10)
+  if (
+    searchForm.bag_type &&
+    searchForm.bag_type !== "잘 모르겠음" &&
+    containsMatch(post.accessory, searchForm.bag_type)
+  ) {
+    score += 10;
+    reasons.push("가방 일치");
+  }
+
+  // 이어폰: "잘 모르겠음" 제외 후 매칭 (+5)
+  if (
+    searchForm.earphone_type &&
+    searchForm.earphone_type !== "잘 모르겠음" &&
+    containsMatch(post.accessory, searchForm.earphone_type)
+  ) {
+    score += 5;
+    reasons.push("이어폰 일치");
   }
 
   return {
@@ -3384,7 +3441,7 @@ const receivedCloudItems = [
               <p className="questionDesc">
                 시간은 24시간을 2시간 단위로 나누었어요.
                 <br />
-                먼저 큰 장소를 선택하고, 아래에 구체적인 위치를 적어주세요.
+                먼저 장소를 선택하고, 아래에 구체적인 위치를 적어주세요.
                 <br />
                 예: 무용관 선택 후 “앞 편의점”, 학교 앞 상권/거리 선택 후 “○○술집 앞”
               </p>
@@ -3412,22 +3469,19 @@ const receivedCloudItems = [
               </div>
 
               <div className="formGroup">
-                <label className="formLabel">큰 장소</label>
-                <select
+                <label className="formLabel">장소</label>
+                <SearchableSelect
+                  options={placeOptions}
                   value={crushPost.place}
-                  onChange={(e) =>
+                  placeholder="장소 검색 또는 선택 (예: 도서관)"
+                  onChange={(option) =>
                     setCrushPost({
                       ...crushPost,
-                      place: e.target.value,
+                      place: option,
                       custom_place: "",
                     })
                   }
-                >
-                  <option value="">장소 선택</option>
-                  {placeOptions.map((option) => (
-                    <option key={option}>{option}</option>
-                  ))}
-                </select>
+                />
               </div>
 
               <div className="formGroup">
@@ -3651,7 +3705,10 @@ const receivedCloudItems = [
                   onChange={(e) => updateCrushPost("top_type", e.target.value)}
                 >
                   <option value="">상의 종류 선택</option>
-                  {topTypeOptions.map((option) => (
+                  {(crushPost.target_gender === "여자"
+                    ? femaleTopTypeOptions
+                    : topTypeOptions
+                  ).map((option) => (
                     <option key={option}>{option}</option>
                   ))}
                 </select>
@@ -4101,7 +4158,7 @@ const receivedCloudItems = [
             <>
               <h3 className="questionTitle">내 머리 정보가 기억나나요?</h3>
               <p className="questionDesc">
-                머리스타일, 머리 색깔, 모자, 앞머리를 골라주세요.
+                머리스타일, 머리 색깔, 모자, 앞머리, 안경을 골라주세요.
                 <br />
                 잘 모르겠는 항목은 “잘 모르겠음”을 선택해도 돼요.
               </p>
@@ -4252,6 +4309,22 @@ const receivedCloudItems = [
                 </>
               )}
 
+              <div className="formGroup">
+                <label className="formLabel">안경</label>
+                <div className="optionGrid">
+                  {glassesOptions.map((option) => (
+                    <OptionButton
+                      key={option}
+                      value={option}
+                      selected={searchForm.glasses_type === option}
+                      onClick={() => setSearchForm({ ...searchForm, glasses_type: option })}
+                      label={getOxLabel(option)}
+                      full={option === "잘 모르겠음"}
+                    />
+                  ))}
+                </div>
+              </div>
+
               <button
                 onClick={() => {
                   if (!getFinalSearchHairFeature()) {
@@ -4268,7 +4341,7 @@ const receivedCloudItems = [
 
           {searchStep === 3 && (
             <>
-              <h3 className="questionTitle">상의가 기억나나요?</h3>
+              <h3 className="questionTitle">상의·아우터·하의가 기억나나요?</h3>
               <p className="questionDesc">
                 정확히 몰라도 가장 가까운 걸 골라주세요.
                 <br />
@@ -4286,7 +4359,10 @@ const receivedCloudItems = [
                   }
                 >
                   <option value="">상의 종류 선택</option>
-                  {topTypeOptions.map((option) => (
+                  {(profile.gender === "여자"
+                    ? femaleTopTypeOptions
+                    : topTypeOptions
+                  ).map((option) => (
                     <option key={option}>{option}</option>
                   ))}
                 </select>
@@ -4308,33 +4384,36 @@ const receivedCloudItems = [
               </div>
 
               <div className="formGroup">
-                <label className="formLabel">안경</label>
-                <div className="optionGrid">
-                  {glassesOptions.map((option) => (
-                    <OptionButton
-                      key={option}
-                      value={option}
-                      selected={searchForm.glasses_type === option}
-                      onClick={() => setSearchForm({ ...searchForm, glasses_type: option })}
-                      label={getOxLabel(option)}
-                      full={option === "잘 모르겠음"}
-                    />
+                <label className="formLabel">아우터 종류</label>
+                <select
+                  value={searchForm.outer_type}
+                  onChange={(e) =>
+                    setSearchForm({ ...searchForm, outer_type: e.target.value })
+                  }
+                >
+                  <option value="">아우터 종류 선택</option>
+                  {outerTypeOptions.map((option) => (
+                    <option key={option}>{option}</option>
                   ))}
-                </div>
+                </select>
               </div>
 
-              <button onClick={() => setSearchStep(4)}>다음</button>
-            </>
-          )}
-
-          {searchStep === 4 && (
-            <>
-              <h3 className="questionTitle">하의가 기억나나요?</h3>
-              <p className="questionDesc">
-                청반바지, 면반바지처럼 재질이 달라도 짧은 바지면 “반바지”를 선택하면 돼요.
-                <br />
-                기억이 안 나면 “잘 모르겠음”을 선택해주세요.
-              </p>
+              {searchForm.outer_type && searchForm.outer_type !== "아우터 없음" && (
+                <div className="formGroup">
+                  <label className="formLabel">아우터 색상</label>
+                  <select
+                    value={searchForm.outer_color}
+                    onChange={(e) =>
+                      setSearchForm({ ...searchForm, outer_color: e.target.value })
+                    }
+                  >
+                    <option value="">아우터 색상 선택</option>
+                    {topColorOptions.map((option) => (
+                      <option key={option}>{option}</option>
+                    ))}
+                  </select>
+                </div>
+              )}
 
               <div className="formGroup">
                 <label className="formLabel">하의 종류</label>
@@ -4369,6 +4448,65 @@ const receivedCloudItems = [
                 </select>
               </div>
 
+              <div className="formGroup">
+                <label className="formLabel">신발</label>
+                <select
+                  value={searchForm.shoe_type}
+                  onChange={(e) =>
+                    setSearchForm({ ...searchForm, shoe_type: e.target.value })
+                  }
+                >
+                  <option value="">신발 선택</option>
+                  {shoeOptions.map((option) => (
+                    <option key={option}>{option}</option>
+                  ))}
+                </select>
+              </div>
+
+              <button onClick={() => setSearchStep(4)}>다음</button>
+            </>
+          )}
+
+          {searchStep === 4 && (
+            <>
+              <h3 className="questionTitle">소지품이 기억나나요?</h3>
+              <p className="questionDesc">
+                가방과 이어폰/헤드셋 여부를 선택해주세요.
+                <br />
+                잘 모르겠는 항목은 “잘 모르겠음”을 선택해도 돼요.
+              </p>
+
+              <div className="formGroup">
+                <label className="formLabel">가방</label>
+                <div className="optionGrid">
+                  {bagOptions.map((option) => (
+                    <OptionButton
+                      key={option}
+                      value={option}
+                      selected={searchForm.bag_type === option}
+                      onClick={() => setSearchForm({ ...searchForm, bag_type: option })}
+                      label={getOxLabel(option)}
+                      full={option === "잘 모르겠음"}
+                    />
+                  ))}
+                </div>
+              </div>
+
+              <div className="formGroup">
+                <label className="formLabel">이어폰/헤드셋</label>
+                <select
+                  value={searchForm.earphone_type}
+                  onChange={(e) =>
+                    setSearchForm({ ...searchForm, earphone_type: e.target.value })
+                  }
+                >
+                  <option value="">이어폰 선택</option>
+                  {earphoneOptions.map((option) => (
+                    <option key={option}>{option}</option>
+                  ))}
+                </select>
+              </div>
+
               <button onClick={() => setSearchStep(5)}>다음</button>
             </>
           )}
@@ -4379,7 +4517,7 @@ const receivedCloudItems = [
               <p className="questionDesc">
                 아래 정보로 나를 찾는 구름을 확인해요.
                 <br />
-                상의와 하의는 선택하지 않았거나 “잘 모르겠음”이면 검색 조건에서 제외돼요.
+                선택하지 않았거나 “잘 모르겠음”인 항목은 검색 조건에서 제외돼요.
               </p>
 
               <div className="summaryBox">
@@ -4393,12 +4531,30 @@ const receivedCloudItems = [
                   <strong>머리:</strong> {getFinalSearchHairFeature() || "-"}
                 </p>
                 <p>
+                  <strong>안경:</strong> {searchForm.glasses_type || "-"}
+                </p>
+                <p>
                   <strong>상의:</strong> {searchForm.top_color || "-"}{" "}
                   {searchForm.top_type || "-"}
                 </p>
                 <p>
+                  <strong>아우터:</strong> {searchForm.outer_type || "-"}{" "}
+                  {searchForm.outer_type && searchForm.outer_type !== "아우터 없음"
+                    ? searchForm.outer_color || ""
+                    : ""}
+                </p>
+                <p>
                   <strong>하의:</strong> {searchForm.bottom_color || "-"}{" "}
                   {searchForm.bottom_type || "-"}
+                </p>
+                <p>
+                  <strong>신발:</strong> {searchForm.shoe_type || "-"}
+                </p>
+                <p>
+                  <strong>가방:</strong> {searchForm.bag_type || "-"}
+                </p>
+                <p>
+                  <strong>이어폰:</strong> {searchForm.earphone_type || "-"}
                 </p>
               </div>
 

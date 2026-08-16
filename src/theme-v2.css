@@ -98,6 +98,55 @@ body {
   font-size: 15px;
 }
 
+.app .searchableSelect {
+  position: relative;
+}
+
+.app .searchableSelect input {
+  width: 100%;
+}
+
+.app .searchableSelectList {
+  position: absolute;
+  top: calc(100% + 6px);
+  left: 0;
+  right: 0;
+  z-index: 20;
+  max-height: 240px;
+  overflow-y: auto;
+  background: var(--v2-surface);
+  border: 1px solid var(--v2-line);
+  border-radius: var(--v2-radius-sm);
+  box-shadow: var(--v2-shadow);
+  padding: 6px;
+}
+
+.app .searchableSelectOption {
+  display: block;
+  width: 100%;
+  text-align: left;
+  padding: 10px 12px;
+  border-radius: 12px;
+  background: transparent;
+  border: none;
+  box-shadow: none;
+  color: var(--v2-ink);
+  font-weight: 500;
+  font-size: 14.5px;
+}
+
+.app .searchableSelectOption:hover,
+.app .searchableSelectOption:active {
+  background: var(--v2-blue-soft);
+}
+
+.app .searchableSelectEmpty {
+  color: var(--v2-muted);
+  font-size: 13.5px;
+  padding: 10px 12px;
+  margin: 0;
+}
+
 .app .summaryBox {
   background: var(--v2-blue-soft);
   border: none;
