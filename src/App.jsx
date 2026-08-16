@@ -160,6 +160,7 @@ const [verificationFile, setVerificationFile] = useState(null);
   });
   const [sharedPost, setSharedPost] = useState(null);
   const [guestSharedPreview, setGuestSharedPreview] = useState(false);
+  const [sharedPostLoading, setSharedPostLoading] = useState(false);
   const guestPreviewFetchedRef = useRef(false);
 
 
@@ -528,12 +529,11 @@ const [verificationFile, setVerificationFile] = useState(null);
   }, []);
 
   useEffect(() => {
-    let listenerHandle;
-
-    CapacitorApp.addListener("appUrlOpen", (event) => {
+    const applySharedPostUrl = (url) => {
+      if (!url) return;
       try {
-        const url = new URL(event.url);
-        const postId = url.searchParams.get("post");
+        const parsed = new URL(url);
+        const postId = parsed.searchParams.get("post");
         if (postId) {
           guestPreviewFetchedRef.current = false;
           setSharedPostId(postId);
@@ -541,30 +541,56 @@ const [verificationFile, setVerificationFile] = useState(null);
       } catch (e) {
         console.log(e);
       }
+    };
+
+    let cancelled = false;
+    let listenerHandle;
+
+    // 앱이 완전히 꺼진 상태(콜드 스타트)에서 링크로 열렸을 때 처리
+    CapacitorApp.getLaunchUrl()
+      .then((result) => {
+        if (!cancelled) applySharedPostUrl(result?.url);
+      })
+      .catch((e) => console.log(e));
+
+    // 앱이 이미 떠있거나 백그라운드에 있을 때 링크로 다시 열렸을 때 처리
+    CapacitorApp.addListener("appUrlOpen", (event) => {
+      applySharedPostUrl(event.url);
     }).then((handle) => {
-      listenerHandle = handle;
+      if (cancelled) {
+        handle.remove();
+      } else {
+        listenerHandle = handle;
+      }
     });
 
     return () => {
+      cancelled = true;
       listenerHandle?.remove();
     };
   }, []);
 
   const openSharedPost = async (postId) => {
-    const { data, error } = await supabase
-      .from("crush_posts")
-      .select("*")
-      .eq("id", postId)
-      .maybeSingle();
+    try {
+      const { data, error } = await supabase
+        .from("crush_posts")
+        .select("*")
+        .eq("id", postId)
+        .maybeSingle();
 
-    if (error || !data) {
-      toast.error("이 구름을 찾지 못했어요. 삭제됐거나 링크가 잘못됐을 수 있어요.");
-      setPage("home");
-      return;
+      if (error || !data) {
+        toast.error("이 구름을 찾지 못했어요. 삭제됐거나 링크가 잘못됐을 수 있어요.");
+        setPage("home");
+        setSharedPostId(null);
+        setGuestSharedPreview(false);
+        return;
+      }
+
+      setSharedPost(data);
+      setPage("sharedPost");
+    } finally {
+      setSharedPostLoading(false);
     }
-
-    setSharedPost(data);
-    setPage("sharedPost");
   };
 
   useEffect(() => {
@@ -576,6 +602,7 @@ const [verificationFile, setVerificationFile] = useState(null);
       if (guestPreviewFetchedRef.current) return;
       guestPreviewFetchedRef.current = true;
       setGuestSharedPreview(true);
+      setSharedPostLoading(true);
       openSharedPost(sharedPostId);
       return;
     }
@@ -587,7 +614,12 @@ const [verificationFile, setVerificationFile] = useState(null);
     setSharedPostId(null);
     setGuestSharedPreview(false);
     window.history.replaceState({}, "", window.location.pathname);
-    openSharedPost(postId);
+
+    if (sharedPost && String(sharedPost.id) === String(postId)) {
+      setPage("sharedPost");
+    } else {
+      openSharedPost(postId);
+    }
   }, [
     sharedPostId,
     authLoading,
@@ -596,6 +628,7 @@ const [verificationFile, setVerificationFile] = useState(null);
     profile.nickname,
     profile.gender,
     profile.instagram_id,
+    sharedPost,
   ]);
 
   useEffect(() => {
@@ -905,6 +938,9 @@ const handleLogin = async () => {
     setSession(null);
     setCurrentUser(null);
     resetProfile();
+    setSharedPostId(null);
+    setSharedPost(null);
+    setGuestSharedPreview(false);
 
     setAuthForm({
       name: "",
@@ -1230,6 +1266,7 @@ const hideSearchResult = (postId) => {
 
   const renderCloudActionButtons = (post) => (
     <>
+      {(!currentUser || post.sender_user_id !== currentUser.id) && (
       <button
         onClick={() => {
           if (!currentUser) {
@@ -1243,6 +1280,7 @@ const hideSearchResult = (postId) => {
       >
         이거 나인 것 같아요
       </button>
+      )}
 
       <button
         type="button"
@@ -1697,6 +1735,11 @@ const hideSearchResult = (postId) => {
   }
 
   if (!checkProfileRequired()) return;
+
+  if (selectedPost.sender_user_id === currentUser.id) {
+    toast.error("본인이 올린 구름에는 응답할 수 없어요.");
+    return;
+  }
 
   if (!claimForm.match_level) {
     toast.error("일치 정도를 선택해주세요.");
@@ -2605,6 +2648,18 @@ const getWeatherPlaceCounts = () => {
         <div className="card">
           <h1>단꿈</h1>
           <p className="subtitle">로그인 상태를 확인하고 있어요...</p>
+        </div>
+      </div>
+    );
+  }
+
+  if (sharedPostLoading && !currentUser) {
+    return (
+      <div className="app">
+        <Toaster position="top-center" toastOptions={{ duration: 3000, style: { fontSize: "14px", maxWidth: "320px" } }} />
+        <div className="card">
+          <h1>단꿈</h1>
+          <p className="subtitle">공유된 구름을 불러오고 있어요...</p>
         </div>
       </div>
     );
@@ -4683,7 +4738,15 @@ const getWeatherPlaceCounts = () => {
             <p className="notice">이 구름을 찾지 못했어요.</p>
           )}
 
-          <button onClick={() => setPage("home")} className="white">
+          <button
+            onClick={() => {
+              setPage("home");
+              setSharedPostId(null);
+              setSharedPost(null);
+              setGuestSharedPreview(false);
+            }}
+            className="white"
+          >
             홈으로
           </button>
         </div>
