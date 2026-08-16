@@ -245,7 +245,6 @@ const [verificationFile, setVerificationFile] = useState(null);
   const [postSubmitting, setPostSubmitting] = useState(false);
   const [searchSubmitting, setSearchSubmitting] = useState(false);
   const [claimSubmitting, setClaimSubmitting] = useState(false);
-  const [secondCloudSubmittingId, setSecondCloudSubmittingId] = useState(null);
   const [deletingPostId, setDeletingPostId] = useState(null);
   const [claimActionSubmittingId, setClaimActionSubmittingId] = useState(null);
   const [chatPreviewClaim, setChatPreviewClaim] = useState(null);
@@ -258,8 +257,6 @@ const [verificationFile, setVerificationFile] = useState(null);
   const [mySentPosts, setMySentPosts] = useState([]);
   const [sentClaims, setSentClaims] = useState([]);
   const [receivedClaims, setReceivedClaims] = useState([]);
-  const [sentCloudViews, setSentCloudViews] = useState([]);
-  const [receivedCloudViews, setReceivedCloudViews] = useState([]);
   const [myCloudChecks, setMyCloudChecks] = useState([]);
 
   const femaleHairGuideImage = "/hair-length-guide.png";
@@ -1147,6 +1144,61 @@ const hideSearchResult = (postId) => {
     );
   };
 
+  const renderCloudActionButtons = (post) => (
+    <>
+      <button
+        onClick={() => {
+          setSelectedPost(post);
+          setPage("claimForm");
+        }}
+      >
+        이거 나인 것 같아요
+      </button>
+
+      <button
+        type="button"
+        className="findOwnerButton"
+        onClick={async () => {
+          const topText = getPostTopText(post);
+          const hairParts = (post.hair_feature || "")
+            .split(" / ")
+            .filter((p) => p && p !== "잘 모르겠음")
+            .slice(0, 2)
+            .join(", ");
+
+          const shareText = [
+            `야 단꿈에 이거 너 아니야? ☁️`,
+            ``,
+            `${post.seen_date ? `${formatDateLabel(post.seen_date)} ` : ""}${post.time_period || ""} ${post.place || ""}`,
+            `${post.target_gender || ""} / ${hairParts || ""}${topText ? ` / ${topText}` : ""}`,
+            ``,
+            `확인해봐 👇`,
+            window.location.origin,
+          ].join("\n");
+
+          if (navigator.share) {
+            try {
+              await navigator.share({
+                title: "☁️ 단꿈 - 이 구름 주인 찾아주기",
+                text: shareText,
+              });
+            } catch (e) {
+              if (e.name !== "AbortError") {
+                await navigator.clipboard.writeText(shareText);
+                toast.success("복사됐어요! 친구에게 보내보세요.");
+              }
+            }
+          } else {
+            await navigator.clipboard.writeText(shareText);
+            toast.success("복사됐어요! 친구에게 보내보세요.");
+          }
+        }}
+      >
+        ☁️ 이 구름 주인 찾아주기
+      </button>
+    </>
+  );
+
   const selectTargetGenderAndNext = (value) => {
     setCrushPost((prev) => ({
       ...prev,
@@ -1679,12 +1731,10 @@ const hideSearchResult = (postId) => {
     setMySentPosts([]);
     setSentClaims([]);
     setReceivedClaims([]);
-    setSentCloudViews([]);
-    setReceivedCloudViews([]);
     setMyCloudChecks([]);
 
     // Round 1: 독립 쿼리 병렬 실행
-    const [checksResult, postsResult, receivedClaimsResult, receivedViewsResult] =
+    const [checksResult, postsResult, receivedClaimsResult] =
       await Promise.all([
         supabase
           .from("cloud_checks")
@@ -1701,12 +1751,6 @@ const hideSearchResult = (postId) => {
           .select("*")
           .eq("claimer_user_id", currentUser.id)
           .order("created_at", { ascending: false }),
-        supabase
-          .from("cloud_views")
-          .select("*")
-          .eq("viewer_user_id", currentUser.id)
-          .not("second_cloud_sent_at", "is", null)
-          .order("second_cloud_sent_at", { ascending: false }),
       ]);
 
     if (checksResult.error) {
@@ -1727,12 +1771,6 @@ const hideSearchResult = (postId) => {
       setMatchingLoading(false);
       return false;
     }
-    if (receivedViewsResult.error) {
-      toast.error("나에게 온 뭉게구름을 불러오지 못했어요: " + receivedViewsResult.error.message);
-      console.log(receivedViewsResult.error);
-      setMatchingLoading(false);
-      return false;
-    }
 
     setMyCloudChecks(checksResult.data || []);
 
@@ -1740,32 +1778,23 @@ const hideSearchResult = (postId) => {
     setMySentPosts(finalMyPosts);
 
     const finalReceivedClaims = receivedClaimsResult.data || [];
-    const myReceivedViews = receivedViewsResult.data || [];
 
     // Round 2: Round 1 결과가 필요한 쿼리 병렬 실행
     const round2Promises = [];
 
     const sentPostIds = finalMyPosts.map((post) => post.id);
-    const sentPostIdsStr = finalMyPosts.map((post) => String(post.id));
     const receivedClaimPostIds = [...new Set(finalReceivedClaims.map((c) => c.crush_post_id))];
-    const viewPostIds = [...new Set(myReceivedViews.map((v) => v.crush_post_id))];
 
     round2Promises.push(
       sentPostIds.length > 0
         ? supabase.from("claims").select("*").in("crush_post_id", sentPostIds).order("created_at", { ascending: false })
         : Promise.resolve({ data: [], error: null }),
-      sentPostIdsStr.length > 0
-        ? supabase.from("cloud_views").select("*").in("crush_post_id", sentPostIdsStr).order("created_at", { ascending: false })
-        : Promise.resolve({ data: [], error: null }),
       receivedClaimPostIds.length > 0
         ? supabase.from("crush_posts").select("*").in("id", receivedClaimPostIds)
         : Promise.resolve({ data: [], error: null }),
-      viewPostIds.length > 0
-        ? supabase.from("crush_posts").select("*").in("id", viewPostIds)
-        : Promise.resolve({ data: [], error: null }),
     );
 
-    const [claimsResult, viewsResult, receivedPostsResult, viewPostsResult] =
+    const [claimsResult, receivedPostsResult] =
       await Promise.all(round2Promises);
 
     if (claimsResult.error) {
@@ -1774,21 +1803,9 @@ const hideSearchResult = (postId) => {
       setMatchingLoading(false);
       return false;
     }
-    if (viewsResult.error) {
-      toast.error("내 구름을 본 사람 목록을 불러오지 못했어요: " + viewsResult.error.message);
-      console.log(viewsResult.error);
-      setMatchingLoading(false);
-      return false;
-    }
     if (receivedPostsResult.error) {
       toast.error("내가 응답한 구름 글 정보를 불러오지 못했어요: " + receivedPostsResult.error.message);
       console.log(receivedPostsResult.error);
-      setMatchingLoading(false);
-      return false;
-    }
-    if (viewPostsResult.error) {
-      toast.error("뭉게구름 글 정보를 불러오지 못했어요: " + viewPostsResult.error.message);
-      console.log(viewPostsResult.error);
       setMatchingLoading(false);
       return false;
     }
@@ -1799,30 +1816,12 @@ const hideSearchResult = (postId) => {
     }));
     setSentClaims(finalSentClaims);
 
-    const finalSentCloudViews = (viewsResult.data || []).map((view) => ({
-      ...view,
-      post: finalMyPosts.find((item) => String(item.id) === String(view.crush_post_id)),
-      claim: finalSentClaims.find(
-        (item) =>
-          String(item.crush_post_id) === String(view.crush_post_id) &&
-          item.claimer_user_id === view.viewer_user_id
-      ),
-    }));
-    setSentCloudViews(finalSentCloudViews);
-
     const receivedPosts = receivedPostsResult.data || [];
     const combinedReceivedClaims = finalReceivedClaims.map((claim) => ({
       ...claim,
       post: receivedPosts.find((item) => item.id === claim.crush_post_id) || null,
     }));
     setReceivedClaims(combinedReceivedClaims);
-
-    const viewPosts = viewPostsResult.data || [];
-    const combinedReceivedViews = myReceivedViews.map((view) => ({
-      ...view,
-      post: viewPosts.find((item) => String(item.id) === String(view.crush_post_id)) || null,
-    }));
-    setReceivedCloudViews(combinedReceivedViews);
 
     const chatRoomIds = [
       ...finalSentClaims,
@@ -1905,103 +1904,6 @@ const getWeatherPlaceCounts = () => {
   return Object.values(countMap).sort((a, b) => b.count - a.count);
 };
 
-const sendSecondCloudToView = async (view) => {
-  if (!view?.id) {
-    toast.error("구름을 보낼 상대를 찾지 못했어요.");
-    return;
-  }
-
-  if (secondCloudSubmittingId) return;
-
-  if (view.second_cloud_sent_at) {
-    toast.error("이미 뭉게구름을 보냈어요.");
-    return;
-  }
-
-  if (view.match_score == null || view.match_score < MATCH_THRESHOLD) {
-    toast.error("일치도가 낮아 뭉게구름을 보낼 수 없어요.");
-    return;
-  }
-
-  const ok = window.confirm(
-    `${view.viewer_nickname || "상대"}님에게 뭉게구름을 보낼까요?`
-  );
-
-  if (!ok) return;
-
-  setSecondCloudSubmittingId(`view-${view.id}`);
-
-  try {
-    const { error } = await supabase
-      .from("cloud_views")
-      .update({
-        second_cloud_sent_at: new Date().toISOString(),
-        second_cloud_message:
-          "상대가 한 번 더 마음을 담아 구름을 보내왔어요.",
-      })
-      .eq("id", view.id);
-
-    if (error) {
-      toast.error("구름 보내기에 실패했어요: " + error.message);
-      console.log(error);
-      return;
-    }
-
-    toast.success("뭉게구름을 보냈어요 ☁️");
-    await loadMyActivityData();
-  } finally {
-    setSecondCloudSubmittingId(null);
-  }
-};
-
-const sendSecondCloudToClaim = async (claim) => {
-  if (!claim?.crush_post_id || !claim?.claimer_user_id) {
-    toast.error("구름을 보낼 응답을 찾지 못했어요.");
-    return;
-  }
-
-  if (secondCloudSubmittingId) return;
-
-  const ok = window.confirm(
-    `${claim.claimer_nickname || "상대"}님에게 뭉게구름을 보낼까요?`
-  );
-
-  if (!ok) return;
-
-  setSecondCloudSubmittingId(`claim-${claim.id || claim.crush_post_id}`);
-
-  try {
-    const now = new Date().toISOString();
-    const { error } = await supabase.from("cloud_views").upsert(
-      [
-        {
-          crush_post_id: String(claim.crush_post_id),
-          viewer_user_id: claim.claimer_user_id,
-          viewer_nickname: claim.claimer_nickname,
-          viewer_instagram: claim.claimer_instagram,
-          viewed_at: now,
-          second_cloud_sent_at: now,
-          second_cloud_message:
-            "상대가 한 번 더 마음을 담아 구름을 보내왔어요.",
-        },
-      ],
-      {
-        onConflict: "crush_post_id,viewer_user_id",
-      }
-    );
-
-    if (error) {
-      toast.error("구름 보내기에 실패했어요: " + error.message);
-      console.log(error);
-      return;
-    }
-
-    toast.success("뭉게구름을 보냈어요 ☁️");
-    await loadMyActivityData();
-  } finally {
-    setSecondCloudSubmittingId(null);
-  }
-};
   const requestChat = async (claimId) => {
     if (claimActionSubmittingId) return;
 
@@ -2208,54 +2110,12 @@ const sendSecondCloudToClaim = async (claim) => {
   const mySentPostsWithoutResponses = mySentPosts.filter(
     (post) => !sentClaimsByPostId[post.id]?.length
   );
-  const sentCloudViewsByPostId = sentCloudViews.reduce((acc, view) => {
-  if (!acc[view.crush_post_id]) {
-    acc[view.crush_post_id] = [];
-  }
+  const receivedCloudCount = new Set(
+    receivedClaims.map((claim) => String(claim.crush_post_id))
+  ).size;
 
-  acc[view.crush_post_id].push(view);
-  return acc;
-}, {});
+  const receivedCloudItems = receivedClaims;
 
-const receivedCloudPostIdSet = new Set([
-  ...receivedClaims.map((claim) => String(claim.crush_post_id)),
-  ...receivedCloudViews.map((view) => String(view.crush_post_id)),
-]);
-
-const receivedCloudCount = receivedCloudPostIdSet.size;
-
-const receivedCloudItems = [
-  ...receivedClaims.map((claim) => {
-    const matchedView = receivedCloudViews.find(
-      (view) => String(view.crush_post_id) === String(claim.crush_post_id)
-    );
-
-    return {
-      ...claim,
-      item_type: "claim",
-      second_cloud_sent_at: matchedView?.second_cloud_sent_at || null,
-      second_cloud_message: matchedView?.second_cloud_message || "",
-    };
-  }),
-
-  ...receivedCloudViews
-    .filter(
-      (view) =>
-        !receivedClaims.some(
-          (claim) => String(claim.crush_post_id) === String(view.crush_post_id)
-        )
-    )
-    .map((view) => ({
-      id: `view-${view.id}`,
-      item_type: "second_cloud",
-      crush_post_id: view.crush_post_id,
-      claimer_message: "",
-      status: "second_cloud_only",
-      second_cloud_sent_at: view.second_cloud_sent_at,
-      second_cloud_message: view.second_cloud_message,
-      post: view.post,
-    })),
-];
   const totalSentResponseCount = sentClaims.length;
   const acceptedMatchCount = [...sentClaims, ...receivedClaims].filter(
     (claim) => claim.status === "accepted"
@@ -2282,7 +2142,6 @@ const receivedCloudItems = [
   ...new Set([
     ...mySentPosts.map((post) => post.seen_date).filter(Boolean),
     ...receivedClaims.map((claim) => claim.post?.seen_date).filter(Boolean),
-    ...receivedCloudViews.map((view) => view.post?.seen_date).filter(Boolean),
     ...myCloudChecks.map((check) => check.seen_date).filter(Boolean),
   ]),
 ].sort((a, b) => b.localeCompare(a));
@@ -2294,17 +2153,11 @@ const receivedCloudItems = [
   const selectedDateReceivedClaims = receivedClaims.filter(
     (claim) => claim.post?.seen_date === selectedActivityDate
   );
-  const selectedDateReceivedCloudViews = receivedCloudViews.filter(
-  (view) => view.post?.seen_date === selectedActivityDate
-  );
 
-  const selectedDateReceivedCloudCount = new Set([
-  ...selectedDateReceivedClaims.map((claim) => String(claim.crush_post_id)),
-  ...selectedDateReceivedCloudViews.map((view) => String(view.crush_post_id)),
-  ]).size;
-  const selectedDateReceivedCloudItems = receivedCloudItems.filter(
-    (item) => item.post?.seen_date === selectedActivityDate
-  );
+  const selectedDateReceivedCloudCount = new Set(
+    selectedDateReceivedClaims.map((claim) => String(claim.crush_post_id))
+  ).size;
+  const selectedDateReceivedCloudItems = selectedDateReceivedClaims;
   const selectedDateCloudChecks = myCloudChecks.filter(
   (check) => check.seen_date === selectedActivityDate
 );
@@ -2356,24 +2209,9 @@ const receivedCloudItems = [
     created_at: claim.created_at,
     active: claim.status === "accepted",
   })),
-
-  ...receivedCloudViews.map((view) => ({
-    id: `mungae-${view.id}`,
-    type: "뭉게구름 도착",
-    title: "뭉게구름이 왔어요",
-    description: "상대가 한 번 더 마음을 담아 구름을 보내왔어요.",
-    created_at: view.second_cloud_sent_at,
-    active: true,
-  })),
 ].sort((a, b) => new Date(b.created_at || 0) - new Date(a.created_at || 0));
 
   const renderSentClaimCard = (claim) => {
-  const matchedView = sentCloudViews.find(
-    (view) =>
-      String(view.crush_post_id) === String(claim.crush_post_id) &&
-      view.viewer_user_id === claim.claimer_user_id
-  );
-
   return (
     <div className="responseBox" key={claim.id}>
       <p className="miniTitle">도착한 응답</p>
@@ -2394,26 +2232,6 @@ const receivedCloudItems = [
           {claim.status === "pending" && "응답 대기 중"}
         </b>
       </p>
-
-      {matchedView?.second_cloud_sent_at ? (
-        <div className="mungaeSentBox">
-          <p>☁️ 뭉게구름을 보냈어요.</p>
-          <p className="helperText">
-            상대의 나에게 온 구름 개수에 반영됐어요.
-          </p>
-        </div>
-      ) : (
-	        <button
-	          type="button"
-	          className="secondCloudButton"
-	          onClick={() => sendSecondCloudToClaim(claim)}
-	          disabled={secondCloudSubmittingId === `claim-${claim.id || claim.crush_post_id}`}
-	        >
-	          {secondCloudSubmittingId === `claim-${claim.id || claim.crush_post_id}`
-	            ? "구름 보내는 중..."
-	            : "☁️ 구름 보내기"}
-	        </button>
-      )}
 
       {claim.status === "pending" && (
         <div className="claimActionRow">
@@ -2488,11 +2306,6 @@ const receivedCloudItems = [
 
   const renderSentPostCard = (post, mode) => {
     const claims = sentClaimsByPostId[post.id] || [];
-    const views = sentCloudViewsByPostId[String(post.id)] || [];
-    const viewOnlyItems = views.filter(
-       (view) =>
-          !claims.some((claim) => claim.claimer_user_id === view.viewer_user_id)
-   );
 
     return (
       <div className="post" key={post.id}>
@@ -2514,43 +2327,10 @@ const receivedCloudItems = [
           “{cleanMessage(post.message) || "남긴 메시지가 없어요."}”
         </p>
 
-        {mode === "empty" && viewOnlyItems.length === 0 && (
+        {mode === "empty" && (
   <div className="noticeBox">
-    <p>아직 이 구름에 응답하거나 확인한 사람이 없어요.</p>
-    <p>상대가 구름 확인하기에서 이 구름을 보면 여기에 표시돼요.</p>
-  </div>
-)}
-
-{viewOnlyItems.length > 0 && (
-  <div className="cloudViewList">
-    <p className="miniTitle">이 구름을 확인한 사람</p>
-
-    {viewOnlyItems.map((view) => (
-      <div className="cloudViewCard" key={view.id}>
-        <p>
-          <b>{view.viewer_nickname || "상대"}</b>님이 이 구름을 확인했어요.
-        </p>
-
-        {view.second_cloud_sent_at ? (
-          <div className="mungaeSentBox">
-            <p>☁️ 뭉게구름을 보냈어요.</p>
-          </div>
-        ) : view.match_score != null && view.match_score >= MATCH_THRESHOLD ? (
-	          <button
-	            type="button"
-	            className="secondCloudButton"
-	            onClick={() => sendSecondCloudToView(view)}
-	            disabled={secondCloudSubmittingId === `view-${view.id}`}
-	          >
-	            {secondCloudSubmittingId === `view-${view.id}`
-	              ? "구름 보내는 중..."
-	              : "☁️ 구름 보내기"}
-	          </button>
-        ) : (
-          <p className="helperText">일치도가 낮아 뭉게구름을 보낼 수 없어요.</p>
-        )}
-      </div>
-    ))}
+    <p>아직 이 구름에 응답한 사람이 없어요.</p>
+    <p>상대가 구름 게시판에서 이 구름을 발견하면 여기에 표시돼요.</p>
   </div>
 )}
 
@@ -2611,29 +2391,11 @@ const receivedCloudItems = [
         ) : (
           <p className="notice">연결된 구름 글을 찾지 못했어요.</p>
         )}
-        {claim.second_cloud_sent_at && (
-  <div className="mungaeCloudBox">
-    <div className="mungaeCloudIcon">☁️</div>
-    <div>
-      <p className="mungaeCloudTitle">뭉게구름이 왔어요</p>
-      <p className="mungaeCloudDesc">
-        상대가 한 번 더 마음을 담아 구름을 보내왔어요.
-      </p>
-    </div>
-  </div>
-)}
         <hr />
 
-        {claim.item_type === "second_cloud" ? (
-          <p>
-            아직 응답하지 않은 구름이에요. 마음에 들면 아래에서 다시 찾아보고
-            “이거 나인 것 같아요”를 눌러보세요.
-          </p>
-        ) : (
-          <p>
-            내가 보낸 응답: <b>{claim.claimer_message || "-"}</b>
-          </p>
-        )}
+        <p>
+          내가 보낸 응답: <b>{claim.claimer_message || "-"}</b>
+        </p>
 
         <p>
           상태:{" "}
@@ -4588,56 +4350,7 @@ const receivedCloudItems = [
             “{cleanMessage(post.message) || "남긴 메시지가 없어요."}”
           </p>
 
-          <button
-            onClick={() => {
-              setSelectedPost(post);
-              setPage("claimForm");
-            }}
-          >
-            이거 나인 것 같아요
-          </button>
-
-          <button
-            type="button"
-            className="findOwnerButton"
-            onClick={async () => {
-              const topText = getPostTopText(post);
-              const hairParts = (post.hair_feature || "")
-                .split(" / ")
-                .filter((p) => p && p !== "잘 모르겠음")
-                .slice(0, 2)
-                .join(", ");
-
-              const shareText = [
-                `야 단꿈에 이거 너 아니야? ☁️`,
-                ``,
-                `${post.seen_date ? `${formatDateLabel(post.seen_date)} ` : ""}${post.time_period || ""} ${post.place || ""}`,
-                `${post.target_gender || ""} / ${hairParts || ""}${topText ? ` / ${topText}` : ""}`,
-                ``,
-                `확인해봐 👇`,
-                window.location.origin,
-              ].join("\n");
-
-              if (navigator.share) {
-                try {
-                  await navigator.share({
-                    title: "☁️ 단꿈 - 이 구름 주인 찾아주기",
-                    text: shareText,
-                  });
-                } catch (e) {
-                  if (e.name !== "AbortError") {
-                    await navigator.clipboard.writeText(shareText);
-                    toast.success("복사됐어요! 친구에게 보내보세요.");
-                  }
-                }
-              } else {
-                await navigator.clipboard.writeText(shareText);
-                toast.success("복사됐어요! 친구에게 보내보세요.");
-              }
-            }}
-          >
-            ☁️ 이 구름 주인 찾아주기
-          </button>
+          {renderCloudActionButtons(post)}
 
           <button
             type="button"
@@ -4977,6 +4690,8 @@ const receivedCloudItems = [
                   <p className="message">
                     “{cleanMessage(post.message) || "남긴 메시지가 없어요."}”
                   </p>
+
+                  {renderCloudActionButtons(post)}
                 </div>
               ))}
           </div>
