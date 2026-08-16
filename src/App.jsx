@@ -151,6 +151,12 @@ const [verificationFile, setVerificationFile] = useState(null);
     instagram_id: "",
     bio: "",
   });
+  const [profileReady, setProfileReady] = useState(false);
+  const [sharedPostId, setSharedPostId] = useState(() => {
+    if (typeof window === "undefined") return null;
+    return new URLSearchParams(window.location.search).get("post");
+  });
+  const [sharedPost, setSharedPost] = useState(null);
 
 
   const emptyCrushPost = {
@@ -354,6 +360,7 @@ const [verificationFile, setVerificationFile] = useState(null);
       instagram_id: "",
       bio: "",
     });
+    setProfileReady(false);
   };
 
   const checkVerificationStatus = async (user) => {
@@ -427,6 +434,8 @@ const [verificationFile, setVerificationFile] = useState(null);
         student_year: user?.user_metadata?.student_id || "",
       }));
     }
+
+    setProfileReady(true);
   };
 
   const fetchPublicProfile = async (userId) => {
@@ -513,6 +522,42 @@ const [verificationFile, setVerificationFile] = useState(null);
       subscription.unsubscribe();
     };
   }, []);
+
+  const openSharedPost = async (postId) => {
+    const { data, error } = await supabase
+      .from("crush_posts")
+      .select("*")
+      .eq("id", postId)
+      .maybeSingle();
+
+    if (error || !data) {
+      toast.error("이 구름을 찾지 못했어요. 삭제됐거나 링크가 잘못됐을 수 있어요.");
+      setPage("home");
+      return;
+    }
+
+    setSharedPost(data);
+    setPage("sharedPost");
+  };
+
+  useEffect(() => {
+    if (!sharedPostId) return;
+    if (authLoading || !currentUser || !profileReady) return;
+    if (!profile.nickname || !profile.gender || !profile.instagram_id) return;
+
+    const postId = sharedPostId;
+    setSharedPostId(null);
+    window.history.replaceState({}, "", window.location.pathname);
+    openSharedPost(postId);
+  }, [
+    sharedPostId,
+    authLoading,
+    currentUser,
+    profileReady,
+    profile.nickname,
+    profile.gender,
+    profile.instagram_id,
+  ]);
 
   useEffect(() => {
     if (!currentUser) {
@@ -1173,7 +1218,7 @@ const hideSearchResult = (postId) => {
             `${post.target_gender || ""} / ${hairParts || ""}${topText ? ` / ${topText}` : ""}`,
             ``,
             `확인해봐 👇`,
-            window.location.origin,
+            `${window.location.origin}/?post=${post.id}`,
           ].join("\n");
 
           if (navigator.share) {
@@ -4568,6 +4613,35 @@ const getWeatherPlaceCounts = () => {
               })}
             </div>
           )}
+        </div>
+      )}
+      {page === "sharedPost" && (
+        <div className="card">
+          <h2>☁️ 공유된 구름</h2>
+
+          {sharedPost ? (
+            <div className="post resultPost">
+              <p>
+                <b>
+                  {sharedPost.seen_date}, {sharedPost.time_period}, {sharedPost.place}
+                </b>
+              </p>
+
+              {renderPostQuestionAnswer(sharedPost)}
+
+              <p className="message">
+                “{cleanMessage(sharedPost.message) || "남긴 메시지가 없어요."}”
+              </p>
+
+              {renderCloudActionButtons(sharedPost)}
+            </div>
+          ) : (
+            <p className="notice">이 구름을 찾지 못했어요.</p>
+          )}
+
+          <button onClick={() => setPage("home")} className="white">
+            홈으로
+          </button>
         </div>
       )}
       {page === "weather" && (
