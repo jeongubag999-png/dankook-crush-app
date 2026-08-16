@@ -158,6 +158,8 @@ const [verificationFile, setVerificationFile] = useState(null);
     return new URLSearchParams(window.location.search).get("post");
   });
   const [sharedPost, setSharedPost] = useState(null);
+  const [guestSharedPreview, setGuestSharedPreview] = useState(false);
+  const guestPreviewFetchedRef = useRef(false);
 
 
   const emptyCrushPost = {
@@ -543,11 +545,23 @@ const [verificationFile, setVerificationFile] = useState(null);
 
   useEffect(() => {
     if (!sharedPostId) return;
-    if (authLoading || !currentUser || !profileReady) return;
+    if (authLoading) return;
+
+    if (!currentUser) {
+      // 로그인 안 한 상태: 미리보기만 한 번 보여주고, 로그인은 강제하지 않음
+      if (guestPreviewFetchedRef.current) return;
+      guestPreviewFetchedRef.current = true;
+      setGuestSharedPreview(true);
+      openSharedPost(sharedPostId);
+      return;
+    }
+
+    if (!profileReady) return;
     if (!profile.nickname || !profile.gender || !profile.instagram_id) return;
 
     const postId = sharedPostId;
     setSharedPostId(null);
+    setGuestSharedPreview(false);
     window.history.replaceState({}, "", window.location.pathname);
     openSharedPost(postId);
   }, [
@@ -1194,6 +1208,11 @@ const hideSearchResult = (postId) => {
     <>
       <button
         onClick={() => {
+          if (!currentUser) {
+            toast.error("로그인하고 확인해보세요!");
+            setGuestSharedPreview(false);
+            return;
+          }
           setSelectedPost(post);
           setPage("claimForm");
         }}
@@ -2591,7 +2610,7 @@ const getWeatherPlaceCounts = () => {
     );
   }
 
-  if (!session || !currentUser) {
+  if ((!session || !currentUser) && !(page === "sharedPost" && guestSharedPreview)) {
     return (
       <div className="app">
         <Toaster position="top-center" toastOptions={{ duration: 3000, style: { fontSize: "14px", maxWidth: "320px" } }} />
