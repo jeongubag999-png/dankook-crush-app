@@ -31,6 +31,7 @@ import { AdminPage } from "./components/AdminPage";
 import { PrivacyPolicyPage } from "./components/PrivacyPolicyPage";
 
 const ADMIN_LOGIN_IDS = ["pjwo12356", "djkim5882"];
+const PUBLIC_APP_URL = "https://dankook-crush-app.vercel.app";
 import {
   placeOptions,
   timeOptions,
@@ -1218,7 +1219,7 @@ const hideSearchResult = (postId) => {
             `${post.target_gender || ""} / ${hairParts || ""}${topText ? ` / ${topText}` : ""}`,
             ``,
             `확인해봐 👇`,
-            `${window.location.origin}/?post=${post.id}`,
+            `${PUBLIC_APP_URL}/?post=${post.id}`,
           ].join("\n");
 
           if (navigator.share) {
@@ -3803,7 +3804,7 @@ const getWeatherPlaceCounts = () => {
                 const shareData = {
                   title: "단꿈 ☁️",
                   text: "단꿈에 너한테 보내는 구름 남겼어 ☁️ 확인해봐",
-                  url: window.location.origin,
+                  url: PUBLIC_APP_URL,
                 };
                 if (navigator.share) {
                   try {
@@ -3815,7 +3816,7 @@ const getWeatherPlaceCounts = () => {
                   }
                 } else {
                   try {
-                    await navigator.clipboard.writeText(window.location.origin);
+                    await navigator.clipboard.writeText(PUBLIC_APP_URL);
                     toast.success("링크가 복사됐어요! 친구에게 보내보세요.");
                   } catch (e) {
                     toast.error("복사에 실패했어요.");
