@@ -3594,12 +3594,52 @@ textarea:focus {
   margin-bottom: 16px;
 }
 
-.adminSelectAllLabel {
+.adminSelectAllRow {
   display: flex;
   align-items: center;
-  gap: 8px;
+  gap: 10px;
+  height: auto;
+  min-height: 0;
   font-size: 14px;
+  font-family: inherit;
+  color: #1f2937;
+  background: none;
+  box-shadow: none;
+  border: none;
+  border-radius: 0;
+  padding: 4px 0;
+  margin: 0;
+  cursor: pointer;
+  text-align: left;
   word-break: keep-all;
+}
+
+.adminCheckbox {
+  width: 22px;
+  height: 22px;
+  min-width: 22px;
+  min-height: 22px;
+  flex-shrink: 0;
+  border-radius: 7px;
+  border: 1.5px solid #D1D5DB;
+  background: #fff;
+  box-shadow: none;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  font-size: 13px;
+  line-height: 1;
+  font-weight: 700;
+  color: #fff;
+  padding: 0;
+  margin: 0;
+  cursor: pointer;
+  transition: 0.15s ease;
+}
+
+.adminCheckbox.checked {
+  background: #ff7a8a;
+  border-color: #ff7a8a;
 }
 
 .adminBulkApproveBtn {
@@ -3634,6 +3674,10 @@ textarea:focus {
   display: flex;
   align-items: flex-start;
   gap: 10px;
+}
+
+.adminVerifyTopRow .adminCheckbox {
+  margin-top: 3px;
 }
 
 .adminPhotoToggleBtn {

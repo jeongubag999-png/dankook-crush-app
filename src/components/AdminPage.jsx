@@ -309,14 +309,18 @@ export function AdminPage({ onClose }) {
 
           {filter === "pending" && verifications.length > 0 && (
             <div className="adminBulkBar">
-              <label className="adminSelectAllLabel">
-                <input
-                  type="checkbox"
-                  checked={selectedIds.size > 0 && selectedIds.size === verifications.length}
-                  onChange={toggleSelectAll}
-                />
-                이 페이지 전체 선택 ({selectedIds.size}명 선택됨)
-              </label>
+              <button type="button" className="adminSelectAllRow" onClick={toggleSelectAll}>
+                <span
+                  className={
+                    selectedIds.size > 0 && selectedIds.size === verifications.length
+                      ? "adminCheckbox checked"
+                      : "adminCheckbox"
+                  }
+                >
+                  {selectedIds.size > 0 && selectedIds.size === verifications.length ? "✓" : ""}
+                </span>
+                <span>이 페이지 전체 선택 ({selectedIds.size}명 선택됨)</span>
+              </button>
               <button
                 className="adminApproveBtn adminBulkApproveBtn"
                 onClick={handleBulkApprove}
@@ -340,11 +344,14 @@ export function AdminPage({ onClose }) {
             <div key={item.id} className="adminVerifyCard">
               <div className="adminVerifyTopRow">
                 {filter === "pending" && (
-                  <input
-                    type="checkbox"
-                    checked={selectedIds.has(item.id)}
-                    onChange={() => toggleSelect(item.id)}
-                  />
+                  <button
+                    type="button"
+                    className={selectedIds.has(item.id) ? "adminCheckbox checked" : "adminCheckbox"}
+                    onClick={() => toggleSelect(item.id)}
+                    aria-label="선택"
+                  >
+                    {selectedIds.has(item.id) ? "✓" : ""}
+                  </button>
                 )}
                 <div className="adminVerifyInfo">
                   <p><b>{item.name || "이름 없음"}</b></p>
