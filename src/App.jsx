@@ -59,6 +59,7 @@ import {
   getMainPlaceFromPost,
   makeStorageFilePath,
   validateImageFile,
+  compressImage,
   makeAuthEmail,
   cleanInstagram,
   formatDateLabel,
@@ -796,12 +797,13 @@ const [verificationFile, setVerificationFile] = useState(null);
 
       // ── 2단계: 인증 사진 업로드 ──
       setSignupProgress("2단계: 인증 사진 업로드 중...");
-      const filePath = makeStorageFilePath(signedUpUser.id, verificationFile);
+      const compressedFile = await compressImage(verificationFile);
+      const filePath = makeStorageFilePath(signedUpUser.id, compressedFile);
 
       const { error: uploadError } = await supabase.storage
         .from("dku-verifications")
-        .upload(filePath, verificationFile, {
-          contentType: verificationFile.type,
+        .upload(filePath, compressedFile, {
+          contentType: compressedFile.type,
           upsert: false,
         });
 
@@ -983,7 +985,21 @@ const handleLogin = async () => {
       await supabase.from("cloud_views").delete().eq("viewer_user_id", currentUser.id);
       await supabase.from("cloud_checks").delete().eq("checker_user_id", currentUser.id);
       await supabase.from("crush_posts").delete().eq("sender_user_id", currentUser.id);
+
+      const { data: myVerifications } = await supabase
+        .from("dku_verifications")
+        .select("screenshot_path")
+        .eq("user_id", currentUser.id);
+
       await supabase.from("dku_verifications").delete().eq("user_id", currentUser.id);
+
+      const screenshotPaths = (myVerifications || [])
+        .map((v) => v.screenshot_path)
+        .filter(Boolean);
+
+      if (screenshotPaths.length > 0) {
+        await supabase.storage.from("dku-verifications").remove(screenshotPaths);
+      }
 
       const { error } = await supabase
         .from("profiles")

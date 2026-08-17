@@ -1,27 +1,54 @@
 import { useEffect, useState } from "react";
 import { supabase } from "../supabase";
 
+const PAGE_SIZE = 20;
+
 export function AdminPage({ onClose }) {
   const [section, setSection] = useState("verification");
   const [verifications, setVerifications] = useState([]);
   const [loading, setLoading] = useState(true);
   const [processingId, setProcessingId] = useState(null);
   const [photoUrls, setPhotoUrls] = useState({});
+  const [loadingPhotoId, setLoadingPhotoId] = useState(null);
   const [filter, setFilter] = useState("pending");
+  const [page, setPage] = useState(1);
+  const [totalCount, setTotalCount] = useState(0);
+  const [selectedIds, setSelectedIds] = useState(new Set());
+  const [stats, setStats] = useState({ pending: 0, approved: 0, rejected: 0 });
 
   const [reports, setReports] = useState([]);
   const [reportsLoading, setReportsLoading] = useState(true);
   const [reportFilter, setReportFilter] = useState("pending");
   const [resolvingReportId, setResolvingReportId] = useState(null);
 
+  const loadStats = async () => {
+    const [pendingRes, approvedRes, rejectedRes] = await Promise.all([
+      supabase.from("dku_verifications").select("id", { count: "exact", head: true }).eq("status", "pending"),
+      supabase.from("dku_verifications").select("id", { count: "exact", head: true }).eq("status", "approved"),
+      supabase.from("dku_verifications").select("id", { count: "exact", head: true }).eq("status", "rejected"),
+    ]);
+
+    setStats({
+      pending: pendingRes.count || 0,
+      approved: approvedRes.count || 0,
+      rejected: rejectedRes.count || 0,
+    });
+  };
+
   const loadVerifications = async () => {
     setLoading(true);
+    setSelectedIds(new Set());
+    setPhotoUrls({});
 
-    const { data, error } = await supabase
+    const from = (page - 1) * PAGE_SIZE;
+    const to = from + PAGE_SIZE - 1;
+
+    const { data, error, count } = await supabase
       .from("dku_verifications")
-      .select("*")
+      .select("*", { count: "exact" })
       .eq("status", filter)
-      .order("created_at", { ascending: false });
+      .order("created_at", { ascending: false })
+      .range(from, to);
 
     if (error) {
       console.log(error);
@@ -30,26 +57,64 @@ export function AdminPage({ onClose }) {
     }
 
     setVerifications(data || []);
-
-    // 사진 URL 생성
-    const urls = {};
-    for (const item of data || []) {
-      if (item.screenshot_path) {
-        const { data: urlData } = await supabase.storage
-          .from("dku-verifications")
-          .createSignedUrl(item.screenshot_path, 3600);
-        if (urlData?.signedUrl) {
-          urls[item.id] = urlData.signedUrl;
-        }
-      }
-    }
-    setPhotoUrls(urls);
+    setTotalCount(count || 0);
     setLoading(false);
   };
 
   useEffect(() => {
-    loadVerifications();
+    loadStats();
+  }, []);
+
+  useEffect(() => {
+    setPage(1);
   }, [filter]);
+
+  useEffect(() => {
+    loadVerifications();
+  }, [filter, page]);
+
+  const togglePhoto = async (item) => {
+    if (photoUrls[item.id]) {
+      setPhotoUrls((prev) => {
+        const next = { ...prev };
+        delete next[item.id];
+        return next;
+      });
+      return;
+    }
+
+    if (!item.screenshot_path) return;
+
+    setLoadingPhotoId(item.id);
+    const { data: urlData, error } = await supabase.storage
+      .from("dku-verifications")
+      .createSignedUrl(item.screenshot_path, 3600);
+
+    if (error) {
+      console.log(error);
+    } else if (urlData?.signedUrl) {
+      setPhotoUrls((prev) => ({ ...prev, [item.id]: urlData.signedUrl }));
+    }
+    setLoadingPhotoId(null);
+  };
+
+  const toggleSelect = (id) => {
+    setSelectedIds((prev) => {
+      const next = new Set(prev);
+      if (next.has(id)) {
+        next.delete(id);
+      } else {
+        next.add(id);
+      }
+      return next;
+    });
+  };
+
+  const toggleSelectAll = () => {
+    setSelectedIds((prev) =>
+      prev.size === verifications.length ? new Set() : new Set(verifications.map((v) => v.id))
+    );
+  };
 
   const loadReports = async () => {
     setReportsLoading(true);
@@ -108,8 +173,8 @@ export function AdminPage({ onClose }) {
       alert("승인 실패: " + error.message);
       console.log(error);
     } else {
-      alert(`${item.name || "유저"} 승인 완료!`);
       loadVerifications();
+      loadStats();
     }
 
     setProcessingId(null);
@@ -136,8 +201,33 @@ export function AdminPage({ onClose }) {
       alert("거절 실패: " + error.message);
       console.log(error);
     } else {
-      alert(`${item.name || "유저"} 거절 완료`);
       loadVerifications();
+      loadStats();
+    }
+
+    setProcessingId(null);
+  };
+
+  const handleBulkApprove = async () => {
+    if (selectedIds.size === 0 || processingId) return;
+
+    const ok = window.confirm(`선택한 ${selectedIds.size}명을 한 번에 승인할까요?`);
+    if (!ok) return;
+
+    setProcessingId("bulk");
+
+    const { error } = await supabase
+      .from("dku_verifications")
+      .update({ status: "approved", reviewed_at: new Date().toISOString() })
+      .in("id", [...selectedIds]);
+
+    if (error) {
+      alert("일괄 승인 실패: " + error.message);
+      console.log(error);
+    } else {
+      alert(`${selectedIds.size}명 승인 완료!`);
+      loadVerifications();
+      loadStats();
     }
 
     setProcessingId(null);
@@ -149,11 +239,34 @@ export function AdminPage({ onClose }) {
     return `${d.getMonth() + 1}/${d.getDate()} ${String(d.getHours()).padStart(2, "0")}:${String(d.getMinutes()).padStart(2, "0")}`;
   };
 
+  const totalPages = Math.max(1, Math.ceil(totalCount / PAGE_SIZE));
+  const rangeStart = totalCount === 0 ? 0 : (page - 1) * PAGE_SIZE + 1;
+  const rangeEnd = Math.min(page * PAGE_SIZE, totalCount);
+
   return (
     <div className="card adminCard">
       <div className="adminHeader">
         <h2>관리자 페이지</h2>
         <button className="white" onClick={onClose}>닫기</button>
+      </div>
+
+      <div className="adminStatsBar">
+        <div className="adminStatChip">
+          <span className="adminStatLabel">대기 중</span>
+          <span className="adminStatValue">{stats.pending}</span>
+        </div>
+        <div className="adminStatChip">
+          <span className="adminStatLabel">승인됨</span>
+          <span className="adminStatValue">{stats.approved}</span>
+        </div>
+        <div className="adminStatChip">
+          <span className="adminStatLabel">거절됨</span>
+          <span className="adminStatValue">{stats.rejected}</span>
+        </div>
+        <div className="adminStatChip">
+          <span className="adminStatLabel">전체</span>
+          <span className="adminStatValue">{stats.pending + stats.approved + stats.rejected}</span>
+        </div>
       </div>
 
       <div className="adminTabs">
@@ -194,6 +307,26 @@ export function AdminPage({ onClose }) {
             </button>
           </div>
 
+          {filter === "pending" && verifications.length > 0 && (
+            <div className="adminBulkBar">
+              <label className="adminSelectAllLabel">
+                <input
+                  type="checkbox"
+                  checked={selectedIds.size > 0 && selectedIds.size === verifications.length}
+                  onChange={toggleSelectAll}
+                />
+                이 페이지 전체 선택 ({selectedIds.size}명 선택됨)
+              </label>
+              <button
+                className="adminApproveBtn adminBulkApproveBtn"
+                onClick={handleBulkApprove}
+                disabled={selectedIds.size === 0 || processingId === "bulk"}
+              >
+                {processingId === "bulk" ? "처리 중..." : `선택 ${selectedIds.size}명 일괄 승인`}
+              </button>
+            </div>
+          )}
+
           {loading && <p className="notice">불러오는 중...</p>}
 
           {!loading && verifications.length === 0 && (
@@ -205,17 +338,39 @@ export function AdminPage({ onClose }) {
 
           {!loading && verifications.map((item) => (
             <div key={item.id} className="adminVerifyCard">
-              <div className="adminVerifyInfo">
-                <p><b>{item.name || "이름 없음"}</b></p>
-                <p>학번: {item.student_id || "-"}</p>
-                <p>학과: {item.department || "-"}</p>
-                <p className="helperText">신청: {formatDate(item.created_at)}</p>
-                {item.reject_reason && (
-                  <p className="retryErrorText">거절 사유: {item.reject_reason}</p>
+              <div className="adminVerifyTopRow">
+                {filter === "pending" && (
+                  <input
+                    type="checkbox"
+                    checked={selectedIds.has(item.id)}
+                    onChange={() => toggleSelect(item.id)}
+                  />
                 )}
+                <div className="adminVerifyInfo">
+                  <p><b>{item.name || "이름 없음"}</b></p>
+                  <p>학번: {item.student_id || "-"}</p>
+                  <p>학과: {item.department || "-"}</p>
+                  <p className="helperText">신청: {formatDate(item.created_at)}</p>
+                  {item.reject_reason && (
+                    <p className="retryErrorText">거절 사유: {item.reject_reason}</p>
+                  )}
+                </div>
               </div>
 
-              {photoUrls[item.id] ? (
+              <button
+                type="button"
+                className="white adminPhotoToggleBtn"
+                onClick={() => togglePhoto(item)}
+                disabled={loadingPhotoId === item.id}
+              >
+                {loadingPhotoId === item.id
+                  ? "사진 불러오는 중..."
+                  : photoUrls[item.id]
+                  ? "사진 숨기기"
+                  : "📷 인증 사진 보기"}
+              </button>
+
+              {photoUrls[item.id] && (
                 <a href={photoUrls[item.id]} target="_blank" rel="noreferrer">
                   <img
                     src={photoUrls[item.id]}
@@ -224,8 +379,6 @@ export function AdminPage({ onClose }) {
                   />
                   <p className="helperText" style={{ textAlign: "center" }}>사진 클릭해서 크게 보기</p>
                 </a>
-              ) : (
-                <div className="adminVerifyPhotoEmpty">사진 없음</div>
               )}
 
               {filter === "pending" && (
@@ -248,6 +401,28 @@ export function AdminPage({ onClose }) {
               )}
             </div>
           ))}
+
+          {!loading && totalCount > 0 && (
+            <div className="adminPagination">
+              <button
+                className="white"
+                onClick={() => setPage((p) => Math.max(1, p - 1))}
+                disabled={page <= 1}
+              >
+                ◀ 이전
+              </button>
+              <span className="helperText">
+                {rangeStart}-{rangeEnd} / 총 {totalCount}건 ({page}/{totalPages}페이지)
+              </span>
+              <button
+                className="white"
+                onClick={() => setPage((p) => Math.min(totalPages, p + 1))}
+                disabled={page >= totalPages}
+              >
+                다음 ▶
+              </button>
+            </div>
+          )}
 
           <button className="white" onClick={loadVerifications} disabled={loading}>
             새로고침

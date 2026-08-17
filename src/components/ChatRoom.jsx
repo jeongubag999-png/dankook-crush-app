@@ -1,4 +1,5 @@
 import { useEffect, useRef, useState } from "react";
+import toast from "react-hot-toast";
 import { supabase } from "../supabase";
 import { ChevronLeftIcon, PaperPlaneIcon } from "./Icons";
 import { formatChatBubbleTime, formatChatDateDivider, isSameChatDay } from "../utils";
@@ -73,7 +74,6 @@ export function ChatRoom({ roomId, currentUserId, otherNickname, onClose }) {
     if (!body || sending) return;
 
     setSending(true);
-    setInput("");
 
     const { error } = await supabase
       .from("chat_messages")
@@ -81,6 +81,9 @@ export function ChatRoom({ roomId, currentUserId, otherNickname, onClose }) {
 
     if (error) {
       console.log(error);
+      toast.error(error.message || "메시지 전송에 실패했어요.");
+    } else {
+      setInput("");
     }
     setSending(false);
   };

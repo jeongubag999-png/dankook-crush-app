@@ -53,6 +53,32 @@ export const makeStorageFilePath = (userId, file) => {
   return `${userId}/${uniqueId}.${extension}`;
 };
 
+export const compressImage = async (file, { maxDimension = 1600, quality = 0.82 } = {}) => {
+  try {
+    const bitmap = await createImageBitmap(file);
+    const scale = Math.min(1, maxDimension / Math.max(bitmap.width, bitmap.height));
+    const width = Math.round(bitmap.width * scale);
+    const height = Math.round(bitmap.height * scale);
+
+    const canvas = document.createElement("canvas");
+    canvas.width = width;
+    canvas.height = height;
+    canvas.getContext("2d").drawImage(bitmap, 0, 0, width, height);
+    bitmap.close?.();
+
+    const blob = await new Promise((resolve) => canvas.toBlob(resolve, "image/jpeg", quality));
+    if (!blob || blob.size >= file.size) return file;
+
+    return new File([blob], file.name.replace(/\.[^.]+$/, "") + ".jpg", {
+      type: "image/jpeg",
+      lastModified: Date.now(),
+    });
+  } catch (error) {
+    console.log("이미지 압축 실패, 원본으로 업로드합니다:", error);
+    return file;
+  }
+};
+
 export const validateImageFile = (file, label) => {
   if (!file) return `${label} 파일을 선택해주세요.`;
   if (!file.type.startsWith("image/")) {
