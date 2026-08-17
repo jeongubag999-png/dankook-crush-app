@@ -411,7 +411,7 @@ export function AdminPage({ onClose }) {
               >
                 ◀ 이전
               </button>
-              <span className="helperText">
+              <span className="helperText adminPaginationInfo">
                 {rangeStart}-{rangeEnd} / 총 {totalCount}건 ({page}/{totalPages}페이지)
               </span>
               <button

@@ -178,6 +178,16 @@ textarea::placeholder {
   color: #b6aaa5;
 }
 
+input[type="checkbox"] {
+  width: 18px;
+  height: 18px;
+  min-height: 0;
+  margin: 0;
+  padding: 0;
+  flex-shrink: 0;
+  accent-color: #ff7a8a;
+}
+
 textarea {
   min-height: 112px;
   height: auto;
@@ -3575,10 +3585,9 @@ textarea:focus {
 
 .adminBulkBar {
   display: flex;
-  align-items: center;
-  justify-content: space-between;
+  flex-direction: column;
+  align-items: stretch;
   gap: 10px;
-  flex-wrap: wrap;
   border: 1.5px solid #E5E7EB;
   border-radius: 12px;
   padding: 10px 12px;
@@ -3590,10 +3599,11 @@ textarea:focus {
   align-items: center;
   gap: 8px;
   font-size: 14px;
+  word-break: keep-all;
 }
 
 .adminBulkApproveBtn {
-  flex: none;
+  width: 100%;
   padding: 10px 14px;
 }
 
@@ -3603,6 +3613,11 @@ textarea:focus {
   justify-content: center;
   gap: 12px;
   margin: 16px 0;
+  flex-wrap: wrap;
+}
+
+.adminPaginationInfo {
+  white-space: nowrap;
 }
 
 .adminVerifyCard {
