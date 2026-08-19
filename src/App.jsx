@@ -3813,7 +3813,7 @@ const getWeatherPlaceCounts = () => {
                   이전
                 </button>
                 <button onClick={saveCrushPost} disabled={postSubmitting}>
-                  {postSubmitting ? "구름 보내는 중..." : "그날의 구름 보내기"}
+                  {postSubmitting ? "구름 보내는 중..." : "구름 보내기"}
                 </button>
               </div>
             </>
