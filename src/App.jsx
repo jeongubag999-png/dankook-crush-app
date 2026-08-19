@@ -2456,56 +2456,56 @@ const getWeatherPlaceCounts = () => {
     const claims = sentClaimsByPostId[post.id] || [];
 
     return (
-      <div className="post" key={post.id}>
-        <div className="postTopLine">
+      <details className="post postCollapsible" key={post.id}>
+        <summary className="postSummary">
           <span className={claims.length > 0 ? "statusPill active" : "statusPill"}>
             {claims.length > 0 ? `응답 ${claims.length}개` : "응답 없음"}
           </span>
-        </div>
-
-        <p>
-          <b>
+          <span className="postSummaryText">
             {post.seen_date}, {post.time_period}, {post.place}
-          </b>
-        </p>
+          </span>
+          <span className="postSummaryArrow" aria-hidden="true">›</span>
+        </summary>
 
-        {renderPostQuestionAnswer(post)}
+        <div className="postBody">
+          {renderPostQuestionAnswer(post)}
 
-        <p className="message">
-          “{cleanMessage(post.message) || "남긴 메시지가 없어요."}”
-        </p>
+          <p className="message">
+            “{cleanMessage(post.message) || "남긴 메시지가 없어요."}”
+          </p>
 
-        {mode === "empty" && (
-  <div className="noticeBox">
-    <p>아직 이 구름에 응답한 사람이 없어요.</p>
-    <p>상대가 구름 게시판에서 이 구름을 발견하면 여기에 표시돼요.</p>
-  </div>
-)}
+          {mode === "empty" && (
+    <div className="noticeBox">
+      <p>아직 이 구름에 응답한 사람이 없어요.</p>
+      <p>상대가 구름 게시판에서 이 구름을 발견하면 여기에 표시돼요.</p>
+    </div>
+  )}
 
-        {mode === "answered" && claims.map((claim) => renderSentClaimCard(claim))}
+          {mode === "answered" && claims.map((claim) => renderSentClaimCard(claim))}
 
-        {post.clothes_style === "빠른 구름" && (
-          <div className="upgradeCloudBox">
-            <p>📝 빠른 구름이에요. 머리·옷 정보를 추가하면 상대가 본인인지 더 잘 알아볼 수 있어요.</p>
-            <button
-              type="button"
-              className="upgradeCloudButton"
-              onClick={() => openEditQuickCloud(post)}
-            >
-              ✎ 자세하게 수정하기
-            </button>
-          </div>
-        )}
+          {post.clothes_style === "빠른 구름" && (
+            <div className="upgradeCloudBox">
+              <p>📝 빠른 구름이에요. 머리·옷 정보를 추가하면 상대가 본인인지 더 잘 알아볼 수 있어요.</p>
+              <button
+                type="button"
+                className="upgradeCloudButton"
+                onClick={() => openEditQuickCloud(post)}
+              >
+                ✎ 자세하게 수정하기
+              </button>
+            </div>
+          )}
 
-        <button
-          type="button"
-          className="dangerButton"
-          onClick={() => deleteMyPost(post.id)}
-          disabled={deletingPostId === post.id}
-        >
-          {deletingPostId === post.id ? "삭제 중..." : "이 구름 삭제하기"}
-        </button>
-      </div>
+          <button
+            type="button"
+            className="dangerButton"
+            onClick={() => deleteMyPost(post.id)}
+            disabled={deletingPostId === post.id}
+          >
+            {deletingPostId === post.id ? "삭제 중..." : "이 구름 삭제하기"}
+          </button>
+        </div>
+      </details>
     );
   };
 
@@ -2513,18 +2513,20 @@ const getWeatherPlaceCounts = () => {
     const post = claim.post;
 
     return (
-      <div className="post" key={claim.id}>
-        <div className="postTopLine">
+      <details className="post postCollapsible" key={claim.id}>
+        <summary className="postSummary">
           <span className="statusPill">구름 확인 응답</span>
-        </div>
+          <span className="postSummaryText">
+            {post
+              ? `${post.seen_date}, ${post.time_period}, ${post.place}`
+              : "연결된 구름 글을 찾지 못했어요"}
+          </span>
+          <span className="postSummaryArrow" aria-hidden="true">›</span>
+        </summary>
 
+        <div className="postBody">
         {post ? (
           <>
-            <p>
-              <b>
-                {post.seen_date}, {post.time_period}, {post.place}
-              </b>
-            </p>
             <p>
               구름을 보낸 사람: <b>{post.sender_nickname || "-"}</b>
             </p>
@@ -2594,7 +2596,8 @@ const getWeatherPlaceCounts = () => {
     </p>
   </div>
 	)}
-	      </div>
+	        </div>
+	      </details>
 	    );
 	  };
 

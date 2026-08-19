@@ -894,6 +894,42 @@ textarea {
   color: #e66f8f;
 }
 
+.postCollapsible > summary.postSummary {
+  display: flex;
+  align-items: center;
+  gap: 10px;
+  cursor: pointer;
+  list-style: none;
+}
+
+.postCollapsible > summary.postSummary::-webkit-details-marker {
+  display: none;
+}
+
+.postSummaryText {
+  flex: 1;
+  min-width: 0;
+  font-weight: 800;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+
+.postSummaryArrow {
+  flex-shrink: 0;
+  font-size: 18px;
+  color: #b19f98;
+  transition: transform 0.15s ease;
+}
+
+.postCollapsible[open] .postSummaryArrow {
+  transform: rotate(90deg);
+}
+
+.postBody {
+  margin-top: 14px;
+}
+
 .responseBox {
   margin-top: 16px;
   padding: 15px;
