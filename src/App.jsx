@@ -2670,19 +2670,28 @@ const getWeatherPlaceCounts = () => {
 	            호감이라는 말보다 조금 덜 부담스럽게, 몽글한 구름으로 마음을 전해요.
 	          </p>
 	
-	          <div className="appIntroBox trustStrip authTrustStrip">
-	            <p>
+	          <div className="authTrustRow">
+	            <div className="authTrustItem">
+	              <span className="authTrustIcon">
+	                <ShieldCheckIcon size={17} />
+	              </span>
 	              <b>학생 인증</b>
 	              <span>단국대 구성원 중심</span>
-	            </p>
-	            <p>
+	            </div>
+	            <div className="authTrustItem">
+	              <span className="authTrustIcon">
+	                <UsersIcon size={17} />
+	              </span>
 	              <b>상호 수락</b>
 	              <span>원할 때만 인스타 공개</span>
-	            </p>
-	            <p>
+	            </div>
+	            <div className="authTrustItem">
+	              <span className="authTrustIcon">
+	                <TrashIcon size={17} />
+	              </span>
 	              <b>내가 관리</b>
 	              <span>보낸 구름 삭제 가능</span>
-	            </p>
+	            </div>
 	          </div>
 
           {authMode === "signup" && (
