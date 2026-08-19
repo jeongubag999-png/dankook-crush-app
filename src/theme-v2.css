@@ -909,6 +909,10 @@ body {
   color: var(--v2-muted);
 }
 
+.app .hairGuideSummary {
+  color: var(--v2-blue-dark);
+}
+
 .app .notificationCard {
   background: var(--v2-surface);
   border: 1px solid var(--v2-line);

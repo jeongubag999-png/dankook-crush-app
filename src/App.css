@@ -1557,7 +1557,7 @@ textarea:focus {
   }
 }
 
-/* 여자 머리 길이 예시 이미지 */
+/* 여자 헤어 길이 예시 이미지 (참고사항으로 접어둠) */
 .hairGuideBox {
   margin: 14px 0 18px;
   padding: 10px;
@@ -1566,6 +1566,37 @@ textarea:focus {
   border-radius: 22px;
   overflow: hidden;
   box-shadow: 0 8px 20px rgba(47, 127, 203, 0.08);
+}
+
+.hairGuideBox > summary.hairGuideSummary {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 8px;
+  padding: 4px 6px;
+  cursor: pointer;
+  list-style: none;
+  font-size: 13px;
+  font-weight: 800;
+  color: #2f7fcb;
+}
+
+.hairGuideBox > summary.hairGuideSummary::-webkit-details-marker {
+  display: none;
+}
+
+.hairGuideArrow {
+  flex-shrink: 0;
+  font-size: 16px;
+  transition: transform 0.15s ease;
+}
+
+.hairGuideBox[open] > summary.hairGuideSummary {
+  margin-bottom: 10px;
+}
+
+.hairGuideBox[open] .hairGuideArrow {
+  transform: rotate(90deg);
 }
 
 .hairGuideImage {

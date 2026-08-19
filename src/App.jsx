@@ -1145,7 +1145,7 @@ const getPostMatchScore = (post) => {
         score += HAIR_WEIGHT * hairRatio;
       }
       if (matchedHairCount > 0) {
-        reasons.push(`머리 ${matchedHairCount}개 항목 일치`);
+        reasons.push(`헤어 ${matchedHairCount}개 항목 일치`);
       }
     }
   }
@@ -1211,7 +1211,7 @@ const hideSearchResult = (postId) => {
 
           <div className="qaBody">
             <p>
-              <strong>머리:</strong> {post.hair_feature || "-"}
+              <strong>헤어:</strong> {post.hair_feature || "-"}
             </p>
 
             <p>
@@ -1487,7 +1487,7 @@ const hideSearchResult = (postId) => {
     const finalHairFeature = getFinalHairFeature();
 
     if (!finalHairFeature || !crushPost.glasses_type) {
-      toast.error("머리 색깔, 모자, 앞머리, 안경를 선택해주세요.");
+      toast.error("헤어 색깔, 모자, 앞머리, 안경를 선택해주세요.");
       setCrushStep(3);
       return;
     }
@@ -2436,7 +2436,7 @@ const getWeatherPlaceCounts = () => {
 
           {post.clothes_style === "빠른 구름" && (
             <div className="upgradeCloudBox">
-              <p>📝 빠른 구름이에요. 머리·옷 정보를 추가하면 상대가 본인인지 더 잘 알아볼 수 있어요.</p>
+              <p>📝 빠른 구름이에요. 헤어·옷 정보를 추가하면 상대가 본인인지 더 잘 알아볼 수 있어요.</p>
               <button
                 type="button"
                 className="upgradeCloudButton"
@@ -3317,20 +3317,31 @@ const getWeatherPlaceCounts = () => {
           {crushStep === 3 && (
             <>
               <h3 className="questionTitle">
-                {crushPost.target_gender || "상대"}의 머리 정보가 기억나나요?
+                {crushPost.target_gender === "여자"
+                  ? "그녀"
+                  : crushPost.target_gender === "남자"
+                  ? "그"
+                  : "상대"}
+                의 헤어가 기억나나요?
               </h3>
               {crushPost.target_gender === "여자" ? (
                 <>
-                  <div className="hairGuideBox">
+                  <details className="hairGuideBox">
+                    <summary className="hairGuideSummary">
+                      <span>헤어 길이 참고 사진 보기</span>
+                      <span className="hairGuideArrow" aria-hidden="true">
+                        ›
+                      </span>
+                    </summary>
                     <img
                       src={femaleHairGuideImage}
-                      alt="여자 머리스타일 예시"
+                      alt="여자 헤어스타일 예시"
                       className="hairGuideImage"
                     />
-                  </div>
+                  </details>
 
                   <div className="formGroup">
-                    <label className="formLabel">머리스타일</label>
+                    <label className="formLabel">헤어스타일</label>
                     <div className="optionGrid">
                       {femaleHairStyleOptions.map((option) => (
                         <OptionButton
@@ -3345,7 +3356,7 @@ const getWeatherPlaceCounts = () => {
                   </div>
 
                   <div className="formGroup">
-                    <label className="formLabel">머리 색깔</label>
+                    <label className="formLabel">헤어 색깔</label>
                     <div className="optionGrid">
                       {hairColorOptions.map((option) => (
                         <OptionButton
@@ -3394,7 +3405,7 @@ const getWeatherPlaceCounts = () => {
               ) : (
                 <>
                   <div className="formGroup">
-                    <label className="formLabel">머리 색깔</label>
+                    <label className="formLabel">헤어 색깔</label>
                     <div className="optionGrid">
                       {hairColorOptions.map((option) => (
                         <OptionButton
@@ -3462,7 +3473,7 @@ const getWeatherPlaceCounts = () => {
                 onClick={() => {
                   if (!getFinalHairFeature() || !crushPost.glasses_type) {
                     toast.error(
-                      "머리 색깔, 모자, 앞머리, 안경를 선택해주세요."
+                      "헤어 색깔, 모자, 앞머리, 안경를 선택해주세요."
                     );
                     return;
                   }
@@ -3734,7 +3745,7 @@ const getWeatherPlaceCounts = () => {
                   <strong>장소:</strong> {getFinalPlace() || "-"}
                 </p>
                 <p>
-                  <strong>머리:</strong> {getFinalHairFeature() || "-"}
+                  <strong>헤어:</strong> {getFinalHairFeature() || "-"}
                 </p>
                 <p>
                   <strong>상의:</strong> {crushPost.top_color || "-"}{" "}
@@ -3907,19 +3918,25 @@ const getWeatherPlaceCounts = () => {
 
           {searchStep === 2 && (
             <>
-              <h3 className="questionTitle">내 머리 정보가 기억나나요?</h3>
+              <h3 className="questionTitle">내 헤어 정보가 기억나나요?</h3>
               {profile.gender === "여자" ? (
                 <>
-                  <div className="hairGuideBox">
+                  <details className="hairGuideBox">
+                    <summary className="hairGuideSummary">
+                      <span>헤어 길이 참고 사진 보기</span>
+                      <span className="hairGuideArrow" aria-hidden="true">
+                        ›
+                      </span>
+                    </summary>
                     <img
                       src={femaleHairGuideImage}
-                      alt="여자 머리스타일 예시"
+                      alt="여자 헤어스타일 예시"
                       className="hairGuideImage"
                     />
-                  </div>
+                  </details>
 
                   <div className="formGroup">
-                    <label className="formLabel">내 머리스타일</label>
+                    <label className="formLabel">내 헤어스타일</label>
                     <div className="optionGrid">
                       {femaleHairStyleOptions.map((option) => (
                         <OptionButton
@@ -3939,7 +3956,7 @@ const getWeatherPlaceCounts = () => {
                   </div>
 
                   <div className="formGroup">
-                    <label className="formLabel">머리 색깔</label>
+                    <label className="formLabel">헤어 색깔</label>
                     <div className="optionGrid">
                       {hairColorOptions.map((option) => (
                         <OptionButton
@@ -4000,7 +4017,7 @@ const getWeatherPlaceCounts = () => {
               ) : (
                 <>
                   <div className="formGroup">
-                    <label className="formLabel">머리 색깔</label>
+                    <label className="formLabel">헤어 색깔</label>
                     <div className="optionGrid">
                       {hairColorOptions.map((option) => (
                         <OptionButton
@@ -4073,7 +4090,7 @@ const getWeatherPlaceCounts = () => {
               <button
                 onClick={() => {
                   if (!getFinalSearchHairFeature()) {
-                    toast.error("머리 정보를 선택해주세요.");
+                    toast.error("헤어 정보를 선택해주세요.");
                     return;
                   }
                   setSearchStep(3);
@@ -4253,7 +4270,7 @@ const getWeatherPlaceCounts = () => {
                   <strong>내 성별:</strong> {profile.gender || "-"}
                 </p>
                 <p>
-                  <strong>머리:</strong> {getFinalSearchHairFeature() || "-"}
+                  <strong>헤어:</strong> {getFinalSearchHairFeature() || "-"}
                 </p>
                 <p>
                   <strong>안경:</strong> {searchForm.glasses_type || "-"}
@@ -4994,7 +5011,7 @@ const getWeatherPlaceCounts = () => {
         <p className="qaTitle">그날 내가 입력한 모습</p>
 
         <p>
-          <strong>머리:</strong> {check.hair_feature || "-"}
+          <strong>헤어:</strong> {check.hair_feature || "-"}
         </p>
 
         <p>
@@ -5009,7 +5026,7 @@ const getWeatherPlaceCounts = () => {
       </div>
 
       <p className="helperText">
-        이 기록이 쌓이면 어떤 옷이나 머리일 때 구름을 많이 받았는지 분석할 수 있어요.
+        이 기록이 쌓이면 어떤 옷이나 헤어일 때 구름을 많이 받았는지 분석할 수 있어요.
       </p>
     </div>
   ))}
