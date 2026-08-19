@@ -73,13 +73,6 @@ body {
   margin-top: 18px;
 }
 
-.app .questionDesc {
-  color: var(--v2-muted);
-  font-size: 13.5px;
-  line-height: 1.6;
-  text-align: left;
-}
-
 .app .formLabel {
   color: var(--v2-ink-soft);
   font-weight: 700;
