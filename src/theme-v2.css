@@ -423,25 +423,25 @@ body {
   width: 100%;
   display: flex;
   align-items: center;
-  gap: 14px;
+  gap: 12px;
   background: var(--v2-surface);
   border-radius: var(--v2-radius-md);
   box-shadow: var(--v2-shadow-sm);
-  padding: 18px;
+  padding: 16px;
   margin-bottom: 14px;
   border: none;
   text-align: left;
 }
 
 .app .homeV2ActionIcon {
-  width: 52px;
-  height: 52px;
+  width: 44px;
+  height: 44px;
   border-radius: 50%;
   display: flex;
   align-items: center;
   justify-content: center;
   flex-shrink: 0;
-  font-size: 24px;
+  font-size: 20px;
   background: var(--v2-blue-soft);
 }
 
@@ -455,14 +455,14 @@ body {
 
 .app .homeV2ActionText b {
   display: block;
-  font-size: 16px;
+  font-size: 15px;
   color: var(--v2-ink);
   margin-bottom: 3px;
 }
 
 .app .homeV2ActionText small {
   color: var(--v2-muted);
-  font-size: 12.5px;
+  font-size: 12px;
   font-weight: 500;
 }
 
