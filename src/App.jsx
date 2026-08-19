@@ -1085,55 +1085,6 @@ const handleLogin = async () => {
     toast.success("차단했어요.");
   };
 
-  const saveDraft = () => {
-    if (!currentUser) {
-      toast.error("로그인 후 임시저장을 사용할 수 있어요.");
-      return;
-    }
-
-    localStorage.setItem(
-      getDraftKey(),
-      JSON.stringify({
-        crushPost,
-        crushStep,
-        savedAt: new Date().toISOString(),
-      })
-    );
-
-    toast.success("작성 중인 구름을 임시저장했어요.");
-  };
-
-  const loadDraft = () => {
-    const saved = localStorage.getItem(getDraftKey());
-
-    if (!saved) {
-      toast.error("불러올 임시저장이 없어요.");
-      return;
-    }
-
-    try {
-      const parsed = JSON.parse(saved);
-
-      setCrushPost({
-        ...emptyCrushPost,
-        ...(parsed.crushPost || {}),
-      });
-
-      setCrushStep(parsed.crushStep || 1);
-      setPage("send");
-
-      toast.success("임시저장한 구름을 불러왔어요.");
-    } catch (error) {
-      console.log(error);
-      toast.error("임시저장을 불러오지 못했어요.");
-    }
-  };
-
-  const clearDraft = () => {
-    localStorage.removeItem(getDraftKey());
-    toast.success("임시저장을 삭제했어요.");
-  };
-
 // 날짜·성별은 DB 쿼리에서 이미 정확히 일치하는 것만 가져오므로(or/not 필터),
 // 점수에는 관여하지 않음. 30%는 "머리만 입력하고 그게 전부 맞은 경우"의
 // 점수와 같아서, 이걸 최소 통과선으로 잡음.
@@ -3258,8 +3209,6 @@ const getWeatherPlaceCounts = () => {
 
 	      {page === "send" && (
         <div className="card">
-          <h2 className="sendStepTitle">{editingPost ? "구름 자세하게 수정하기" : "구름 보내기"}</h2>
-
           {editingPost && (
             <div className="editingBanner">
               ✏️ 빠른 구름을 자세하게 수정하고 있어요. 완료하면 기존 구름이 업데이트돼요.
@@ -3269,18 +3218,6 @@ const getWeatherPlaceCounts = () => {
           <p className="stepText">{crushStep} / 6</p>
 
           <StepProgress total={6} current={crushStep} />
-
-          <div className="draftActionRow">
-            <button type="button" className="white smallButton" onClick={saveDraft}>
-              임시저장
-            </button>
-            <button type="button" className="white smallButton" onClick={loadDraft}>
-              불러오기
-            </button>
-            <button type="button" className="white smallButton" onClick={clearDraft}>
-              임시저장 삭제
-            </button>
-          </div>
 
           {crushStep === 1 && (
             <>
@@ -3881,25 +3818,23 @@ const getWeatherPlaceCounts = () => {
             </>
           )}
 
-          <div className="stepActions">
-            <button
-              onClick={goBackStep}
-              className={`white ${crushStep === 1 ? "iconOnlyButton" : ""}`}
-              aria-label={crushStep === 1 ? "홈으로" : undefined}
-            >
-              {crushStep === 1 ? <HomeIcon /> : "이전"}
-            </button>
+          {crushStep !== 1 && (
+            <div className="stepActions">
+              <button onClick={goBackStep} className="white">
+                이전
+              </button>
 
-            <button
-              onClick={() => {
-                resetCrushPost();
-                setPage("home");
-              }}
-              className="white"
-            >
-              취소
-            </button>
-          </div>
+              <button
+                onClick={() => {
+                  resetCrushPost();
+                  setPage("home");
+                }}
+                className="white"
+              >
+                취소
+              </button>
+            </div>
+          )}
         </div>
       )}
 

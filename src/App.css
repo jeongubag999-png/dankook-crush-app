@@ -1687,24 +1687,6 @@ textarea:focus {
   box-shadow: none;
 }
 
-/* 임시저장 버튼 */
-.draftActionRow {
-  display: grid;
-  grid-template-columns: 1fr 1fr 1fr;
-  gap: 8px;
-  margin: 0 0 20px;
-}
-
-.smallButton {
-  height: 46px;
-  min-height: 46px;
-  margin-top: 0;
-  padding: 0 8px;
-  border-radius: 16px;
-  font-size: 12px;
-  font-weight: 900;
-}
-
 /* 삭제 버튼 */
 .dangerButton {
   margin-top: 14px;
@@ -1722,10 +1704,6 @@ textarea:focus {
 
 /* 모바일에서 임시저장 버튼 줄바꿈 */
 @media (max-width: 480px) {
-  .draftActionRow {
-    grid-template-columns: 1fr;
-  }
-
   .passwordRow {
     grid-template-columns: 1fr 74px;
   }
@@ -1778,38 +1756,6 @@ button.white,
   min-height: 56px;
   max-height: 56px;
   margin: 0 !important;
-}
-
-/* 임시저장 / 불러오기 / 임시저장 삭제 */
-.draftActionRow {
-  display: grid;
-  grid-template-columns: repeat(3, minmax(0, 1fr));
-  gap: 8px;
-  align-items: stretch;
-  margin: 0 0 20px;
-}
-
-.draftActionRow button,
-.draftActionRow .smallButton,
-.smallButton {
-  width: 100%;
-  height: 56px;
-  min-height: 56px;
-  max-height: 56px;
-  margin: 0 !important;
-  padding: 0 8px;
-  border-radius: 18px;
-  font-size: 12px;
-  font-weight: 900;
-
-  display: flex;
-  align-items: center;
-  justify-content: center;
-
-  text-align: center;
-  line-height: 1.25;
-  white-space: normal;
-  word-break: keep-all;
 }
 
 /* 홈 아래 작은 메뉴 */
@@ -1890,21 +1836,6 @@ button.white,
     min-height: 56px;
     max-height: 56px;
   }
-
-  .draftActionRow {
-    grid-template-columns: repeat(3, minmax(0, 1fr));
-    gap: 8px;
-  }
-
-  .draftActionRow button,
-  .draftActionRow .smallButton,
-  .smallButton {
-    height: 56px;
-    min-height: 56px;
-    max-height: 56px;
-    font-size: 11px;
-    padding: 0 6px;
-  } 
 
   .passwordToggleButton {
     height: 58px;
