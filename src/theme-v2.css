@@ -15,6 +15,7 @@
   --v2-blue-soft: #e9f2ff;
   --v2-pink-soft: #ffe7ee;
   --v2-pink: #f16b93;
+  --v2-red: #e5484d;
   --v2-navy-pill: #16233f;
   --v2-radius-lg: 28px;
   --v2-radius-md: 20px;
@@ -269,6 +270,12 @@ body {
 .app .optionGrid .optionButton.selected {
   background: var(--v2-blue);
   border-color: var(--v2-blue);
+  color: #fff;
+}
+
+.app .optionGrid .optionButton.oxX.selected {
+  background: var(--v2-red);
+  border-color: var(--v2-red);
   color: #fff;
 }
 
