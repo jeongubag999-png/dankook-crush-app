@@ -4817,7 +4817,7 @@ const getWeatherPlaceCounts = () => {
                 aria-label="알림"
                 onClick={() => setMatchingMode("notifications")}
               >
-                <BellIcon size={17} />
+                <BellIcon size={21} />
               </button>
               <button
                 type="button"
@@ -4829,7 +4829,7 @@ const getWeatherPlaceCounts = () => {
                 aria-label="날짜별 기록"
                 onClick={() => setMatchingMode("calendar")}
               >
-                <CalendarIcon size={17} />
+                <CalendarIcon size={21} />
               </button>
             </div>
           </div>

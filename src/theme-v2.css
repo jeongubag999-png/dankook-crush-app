@@ -793,8 +793,8 @@ body {
 }
 
 .app .manageHeaderIconBtn {
-  width: 38px;
-  height: 38px;
+  width: 46px;
+  height: 46px;
   border-radius: 50%;
   border: 1px solid var(--v2-line);
   background: var(--v2-surface-soft);
