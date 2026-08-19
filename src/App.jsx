@@ -3743,13 +3743,18 @@ const getWeatherPlaceCounts = () => {
 
               <div className="summaryBox">
                 <p>
-                  <strong>보내는 사람:</strong> {profile.nickname || "-"}
-                </p>
-                <p>
-                  <strong>내 성별:</strong> {profile.gender || "-"}
-                </p>
-                <p>
-                  <strong>찾는 사람:</strong> {crushPost.target_gender || "-"}
+                  <strong>찾는 사람:</strong>{" "}
+                  {crushPost.target_gender === "여자" ? (
+                    <span className="inlineGenderIcon">
+                      <GenderFemaleIcon />
+                    </span>
+                  ) : crushPost.target_gender === "남자" ? (
+                    <span className="inlineGenderIcon">
+                      <GenderMaleIcon />
+                    </span>
+                  ) : (
+                    "-"
+                  )}
                 </p>
                 <p>
                   <strong>날짜:</strong> {crushPost.seen_date || "-"}
