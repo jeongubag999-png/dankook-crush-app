@@ -3292,10 +3292,6 @@ const getWeatherPlaceCounts = () => {
                 />
               </div>
 
-              <p className="helperText">
-                구체적인 위치는 선택사항이지만, 작성할수록 상대가 알아보기 쉬워요.
-              </p>
-
               <button
                 onClick={() => {
                   if (!crushPost.seen_date || !crushPost.time_period) {
