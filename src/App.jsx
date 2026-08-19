@@ -3292,21 +3292,26 @@ const getWeatherPlaceCounts = () => {
                 />
               </div>
 
-              <button
-                onClick={() => {
-                  if (!crushPost.seen_date || !crushPost.time_period) {
-                    toast.error("날짜와 시간을 선택해주세요.");
-                    return;
-                  }
-                  if (!getFinalPlace()) {
-                    toast.error("장소를 선택하거나 직접 입력해주세요.");
-                    return;
-                  }
-                  setCrushStep(3);
-                }}
-              >
-                다음
-              </button>
+              <div className="stepActions">
+                <button onClick={goBackStep} className="white">
+                  이전
+                </button>
+                <button
+                  onClick={() => {
+                    if (!crushPost.seen_date || !crushPost.time_period) {
+                      toast.error("날짜와 시간을 선택해주세요.");
+                      return;
+                    }
+                    if (!getFinalPlace()) {
+                      toast.error("장소를 선택하거나 직접 입력해주세요.");
+                      return;
+                    }
+                    setCrushStep(3);
+                  }}
+                >
+                  다음
+                </button>
+              </div>
             </>
           )}
 
@@ -3465,19 +3470,24 @@ const getWeatherPlaceCounts = () => {
                 </div>
               </div>
 
-              <button
-                onClick={() => {
-                  if (!getFinalHairFeature() || !crushPost.glasses_type) {
-                    toast.error(
-                      "헤어 색깔, 모자, 앞머리, 안경를 선택해주세요."
-                    );
-                    return;
-                  }
-                  setCrushStep(4);
-                }}
-              >
-                다음
-              </button>
+              <div className="stepActions">
+                <button onClick={goBackStep} className="white">
+                  이전
+                </button>
+                <button
+                  onClick={() => {
+                    if (!getFinalHairFeature() || !crushPost.glasses_type) {
+                      toast.error(
+                        "헤어 색깔, 모자, 앞머리, 안경를 선택해주세요."
+                      );
+                      return;
+                    }
+                    setCrushStep(4);
+                  }}
+                >
+                  다음
+                </button>
+              </div>
             </>
           )}
 
@@ -3632,25 +3642,30 @@ const getWeatherPlaceCounts = () => {
                 </p>
               </div>
 
-              <button
-                onClick={() => {
-                  if (
-                    !crushPost.top_type ||
-                    !crushPost.top_color ||
-                    !crushPost.outer_type ||
-                    (crushPost.outer_type !== "아우터 없음" && !crushPost.outer_color) ||
-                    !getFinalBottomType() ||
-                    !crushPost.bottom_color ||
-                    !crushPost.shoe_type
-                  ) {
-                    toast.error("상의, 아우터, 하의, 신발을 선택해주세요.");
-                    return;
-                  }
-                  setCrushStep(5);
-                }}
-              >
-                다음
-              </button>
+              <div className="stepActions">
+                <button onClick={goBackStep} className="white">
+                  이전
+                </button>
+                <button
+                  onClick={() => {
+                    if (
+                      !crushPost.top_type ||
+                      !crushPost.top_color ||
+                      !crushPost.outer_type ||
+                      (crushPost.outer_type !== "아우터 없음" && !crushPost.outer_color) ||
+                      !getFinalBottomType() ||
+                      !crushPost.bottom_color ||
+                      !crushPost.shoe_type
+                    ) {
+                      toast.error("상의, 아우터, 하의, 신발을 선택해주세요.");
+                      return;
+                    }
+                    setCrushStep(5);
+                  }}
+                >
+                  다음
+                </button>
+              </div>
             </>
           )}
 
@@ -3698,17 +3713,22 @@ const getWeatherPlaceCounts = () => {
                 </p>
               </div>
 
-              <button
-                onClick={() => {
-                  if (!crushPost.bag_type || !crushPost.earphone_type) {
-                    toast.error("가방과 이어폰 정보를 선택해주세요.");
-                    return;
-                  }
-                  setCrushStep(6);
-                }}
-              >
-                다음
-              </button>
+              <div className="stepActions">
+                <button onClick={goBackStep} className="white">
+                  이전
+                </button>
+                <button
+                  onClick={() => {
+                    if (!crushPost.bag_type || !crushPost.earphone_type) {
+                      toast.error("가방과 이어폰 정보를 선택해주세요.");
+                      return;
+                    }
+                    setCrushStep(6);
+                  }}
+                >
+                  다음
+                </button>
+              </div>
             </>
           )}
 
@@ -3783,28 +3803,15 @@ const getWeatherPlaceCounts = () => {
                 )}
               </div>
 
-	              <button onClick={saveCrushPost} disabled={postSubmitting}>
-	                {postSubmitting ? "구름 보내는 중..." : "그날의 구름 보내기"}
-	              </button>
+              <div className="stepActions">
+                <button onClick={goBackStep} className="white">
+                  이전
+                </button>
+                <button onClick={saveCrushPost} disabled={postSubmitting}>
+                  {postSubmitting ? "구름 보내는 중..." : "그날의 구름 보내기"}
+                </button>
+              </div>
             </>
-          )}
-
-          {crushStep !== 1 && (
-            <div className="stepActions">
-              <button onClick={goBackStep} className="white">
-                이전
-              </button>
-
-              <button
-                onClick={() => {
-                  resetCrushPost();
-                  setPage("home");
-                }}
-                className="white"
-              >
-                취소
-              </button>
-            </div>
           )}
         </div>
       )}
@@ -3898,17 +3905,22 @@ const getWeatherPlaceCounts = () => {
                 />
               </div>
 
-              <button
-                onClick={() => {
-                  if (!searchForm.seen_date) {
-                    toast.error("날짜를 선택해주세요.");
-                    return;
-                  }
-                  setSearchStep(2);
-                }}
-              >
-                다음
-              </button>
+              <div className="stepActions">
+                <button onClick={() => setPage("home")} className="white">
+                  홈으로
+                </button>
+                <button
+                  onClick={() => {
+                    if (!searchForm.seen_date) {
+                      toast.error("날짜를 선택해주세요.");
+                      return;
+                    }
+                    setSearchStep(2);
+                  }}
+                >
+                  다음
+                </button>
+              </div>
             </>
           )}
 
@@ -4083,17 +4095,25 @@ const getWeatherPlaceCounts = () => {
                 </div>
               </div>
 
-              <button
-                onClick={() => {
-                  if (!getFinalSearchHairFeature()) {
-                    toast.error("헤어 정보를 선택해주세요.");
-                    return;
-                  }
-                  setSearchStep(3);
-                }}
-              >
-                다음
-              </button>
+              <div className="stepActions">
+                <button
+                  onClick={() => setSearchStep((prev) => prev - 1)}
+                  className="white"
+                >
+                  이전
+                </button>
+                <button
+                  onClick={() => {
+                    if (!getFinalSearchHairFeature()) {
+                      toast.error("헤어 정보를 선택해주세요.");
+                      return;
+                    }
+                    setSearchStep(3);
+                  }}
+                >
+                  다음
+                </button>
+              </div>
             </>
           )}
 
@@ -4213,7 +4233,15 @@ const getWeatherPlaceCounts = () => {
                 </select>
               </div>
 
-              <button onClick={() => setSearchStep(4)}>다음</button>
+              <div className="stepActions">
+                <button
+                  onClick={() => setSearchStep((prev) => prev - 1)}
+                  className="white"
+                >
+                  이전
+                </button>
+                <button onClick={() => setSearchStep(4)}>다음</button>
+              </div>
             </>
           )}
 
@@ -4251,7 +4279,15 @@ const getWeatherPlaceCounts = () => {
                 </select>
               </div>
 
-              <button onClick={() => setSearchStep(5)}>다음</button>
+              <div className="stepActions">
+                <button
+                  onClick={() => setSearchStep((prev) => prev - 1)}
+                  className="white"
+                >
+                  이전
+                </button>
+                <button onClick={() => setSearchStep(5)}>다음</button>
+              </div>
             </>
           )}
 
@@ -4296,30 +4332,19 @@ const getWeatherPlaceCounts = () => {
                 </p>
               </div>
 
-	              <button onClick={searchCrushPosts} disabled={searchSubmitting}>
-	                {searchSubmitting ? "확인 중..." : "구름 확인하기"}
-	              </button>
+              <div className="stepActions">
+                <button
+                  onClick={() => setSearchStep((prev) => prev - 1)}
+                  className="white"
+                >
+                  이전
+                </button>
+                <button onClick={searchCrushPosts} disabled={searchSubmitting}>
+                  {searchSubmitting ? "확인 중..." : "구름 확인하기"}
+                </button>
+              </div>
             </>
           )}
-
-          <div className="stepActions">
-            <button
-              onClick={() => {
-                if (searchStep === 1) {
-                  setPage("home");
-                  return;
-                }
-                setSearchStep((prev) => prev - 1);
-              }}
-              className="white"
-            >
-              {searchStep === 1 ? "홈으로" : "이전"}
-            </button>
-
-            <button onClick={() => setPage("home")} className="white">
-              취소
-            </button>
-          </div>
         </div>
       )}
 
