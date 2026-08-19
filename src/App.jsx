@@ -25,6 +25,8 @@ import {
   PaperPlaneIcon,
   ChatIcon,
   ClockIcon,
+  EyeIcon,
+  EyeOffIcon,
 } from "./components/Icons";
 import { StepProgress } from "./components/StepProgress";
 import { VerificationPendingPage } from "./components/VerificationPendingPage";
@@ -2790,7 +2792,7 @@ const getWeatherPlaceCounts = () => {
           <div className="formGroup">
             <label className="formLabel">아이디</label>
             <input
-              placeholder="아이디 예: jungwoo23, jw_123, jw!2026"
+              placeholder="아이디 입력"
               value={authForm.login_id}
               onChange={(e) =>
                 setAuthForm({ ...authForm, login_id: e.target.value })
@@ -2803,7 +2805,7 @@ const getWeatherPlaceCounts = () => {
             <div className="passwordRow">
               <input
                 type={showPassword ? "text" : "password"}
-                placeholder="비밀번호 6자리 이상"
+                placeholder="비밀번호 입력"
                 value={authForm.password}
                 onChange={(e) =>
                   setAuthForm({ ...authForm, password: e.target.value })
@@ -2812,9 +2814,10 @@ const getWeatherPlaceCounts = () => {
               <button
                 type="button"
                 className="passwordToggleButton"
+                aria-label={showPassword ? "비밀번호 숨기기" : "비밀번호 보기"}
                 onClick={() => setShowPassword((prev) => !prev)}
               >
-                {showPassword ? "숨기기" : "보기"}
+                {showPassword ? <EyeOffIcon size={19} /> : <EyeIcon size={19} />}
               </button>
             </div>
           </div>

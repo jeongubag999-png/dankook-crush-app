@@ -1678,7 +1678,7 @@ textarea:focus {
 /* 비밀번호 보기 */
 .passwordRow {
   display: grid;
-  grid-template-columns: 1fr 82px;
+  grid-template-columns: 1fr 56px;
   gap: 8px;
   align-items: center;
 }
@@ -1692,8 +1692,10 @@ textarea:focus {
   min-height: 58px;
   margin-top: 0;
   border-radius: 18px;
-  padding: 0 10px;
-  font-size: 13px;
+  padding: 0;
+  display: flex;
+  align-items: center;
+  justify-content: center;
   background: #eef8ff;
   color: #24649f;
   box-shadow: none;
@@ -1717,11 +1719,7 @@ textarea:focus {
 /* 모바일에서 임시저장 버튼 줄바꿈 */
 @media (max-width: 480px) {
   .passwordRow {
-    grid-template-columns: 1fr 74px;
-  }
-
-  .passwordToggleButton {
-    font-size: 12px;
+    grid-template-columns: 1fr 52px;
   }
 
   .homeIntroBox {
