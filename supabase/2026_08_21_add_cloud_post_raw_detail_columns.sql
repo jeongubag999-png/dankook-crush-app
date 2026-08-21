@@ -29,9 +29,12 @@ alter table public.crush_posts
 
 -- New raw cloud post view. This does not replace/delete the existing
 -- "관리_구름목록" view.
+drop view if exists public.cloud_posts;
+
 create or replace view public.cloud_posts as
 select
   cp.id as "구름번호",
+  cp.created_at as "작성시간",
   cp.sender_user_id as "작성자id",
   cp.target_gender as "찾는사람성별",
   cp.seen_date as "마주친날짜",
@@ -58,8 +61,7 @@ select
   cp.bag_type as "가방유무",
   cp.earphone_type as "이어폰_헤드셋",
   cp.item_detail as "소지품추가설명_선택사항",
-  cp.message as "짧은메세지",
-  cp.created_at as "작성시간"
+  cp.message as "짧은메세지"
 from public.crush_posts cp
 order by cp.created_at desc;
 
