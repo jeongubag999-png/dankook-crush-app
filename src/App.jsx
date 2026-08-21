@@ -3954,7 +3954,9 @@ const getWeatherPlaceCounts = () => {
 
           {searchStep === 1 && (
             <>
-              <h3 className="questionTitle">언제 있었나요?</h3>
+              <h3 className="questionTitle">
+                구름을 확인하고 싶은 날짜는 언제인가요?
+              </h3>
               <div className="formGroup">
                 <label className="formLabel">날짜</label>
                 <input
