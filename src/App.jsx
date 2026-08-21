@@ -125,6 +125,30 @@ const [verificationFile, setVerificationFile] = useState(null);
     return "";
   };
 
+  const getSelectedHairDetails = () => {
+    if (crushPost.target_gender === "여자") {
+      return {
+        hair_color: crushPost.female_hair_color,
+        hat_status: crushPost.female_hat,
+        bangs_status: crushPost.female_bangs,
+      };
+    }
+
+    if (crushPost.target_gender === "남자") {
+      return {
+        hair_color: crushPost.male_hair_color,
+        hat_status: crushPost.male_hat,
+        bangs_status: crushPost.male_bangs,
+      };
+    }
+
+    return {
+      hair_color: "",
+      hat_status: "",
+      bangs_status: "",
+    };
+  };
+
   const getFinalSearchHairFeature = () => {
     if (profile.gender === "여자") {
       return makeHairFeature(
@@ -1487,6 +1511,7 @@ const hideSearchResult = (postId) => {
     }
 
     const finalHairFeature = getFinalHairFeature();
+    const selectedHairDetails = getSelectedHairDetails();
 
     if (!finalHairFeature || !crushPost.glasses_type) {
       toast.error("헤어 색깔, 모자, 앞머리, 안경를 선택해주세요.");
@@ -1539,8 +1564,27 @@ const hideSearchResult = (postId) => {
       const postData = {
         seen_date: crushPost.seen_date,
         place: getFinalPlace(),
+        main_place: crushPost.place,
+        detail_place: crushPost.custom_place.trim(),
         time_period: crushPost.time_period,
         hair_feature: finalHairFeature,
+        hair_color: selectedHairDetails.hair_color,
+        hat_status: selectedHairDetails.hat_status,
+        bangs_status: selectedHairDetails.bangs_status,
+        glasses_status: crushPost.glasses_type,
+        top_type: crushPost.top_type,
+        top_color: crushPost.top_color,
+        top_detail: crushPost.top_detail.trim(),
+        outer_type: crushPost.outer_type,
+        outer_color: crushPost.outer_type === "아우터 없음" ? "" : crushPost.outer_color,
+        bottom_type: getFinalBottomType(),
+        bottom_color: crushPost.bottom_color,
+        bottom_detail: crushPost.bottom_detail.trim(),
+        shoe_type: crushPost.shoe_type,
+        shoe_detail: crushPost.shoe_detail.trim(),
+        bag_type: crushPost.bag_type,
+        earphone_type: crushPost.earphone_type,
+        item_detail: crushPost.item_detail.trim(),
         clothes_color: crushPost.top_color,
         clothes_style: combinedStyle,
         accessory: combinedAccessory,
