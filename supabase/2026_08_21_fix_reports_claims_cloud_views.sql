@@ -17,7 +17,8 @@ stable
 as $$
   select coalesce(auth.jwt() -> 'user_metadata' ->> 'login_id', '') in (
     'pjwo12356',
-    'djkim5882'
+    'djkim5882',
+    'tjdgns02'
   );
 $$;
 

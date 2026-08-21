@@ -33,7 +33,7 @@ import { VerificationPendingPage } from "./components/VerificationPendingPage";
 import { AdminPage } from "./components/AdminPage";
 import { PrivacyPolicyPage } from "./components/PrivacyPolicyPage";
 
-const ADMIN_LOGIN_IDS = ["pjwo12356", "djkim5882"];
+const ADMIN_LOGIN_IDS = ["pjwo12356", "djkim5882", "tjdgns02"];
 const PUBLIC_APP_URL = "https://dankook-crush-app.vercel.app";
 import {
   placeOptions,
