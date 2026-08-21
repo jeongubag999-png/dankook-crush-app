@@ -34,7 +34,7 @@ drop view if exists public.cloud_posts;
 create or replace view public.cloud_posts as
 select
   cp.id as "구름번호",
-  cp.created_at as "작성시간",
+  to_char(cp.created_at at time zone 'Asia/Seoul', 'YYYY-MM-DD HH24:MI:SS') as "작성시간",
   cp.sender_user_id as "작성자id",
   cp.target_gender as "찾는사람성별",
   cp.seen_date as "마주친날짜",
