@@ -80,6 +80,36 @@ import {
   pickImageFromLibrary,
 } from "./utils";
 
+const CLOUD_SEND_MAX_SECONDS = 180;
+const CLOUD_SEND_STEP_NAMES = {
+  1: "누구를 찾고 있나요?",
+  2: "언제, 어디에서 마주쳤나요?",
+  3: "헤어 정보",
+  4: "상의·아우터·하의·신발",
+  5: "소지품",
+  6: "짧은 메시지",
+};
+
+const createCloudSendFlowId = () => {
+  if (typeof crypto !== "undefined" && crypto.randomUUID) {
+    return crypto.randomUUID();
+  }
+
+  return `cloud-send-${Date.now()}-${Math.random().toString(36).slice(2)}`;
+};
+
+const createStepTimingState = () => ({
+  1: 0,
+  2: 0,
+  3: 0,
+  4: 0,
+  5: 0,
+  6: 0,
+});
+
+const capCloudSendSeconds = (seconds) =>
+  Math.min(CLOUD_SEND_MAX_SECONDS, Math.max(0, Math.floor(seconds || 0)));
+
 function App() {
   const [page, setPage] = useState("home");
   const [crushStep, setCrushStep] = useState(1);
@@ -92,6 +122,12 @@ function App() {
   const [showPassword, setShowPassword] = useState(false);
   const profileLoadedUserIdRef = useRef(null);
   const isSigningUpRef = useRef(false); // 회원가입 진행 중 플래그
+  const cloudSendFlowIdRef = useRef(null);
+  const cloudSendStartedAtRef = useRef(null);
+  const cloudSendStepEnteredAtRef = useRef(null);
+  const cloudSendStepSecondsRef = useRef(createStepTimingState());
+  const cloudSendPreviousCountRef = useRef(0);
+  const cloudSendPreviousStepsRef = useRef([]);
 
   const [authForm, setAuthForm] = useState({
   name: "",
@@ -1335,18 +1371,24 @@ const hideSearchResult = (postId) => {
     }));
 
     setTimeout(() => {
-      setCrushStep(2);
+      moveCloudSendStep(2, "next", { targetGender: value });
     }, 120);
   };
 
-  const goBackStep = () => {
+  const goBackStep = async () => {
     if (crushStep === 1) {
       setEditingPost(null);
-      setPage("home");
+      await leaveCloudSendFlow("home_exit", "home");
       return;
     }
 
-    setCrushStep((prev) => prev - 1);
+    cloudSendPreviousCountRef.current += 1;
+    cloudSendPreviousStepsRef.current = [
+      ...cloudSendPreviousStepsRef.current,
+      String(crushStep),
+    ];
+
+    await moveCloudSendStep(crushStep - 1, "previous");
   };
 
   const checkProfileRequired = () => {
@@ -1376,14 +1418,17 @@ const hideSearchResult = (postId) => {
     return true;
   };
 
-  const openSendPage = () => {
+  const openSendPage = async () => {
     if (!checkProfileRequired()) return;
 
-    setCrushStep(1);
+    if (page === "send") return;
+
+    resetCrushPost();
+    await startCloudSendFlowLog({ targetGender: "" });
     setPage("send");
   };
 
-  const openEditQuickCloud = (post) => {
+  const openEditQuickCloud = async (post) => {
     if (!checkProfileRequired()) return;
 
     // 기존 빠른 구름의 기본 정보를 crushPost에 미리 채워줌
@@ -1399,27 +1444,29 @@ const hideSearchResult = (postId) => {
 
     setEditingPost(post);
     setCrushStep(1);
+    await startCloudSendFlowLog({ targetGender: post.target_gender || "" });
     setPage("send");
   };
 
-  const openSearchPage = () => {
+  const openSearchPage = async () => {
     if (!checkProfileRequired()) return;
 
     setSearchStep(1);
-    setPage("search");
+    await leaveCloudSendFlow("bottom_search", "search");
   };
 
-  const openNewCloudPage = () => {
+  const openNewCloudPage = async () => {
     if (!checkProfileRequired()) return;
 
     resetCrushPost();
+    await startCloudSendFlowLog({ targetGender: "" });
     setPage("send");
   };
 
   const openProfilePage = async () => {
     if (!checkProfileRequired()) return;
 
-    setPage("profile");
+    await leaveCloudSendFlow("profile_exit", "profile");
     await loadMyActivityData();
   };
 
@@ -1427,6 +1474,170 @@ const hideSearchResult = (postId) => {
     setCrushPost(emptyCrushPost);
     setCrushStep(1);
   };
+
+  const getCloudSendSecondsSnapshot = () => ({
+    ...cloudSendStepSecondsRef.current,
+  });
+
+  const addCurrentCloudSendStepTime = () => {
+    if (!cloudSendFlowIdRef.current || !cloudSendStepEnteredAtRef.current) {
+      return getCloudSendSecondsSnapshot();
+    }
+
+    const now = Date.now();
+    const elapsedSeconds = Math.max(
+      0,
+      Math.floor((now - cloudSendStepEnteredAtRef.current) / 1000)
+    );
+
+    if (elapsedSeconds > 0) {
+      const currentSeconds = cloudSendStepSecondsRef.current[crushStep] || 0;
+      cloudSendStepSecondsRef.current = {
+        ...cloudSendStepSecondsRef.current,
+        [crushStep]: capCloudSendSeconds(currentSeconds + elapsedSeconds),
+      };
+    }
+
+    cloudSendStepEnteredAtRef.current = now;
+    return getCloudSendSecondsSnapshot();
+  };
+
+  const saveCloudSendFlowLog = async ({
+    exitType,
+    completed = false,
+    targetGender,
+    ended = false,
+    stepNumber = crushStep,
+  } = {}) => {
+    if (!cloudSendFlowIdRef.current || !currentUser) return;
+
+    const stepSeconds = getCloudSendSecondsSnapshot();
+    const totalSeconds = capCloudSendSeconds(
+      Object.values(stepSeconds).reduce((sum, value) => sum + (value || 0), 0)
+    );
+
+    const payload = {
+      id: cloudSendFlowIdRef.current,
+      user_id: currentUser.id,
+      nickname: profile.nickname || "",
+      target_gender: targetGender ?? crushPost.target_gender ?? "",
+      started_at: cloudSendStartedAtRef.current,
+      ended_at: ended ? new Date().toISOString() : null,
+      completed,
+      exit_step: stepNumber,
+      exit_step_name: CLOUD_SEND_STEP_NAMES[stepNumber] || "",
+      exit_type: exitType || "step_update",
+      total_seconds: totalSeconds,
+      step_1_seconds: stepSeconds[1] || 0,
+      step_2_seconds: stepSeconds[2] || 0,
+      step_3_seconds: stepSeconds[3] || 0,
+      step_4_seconds: stepSeconds[4] || 0,
+      step_5_seconds: stepSeconds[5] || 0,
+      step_6_seconds: stepSeconds[6] || 0,
+      previous_count: cloudSendPreviousCountRef.current,
+      previous_steps: cloudSendPreviousStepsRef.current.join(","),
+      updated_at: new Date().toISOString(),
+    };
+
+    const { error } = await supabase
+      .from("cloud_send_exit_logs")
+      .upsert([payload], { onConflict: "id" });
+
+    if (error) {
+      console.log(error);
+    }
+  };
+
+  const startCloudSendFlowLog = async ({ targetGender = "" } = {}) => {
+    if (!currentUser) return;
+
+    cloudSendFlowIdRef.current = createCloudSendFlowId();
+    cloudSendStartedAtRef.current = new Date().toISOString();
+    cloudSendStepEnteredAtRef.current = Date.now();
+    cloudSendStepSecondsRef.current = createStepTimingState();
+    cloudSendPreviousCountRef.current = 0;
+    cloudSendPreviousStepsRef.current = [];
+
+    await saveCloudSendFlowLog({
+      exitType: "started",
+      stepNumber: 1,
+      targetGender,
+    });
+  };
+
+  const finishCloudSendFlowLog = async ({
+    exitType,
+    completed = false,
+    targetGender,
+  }) => {
+    if (!cloudSendFlowIdRef.current) return;
+
+    addCurrentCloudSendStepTime();
+    await saveCloudSendFlowLog({
+      exitType,
+      completed,
+      targetGender,
+      ended: true,
+    });
+
+    cloudSendFlowIdRef.current = null;
+    cloudSendStartedAtRef.current = null;
+    cloudSendStepEnteredAtRef.current = null;
+    cloudSendStepSecondsRef.current = createStepTimingState();
+    cloudSendPreviousCountRef.current = 0;
+    cloudSendPreviousStepsRef.current = [];
+  };
+
+  const moveCloudSendStep = async (nextStep, exitType, options = {}) => {
+    if (cloudSendFlowIdRef.current) {
+      addCurrentCloudSendStepTime();
+      await saveCloudSendFlowLog({
+        exitType,
+        targetGender: options.targetGender,
+      });
+      cloudSendStepEnteredAtRef.current = Date.now();
+    }
+
+    setCrushStep(nextStep);
+  };
+
+  const leaveCloudSendFlow = async (exitType, nextPage) => {
+    if (page === "send" && cloudSendFlowIdRef.current) {
+      await finishCloudSendFlowLog({
+        exitType,
+        completed: false,
+      });
+    }
+
+    setPage(nextPage);
+  };
+
+  useEffect(() => {
+    const saveExitOnPageClose = () => {
+      if (page !== "send" || !cloudSendFlowIdRef.current) return;
+
+      addCurrentCloudSendStepTime();
+      saveCloudSendFlowLog({
+        exitType: "page_unload",
+        completed: false,
+        ended: true,
+      });
+    };
+
+    const saveExitOnVisibilityHidden = () => {
+      if (document.visibilityState === "hidden") {
+        saveExitOnPageClose();
+      }
+    };
+
+    window.addEventListener("pagehide", saveExitOnPageClose);
+    document.addEventListener("visibilitychange", saveExitOnVisibilityHidden);
+
+    return () => {
+      window.removeEventListener("pagehide", saveExitOnPageClose);
+      document.removeEventListener("visibilitychange", saveExitOnVisibilityHidden);
+    };
+  }, [page, crushStep, currentUser, profile.nickname, crushPost.target_gender]);
 
   const saveProfile = async () => {
     if (profileSubmitting) return;
@@ -1496,7 +1707,7 @@ const hideSearchResult = (postId) => {
 
     if (!crushPost.target_gender) {
       toast.error("찾는 사람의 성별을 선택해주세요.");
-      setCrushStep(1);
+      await moveCloudSendStep(1, "validation_back");
       return;
     }
 
@@ -1506,7 +1717,7 @@ const hideSearchResult = (postId) => {
       !getFinalPlace()
     ) {
       toast.error("날짜, 시간, 장소를 모두 선택해주세요.");
-      setCrushStep(2);
+      await moveCloudSendStep(2, "validation_back");
       return;
     }
 
@@ -1515,7 +1726,7 @@ const hideSearchResult = (postId) => {
 
     if (!finalHairFeature || !crushPost.glasses_type) {
       toast.error("헤어 색깔, 모자, 앞머리, 안경를 선택해주세요.");
-      setCrushStep(3);
+      await moveCloudSendStep(3, "validation_back");
       return;
     }
 
@@ -1529,13 +1740,13 @@ const hideSearchResult = (postId) => {
       !crushPost.shoe_type
     ) {
       toast.error("상의, 아우터, 하의, 신발을 선택해주세요.");
-      setCrushStep(4);
+      await moveCloudSendStep(4, "validation_back");
       return;
     }
 
     if (!crushPost.bag_type || !crushPost.earphone_type) {
       toast.error("가방과 이어폰 정보를 선택해주세요.");
-      setCrushStep(5);
+      await moveCloudSendStep(5, "validation_back");
       return;
     }
 
@@ -1622,6 +1833,11 @@ const hideSearchResult = (postId) => {
       localStorage.removeItem(getDraftKey());
 
       toast.success(editingPost ? "구름을 자세하게 업데이트했어요!" : "구름을 남겼어요!");
+      await finishCloudSendFlowLog({
+        exitType: "submit",
+        completed: true,
+        targetGender: crushPost.target_gender,
+      });
       setEditingPost(null);
       resetCrushPost();
       setPage("sent");
@@ -1990,13 +2206,13 @@ const hideSearchResult = (postId) => {
   const openMatchingPage = async () => {
     if (!checkProfileRequired()) return;
 
-    setPage("matching");
+    await leaveCloudSendFlow("bottom_matching", "matching");
     await loadMyActivityData();
   };
   const openChatsPage = async () => {
     if (!checkProfileRequired()) return;
 
-    setPage("chats");
+    await leaveCloudSendFlow("bottom_chats", "chats");
     await loadMyActivityData();
   };
   const loadCloudWeather = async (targetDate = weatherDate) => {
@@ -2611,7 +2827,7 @@ const getWeatherPlaceCounts = () => {
         label: "홈",
         icon: <HomeIcon size={20} />,
         active: page === "home",
-        onClick: () => setPage("home"),
+        onClick: () => leaveCloudSendFlow("bottom_home", "home"),
       },
       {
         key: "send",
@@ -3359,7 +3575,7 @@ const getWeatherPlaceCounts = () => {
                   이전
                 </button>
                 <button
-                  onClick={() => {
+                  onClick={async () => {
                     if (!crushPost.seen_date || !crushPost.time_period) {
                       toast.error("날짜와 시간을 선택해주세요.");
                       return;
@@ -3368,7 +3584,7 @@ const getWeatherPlaceCounts = () => {
                       toast.error("장소를 선택하거나 직접 입력해주세요.");
                       return;
                     }
-                    setCrushStep(3);
+                    await moveCloudSendStep(3, "next");
                   }}
                 >
                   다음
@@ -3537,14 +3753,14 @@ const getWeatherPlaceCounts = () => {
                   이전
                 </button>
                 <button
-                  onClick={() => {
+                  onClick={async () => {
                     if (!getFinalHairFeature() || !crushPost.glasses_type) {
                       toast.error(
                         "헤어 색깔, 모자, 앞머리, 안경를 선택해주세요."
                       );
                       return;
                     }
-                    setCrushStep(4);
+                    await moveCloudSendStep(4, "next");
                   }}
                 >
                   다음
@@ -3709,7 +3925,7 @@ const getWeatherPlaceCounts = () => {
                   이전
                 </button>
                 <button
-                  onClick={() => {
+                  onClick={async () => {
                     if (
                       !crushPost.top_type ||
                       !crushPost.top_color ||
@@ -3722,7 +3938,7 @@ const getWeatherPlaceCounts = () => {
                       toast.error("상의, 아우터, 하의, 신발을 선택해주세요.");
                       return;
                     }
-                    setCrushStep(5);
+                    await moveCloudSendStep(5, "next");
                   }}
                 >
                   다음
@@ -3780,12 +3996,12 @@ const getWeatherPlaceCounts = () => {
                   이전
                 </button>
                 <button
-                  onClick={() => {
+                  onClick={async () => {
                     if (!crushPost.bag_type || !crushPost.earphone_type) {
                       toast.error("가방과 이어폰 정보를 선택해주세요.");
                       return;
                     }
-                    setCrushStep(6);
+                    await moveCloudSendStep(6, "next");
                   }}
                 >
                   다음
