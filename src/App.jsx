@@ -89,6 +89,13 @@ const CLOUD_SEND_STEP_NAMES = {
   5: "소지품",
   6: "짧은 메시지",
 };
+const CLOUD_CHECK_STEP_NAMES = {
+  1: "확인할 날짜",
+  2: "헤어 정보",
+  3: "상의·아우터·하의·신발",
+  4: "소지품",
+  5: "최종 확인",
+};
 
 const createCloudSendFlowId = () => {
   if (typeof crypto !== "undefined" && crypto.randomUUID) {
@@ -105,6 +112,13 @@ const createStepTimingState = () => ({
   4: 0,
   5: 0,
   6: 0,
+});
+const createSearchStepTimingState = () => ({
+  1: 0,
+  2: 0,
+  3: 0,
+  4: 0,
+  5: 0,
 });
 
 const capCloudSendSeconds = (seconds) =>
@@ -128,6 +142,12 @@ function App() {
   const cloudSendStepSecondsRef = useRef(createStepTimingState());
   const cloudSendPreviousCountRef = useRef(0);
   const cloudSendPreviousStepsRef = useRef([]);
+  const cloudCheckFlowIdRef = useRef(null);
+  const cloudCheckStartedAtRef = useRef(null);
+  const cloudCheckStepEnteredAtRef = useRef(null);
+  const cloudCheckStepSecondsRef = useRef(createSearchStepTimingState());
+  const cloudCheckPreviousCountRef = useRef(0);
+  const cloudCheckPreviousStepsRef = useRef([]);
 
   const [authForm, setAuthForm] = useState({
   name: "",
@@ -1423,6 +1443,13 @@ const hideSearchResult = (postId) => {
 
     if (page === "send") return;
 
+    if (page === "search" && cloudCheckFlowIdRef.current) {
+      await finishCloudCheckFlowLog({
+        exitType: "bottom_send",
+        completed: false,
+      });
+    }
+
     resetCrushPost();
     await startCloudSendFlowLog({ targetGender: "" });
     setPage("send");
@@ -1451,8 +1478,18 @@ const hideSearchResult = (postId) => {
   const openSearchPage = async () => {
     if (!checkProfileRequired()) return;
 
+    if (page === "search") return;
+
+    if (page === "send" && cloudSendFlowIdRef.current) {
+      await finishCloudSendFlowLog({
+        exitType: "bottom_search",
+        completed: false,
+      });
+    }
+
     setSearchStep(1);
-    await leaveCloudSendFlow("bottom_search", "search");
+    await startCloudCheckFlowLog();
+    setPage("search");
   };
 
   const openNewCloudPage = async () => {
@@ -1466,7 +1503,7 @@ const hideSearchResult = (postId) => {
   const openProfilePage = async () => {
     if (!checkProfileRequired()) return;
 
-    await leaveCloudSendFlow("profile_exit", "profile");
+    await leaveActiveFlow("profile_exit", "profile");
     await loadMyActivityData();
   };
 
@@ -1612,6 +1649,167 @@ const hideSearchResult = (postId) => {
     setPage(nextPage);
   };
 
+  const getCloudCheckSecondsSnapshot = () => ({
+    ...cloudCheckStepSecondsRef.current,
+  });
+
+  const addCurrentCloudCheckStepTime = () => {
+    if (!cloudCheckFlowIdRef.current || !cloudCheckStepEnteredAtRef.current) {
+      return getCloudCheckSecondsSnapshot();
+    }
+
+    const now = Date.now();
+    const elapsedSeconds = Math.max(
+      0,
+      Math.floor((now - cloudCheckStepEnteredAtRef.current) / 1000)
+    );
+
+    if (elapsedSeconds > 0) {
+      const currentSeconds = cloudCheckStepSecondsRef.current[searchStep] || 0;
+      cloudCheckStepSecondsRef.current = {
+        ...cloudCheckStepSecondsRef.current,
+        [searchStep]: capCloudSendSeconds(currentSeconds + elapsedSeconds),
+      };
+    }
+
+    cloudCheckStepEnteredAtRef.current = now;
+    return getCloudCheckSecondsSnapshot();
+  };
+
+  const saveCloudCheckFlowLog = async ({
+    exitType,
+    completed = false,
+    ended = false,
+    resultCount = null,
+    stepNumber = searchStep,
+  } = {}) => {
+    if (!cloudCheckFlowIdRef.current || !currentUser) return;
+
+    const stepSeconds = getCloudCheckSecondsSnapshot();
+    const totalSeconds = capCloudSendSeconds(
+      Object.values(stepSeconds).reduce((sum, value) => sum + (value || 0), 0)
+    );
+
+    const payload = {
+      id: cloudCheckFlowIdRef.current,
+      user_id: currentUser.id,
+      nickname: profile.nickname || "",
+      checker_gender: profile.gender || "",
+      started_at: cloudCheckStartedAtRef.current,
+      ended_at: ended ? new Date().toISOString() : null,
+      completed,
+      exit_step: stepNumber,
+      exit_step_name: CLOUD_CHECK_STEP_NAMES[stepNumber] || "",
+      exit_type: exitType || "step_update",
+      total_seconds: totalSeconds,
+      step_1_seconds: stepSeconds[1] || 0,
+      step_2_seconds: stepSeconds[2] || 0,
+      step_3_seconds: stepSeconds[3] || 0,
+      step_4_seconds: stepSeconds[4] || 0,
+      step_5_seconds: stepSeconds[5] || 0,
+      previous_count: cloudCheckPreviousCountRef.current,
+      previous_steps: cloudCheckPreviousStepsRef.current.join(","),
+      result_count: resultCount,
+      updated_at: new Date().toISOString(),
+    };
+
+    const { error } = await supabase
+      .from("cloud_check_exit_logs")
+      .upsert([payload], { onConflict: "id" });
+
+    if (error) {
+      console.log(error);
+    }
+  };
+
+  const startCloudCheckFlowLog = async () => {
+    if (!currentUser) return;
+
+    cloudCheckFlowIdRef.current = createCloudSendFlowId();
+    cloudCheckStartedAtRef.current = new Date().toISOString();
+    cloudCheckStepEnteredAtRef.current = Date.now();
+    cloudCheckStepSecondsRef.current = createSearchStepTimingState();
+    cloudCheckPreviousCountRef.current = 0;
+    cloudCheckPreviousStepsRef.current = [];
+
+    await saveCloudCheckFlowLog({ exitType: "started", stepNumber: 1 });
+  };
+
+  const finishCloudCheckFlowLog = async ({
+    exitType,
+    completed = false,
+    resultCount = null,
+  }) => {
+    if (!cloudCheckFlowIdRef.current) return;
+
+    addCurrentCloudCheckStepTime();
+    await saveCloudCheckFlowLog({
+      exitType,
+      completed,
+      ended: true,
+      resultCount,
+    });
+
+    cloudCheckFlowIdRef.current = null;
+    cloudCheckStartedAtRef.current = null;
+    cloudCheckStepEnteredAtRef.current = null;
+    cloudCheckStepSecondsRef.current = createSearchStepTimingState();
+    cloudCheckPreviousCountRef.current = 0;
+    cloudCheckPreviousStepsRef.current = [];
+  };
+
+  const moveCloudCheckStep = async (nextStep, exitType) => {
+    if (cloudCheckFlowIdRef.current) {
+      addCurrentCloudCheckStepTime();
+      await saveCloudCheckFlowLog({ exitType });
+      cloudCheckStepEnteredAtRef.current = Date.now();
+    }
+
+    setSearchStep(nextStep);
+  };
+
+  const goBackSearchStep = async () => {
+    if (searchStep === 1) {
+      await leaveCloudCheckFlow("home_exit", "home");
+      return;
+    }
+
+    cloudCheckPreviousCountRef.current += 1;
+    cloudCheckPreviousStepsRef.current = [
+      ...cloudCheckPreviousStepsRef.current,
+      String(searchStep),
+    ];
+
+    await moveCloudCheckStep(searchStep - 1, "previous");
+  };
+
+  const leaveCloudCheckFlow = async (exitType, nextPage) => {
+    if (page === "search" && cloudCheckFlowIdRef.current) {
+      await finishCloudCheckFlowLog({
+        exitType,
+        completed: false,
+      });
+    }
+
+    setPage(nextPage);
+  };
+
+  const leaveActiveFlow = async (exitType, nextPage) => {
+    if (page === "send" && cloudSendFlowIdRef.current) {
+      await finishCloudSendFlowLog({
+        exitType,
+        completed: false,
+      });
+    } else if (page === "search" && cloudCheckFlowIdRef.current) {
+      await finishCloudCheckFlowLog({
+        exitType,
+        completed: false,
+      });
+    }
+
+    setPage(nextPage);
+  };
+
   useEffect(() => {
     const saveExitOnPageClose = () => {
       if (page !== "send" || !cloudSendFlowIdRef.current) return;
@@ -1638,6 +1836,33 @@ const hideSearchResult = (postId) => {
       document.removeEventListener("visibilitychange", saveExitOnVisibilityHidden);
     };
   }, [page, crushStep, currentUser, profile.nickname, crushPost.target_gender]);
+
+  useEffect(() => {
+    const saveExitOnPageClose = () => {
+      if (page !== "search" || !cloudCheckFlowIdRef.current) return;
+
+      addCurrentCloudCheckStepTime();
+      saveCloudCheckFlowLog({
+        exitType: "page_unload",
+        completed: false,
+        ended: true,
+      });
+    };
+
+    const saveExitOnVisibilityHidden = () => {
+      if (document.visibilityState === "hidden") {
+        saveExitOnPageClose();
+      }
+    };
+
+    window.addEventListener("pagehide", saveExitOnPageClose);
+    document.addEventListener("visibilitychange", saveExitOnVisibilityHidden);
+
+    return () => {
+      window.removeEventListener("pagehide", saveExitOnPageClose);
+      document.removeEventListener("visibilitychange", saveExitOnVisibilityHidden);
+    };
+  }, [page, searchStep, currentUser, profile.nickname, profile.gender]);
 
   const saveProfile = async () => {
     if (profileSubmitting) return;
@@ -1953,6 +2178,12 @@ const hideSearchResult = (postId) => {
       }
     }
 
+    await finishCloudCheckFlowLog({
+      exitType: "submit",
+      completed: true,
+      resultCount: finalResults.length,
+    });
+
     setSearchResults(finalResults);
     setHiddenResultIds([]);
     setPage("result");
@@ -2206,13 +2437,13 @@ const hideSearchResult = (postId) => {
   const openMatchingPage = async () => {
     if (!checkProfileRequired()) return;
 
-    await leaveCloudSendFlow("bottom_matching", "matching");
+    await leaveActiveFlow("bottom_matching", "matching");
     await loadMyActivityData();
   };
   const openChatsPage = async () => {
     if (!checkProfileRequired()) return;
 
-    await leaveCloudSendFlow("bottom_chats", "chats");
+    await leaveActiveFlow("bottom_chats", "chats");
     await loadMyActivityData();
   };
   const loadCloudWeather = async (targetDate = weatherDate) => {
@@ -2827,7 +3058,7 @@ const getWeatherPlaceCounts = () => {
         label: "홈",
         icon: <HomeIcon size={20} />,
         active: page === "home",
-        onClick: () => leaveCloudSendFlow("bottom_home", "home"),
+        onClick: () => leaveActiveFlow("bottom_home", "home"),
       },
       {
         key: "send",
@@ -4191,16 +4422,19 @@ const getWeatherPlaceCounts = () => {
               </div>
 
               <div className="stepActions">
-                <button onClick={() => setPage("home")} className="white">
+                <button
+                  onClick={() => leaveCloudCheckFlow("home_exit", "home")}
+                  className="white"
+                >
                   홈으로
                 </button>
                 <button
-                  onClick={() => {
+                  onClick={async () => {
                     if (!searchForm.seen_date) {
                       toast.error("날짜를 선택해주세요.");
                       return;
                     }
-                    setSearchStep(2);
+                    await moveCloudCheckStep(2, "next");
                   }}
                 >
                   다음
@@ -4382,18 +4616,18 @@ const getWeatherPlaceCounts = () => {
 
               <div className="stepActions">
                 <button
-                  onClick={() => setSearchStep((prev) => prev - 1)}
+                  onClick={goBackSearchStep}
                   className="white"
                 >
                   이전
                 </button>
                 <button
-                  onClick={() => {
+                  onClick={async () => {
                     if (!getFinalSearchHairFeature()) {
                       toast.error("헤어 정보를 선택해주세요.");
                       return;
                     }
-                    setSearchStep(3);
+                    await moveCloudCheckStep(3, "next");
                   }}
                 >
                   다음
@@ -4520,12 +4754,12 @@ const getWeatherPlaceCounts = () => {
 
               <div className="stepActions">
                 <button
-                  onClick={() => setSearchStep((prev) => prev - 1)}
+                  onClick={goBackSearchStep}
                   className="white"
                 >
                   이전
                 </button>
-                <button onClick={() => setSearchStep(4)}>다음</button>
+                <button onClick={() => moveCloudCheckStep(4, "next")}>다음</button>
               </div>
             </>
           )}
@@ -4566,12 +4800,12 @@ const getWeatherPlaceCounts = () => {
 
               <div className="stepActions">
                 <button
-                  onClick={() => setSearchStep((prev) => prev - 1)}
+                  onClick={goBackSearchStep}
                   className="white"
                 >
                   이전
                 </button>
-                <button onClick={() => setSearchStep(5)}>다음</button>
+                <button onClick={() => moveCloudCheckStep(5, "next")}>다음</button>
               </div>
             </>
           )}
@@ -4619,7 +4853,7 @@ const getWeatherPlaceCounts = () => {
 
               <div className="stepActions">
                 <button
-                  onClick={() => setSearchStep((prev) => prev - 1)}
+                  onClick={goBackSearchStep}
                   className="white"
                 >
                   이전
@@ -4722,8 +4956,9 @@ const getWeatherPlaceCounts = () => {
     })}
 
     <button
-      onClick={() => {
+      onClick={async () => {
         setSearchStep(1);
+        await startCloudCheckFlowLog();
         setPage("search");
       }}
       className="white"
