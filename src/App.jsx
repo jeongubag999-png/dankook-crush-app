@@ -1697,8 +1697,14 @@ const hideSearchResult = (postId) => {
 
       top_type: searchForm.top_type,
       top_color: searchForm.top_color,
+      outer_type: searchForm.outer_type,
+      outer_color: searchForm.outer_type === "아우터 없음" ? "" : searchForm.outer_color,
       bottom_type: searchForm.bottom_type,
       bottom_color: searchForm.bottom_color,
+      shoe_type: searchForm.shoe_type,
+      bag_type: searchForm.bag_type,
+      earphone_type: searchForm.earphone_type,
+      glasses_type: searchForm.glasses_type,
 
       result_count: finalResults.length,
     },
