@@ -3818,10 +3818,7 @@ textarea:focus {
 }
 
 .cloudCalendarTop {
-  display: grid;
-  grid-template-columns: 44px 1fr 44px;
-  align-items: start;
-  gap: 10px;
+  text-align: center;
 }
 
 .cloudCalendarTop h2,
@@ -3833,19 +3830,30 @@ textarea:focus {
   margin-bottom: 16px;
 }
 
+.cloudCalendarMonthNav {
+  display: grid;
+  grid-template-columns: 44px minmax(0, 1fr) 44px;
+  align-items: center;
+  gap: 12px;
+  margin: 4px 0 26px;
+}
+
 .cloudCalendarIconButton {
   width: 44px;
   height: 44px;
   min-height: 44px;
   margin: 0;
   padding: 0;
-  border-radius: 50%;
+  border-radius: 12px;
   background: #f4f8fd;
   color: #43506b;
   box-shadow: none;
   border: 1px solid #ecf1f8;
   font-size: 28px;
   line-height: 1;
+  display: flex;
+  align-items: center;
+  justify-content: center;
 }
 
 .cloudCalendarMonthTitle {
@@ -3854,7 +3862,7 @@ textarea:focus {
   font-weight: 850;
   letter-spacing: 0;
   color: #16233f;
-  margin: 10px 0 24px;
+  margin: 0 0 2px;
 }
 
 .cloudCalendarWeekdays {
@@ -3911,8 +3919,10 @@ textarea:focus {
   box-shadow: none;
 }
 
-.cloudCalendarDay.outside {
-  opacity: 0.38;
+.cloudCalendarBlank {
+  width: 100%;
+  aspect-ratio: 1 / 1.06;
+  min-height: 54px;
 }
 
 .cloudCalendarDay.checked {

@@ -143,20 +143,27 @@ const addMonths = (date, amount) =>
 
 const getMonthMatrix = (monthDate) => {
   const firstDay = new Date(monthDate.getFullYear(), monthDate.getMonth(), 1);
-  const start = new Date(firstDay);
-  start.setDate(firstDay.getDate() - firstDay.getDay());
+  const daysInMonth = new Date(
+    monthDate.getFullYear(),
+    monthDate.getMonth() + 1,
+    0
+  ).getDate();
+  const leadingBlanks = Array.from({ length: firstDay.getDay() }, (_, index) => ({
+    isBlank: true,
+    dateKey: `blank-${monthDate.getFullYear()}-${monthDate.getMonth()}-${index}`,
+  }));
 
-  return Array.from({ length: 42 }, (_, index) => {
-    const date = new Date(start);
-    date.setDate(start.getDate() + index);
+  const currentMonthDays = Array.from({ length: daysInMonth }, (_, index) => {
+    const date = new Date(monthDate.getFullYear(), monthDate.getMonth(), index + 1);
     return {
       date,
       dateKey: formatLocalDateKey(date),
       day: date.getDate(),
       dayOfWeek: date.getDay(),
-      inCurrentMonth: date.getMonth() === monthDate.getMonth(),
     };
   });
+
+  return [...leadingBlanks, ...currentMonthDays];
 };
 
 const getKoreanWeekdayLabel = (dateString) => {
@@ -2562,6 +2569,16 @@ const hideSearchResult = (postId) => {
     setSelectedCloudCalendarDate(today);
     await loadCloudCalendarRecords();
   };
+  const openCloudCheckFromCalendar = async () => {
+    if (!selectedCloudCalendarDate) return;
+
+    setSearchForm((prev) => ({
+      ...prev,
+      seen_date: selectedCloudCalendarDate,
+    }));
+    setSearchStep(1);
+    await openSearchPage();
+  };
   const openChatsPage = async () => {
     if (!checkProfileRequired()) return;
 
@@ -3775,12 +3792,12 @@ const getWeatherPlaceCounts = () => {
               className="mypageMenuRow"
               onClick={openCloudCalendarPage}
             >
-              <span className="mypageMenuIcon navy">
+              <span className="mypageMenuIcon calendarOutline">
                 <CalendarIcon size={18} />
               </span>
               <span className="mypageMenuBody">
                 <b>구름 달력</b>
-                <span>내가 확인한 날의 착장과 구름 개수만 기록해요.</span>
+                <span>구름 개수는 나에게만 보여요!</span>
               </span>
               <span className="mypageMenuChevron">
                 <ChevronRightIcon size={18} />
@@ -3893,6 +3910,15 @@ const getWeatherPlaceCounts = () => {
 	      {page === "cloudCalendar" && (
 	        <div className="card cloudCalendarCard">
           <div className="cloudCalendarTop">
+            <div>
+              <h2>구름 달력</h2>
+              <p className="subtitle">
+                구름 개수는 나에게만 보여요!
+              </p>
+            </div>
+          </div>
+
+          <div className="cloudCalendarMonthNav">
             <button
               type="button"
               className="cloudCalendarIconButton"
@@ -3901,12 +3927,7 @@ const getWeatherPlaceCounts = () => {
             >
               ‹
             </button>
-            <div>
-              <h2>구름 달력</h2>
-              <p className="subtitle">
-                내가 확인한 날의 착장과 구름 개수만 나에게 보여요.
-              </p>
-            </div>
+            <div className="cloudCalendarMonthTitle">{cloudCalendarMonthTitle}</div>
             <button
               type="button"
               className="cloudCalendarIconButton"
@@ -3916,8 +3937,6 @@ const getWeatherPlaceCounts = () => {
               ›
             </button>
           </div>
-
-          <div className="cloudCalendarMonthTitle">{cloudCalendarMonthTitle}</div>
 
           {cloudCalendarLoading ? (
             <p className="noticeBox">구름 달력을 불러오는 중이에요...</p>
@@ -3942,13 +3961,22 @@ const getWeatherPlaceCounts = () => {
 
               <div className="cloudCalendarGrid">
                 {cloudCalendarDays.map((day) => {
+                  if (day.isBlank) {
+                    return (
+                      <div
+                        key={day.dateKey}
+                        className="cloudCalendarBlank"
+                        aria-hidden="true"
+                      />
+                    );
+                  }
+
                   const record = cloudCalendarRecordMap[day.dateKey];
                   const hasRecord = Boolean(record);
                   const isSelected = day.dateKey === selectedCloudCalendarDate;
                   const matchedCount = record?.matched_cloud_count || 0;
                   const dayClasses = [
                     "cloudCalendarDay",
-                    day.inCurrentMonth ? "" : "outside",
                     hasRecord ? "checked" : "unchecked",
                     day.dayOfWeek === 0 ? "sunday" : "",
                     day.dayOfWeek === 6 ? "saturday" : "",
@@ -4005,9 +4033,15 @@ const getWeatherPlaceCounts = () => {
             </>
           )}
 
-          <button onClick={loadCloudCalendarRecords} className="white">
-            새로고침
-          </button>
+          {selectedCloudCalendarRecord ? (
+            <button onClick={loadCloudCalendarRecords} className="white">
+              새로고침
+            </button>
+          ) : (
+            <button onClick={openCloudCheckFromCalendar}>
+              구름 확인하기
+            </button>
+          )}
 
           <button onClick={() => setPage("profile")} className="white">
             마이페이지로

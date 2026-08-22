@@ -769,6 +769,11 @@ body {
 .app .mypageMenuIcon.blue { background: var(--v2-blue); }
 .app .mypageMenuIcon.amber { background: #f5a940; }
 .app .mypageMenuIcon.navy { background: var(--v2-navy-pill); }
+.app .mypageMenuIcon.calendarOutline {
+  background: #fff;
+  color: var(--v2-ink);
+  border: 1.5px solid var(--v2-ink);
+}
 
 .app .mypageMenuBody {
   flex: 1;
