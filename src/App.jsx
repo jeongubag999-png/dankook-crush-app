@@ -124,6 +124,47 @@ const createSearchStepTimingState = () => ({
 const capCloudSendSeconds = (seconds) =>
   Math.min(CLOUD_SEND_MAX_SECONDS, Math.max(0, Math.floor(seconds || 0)));
 
+const parseLocalDate = (dateString) => {
+  if (!dateString) return null;
+  const [year, month, day] = dateString.split("-").map(Number);
+  if (!year || !month || !day) return null;
+  return new Date(year, month - 1, day);
+};
+
+const formatLocalDateKey = (date) => {
+  const year = date.getFullYear();
+  const month = String(date.getMonth() + 1).padStart(2, "0");
+  const day = String(date.getDate()).padStart(2, "0");
+  return `${year}-${month}-${day}`;
+};
+
+const addMonths = (date, amount) =>
+  new Date(date.getFullYear(), date.getMonth() + amount, 1);
+
+const getMonthMatrix = (monthDate) => {
+  const firstDay = new Date(monthDate.getFullYear(), monthDate.getMonth(), 1);
+  const start = new Date(firstDay);
+  start.setDate(firstDay.getDate() - firstDay.getDay());
+
+  return Array.from({ length: 42 }, (_, index) => {
+    const date = new Date(start);
+    date.setDate(start.getDate() + index);
+    return {
+      date,
+      dateKey: formatLocalDateKey(date),
+      day: date.getDate(),
+      dayOfWeek: date.getDay(),
+      inCurrentMonth: date.getMonth() === monthDate.getMonth(),
+    };
+  });
+};
+
+const getKoreanWeekdayLabel = (dateString) => {
+  const date = parseLocalDate(dateString);
+  if (!date) return "";
+  return ["일", "월", "화", "수", "목", "금", "토"][date.getDay()];
+};
+
 function App() {
   const [page, setPage] = useState("home");
   const [crushStep, setCrushStep] = useState(1);
@@ -352,6 +393,14 @@ const [verificationFile, setVerificationFile] = useState(null);
   const [sentClaims, setSentClaims] = useState([]);
   const [receivedClaims, setReceivedClaims] = useState([]);
   const [myCloudChecks, setMyCloudChecks] = useState([]);
+  const [cloudCalendarRecords, setCloudCalendarRecords] = useState([]);
+  const [cloudCalendarLoading, setCloudCalendarLoading] = useState(false);
+  const [cloudCalendarMonth, setCloudCalendarMonth] = useState(() =>
+    parseLocalDate(getKoreaDateString()) || new Date()
+  );
+  const [selectedCloudCalendarDate, setSelectedCloudCalendarDate] = useState(() =>
+    getKoreaDateString()
+  );
 
   const femaleHairGuideImage = "/hair-length-guide.png";
 
@@ -2071,6 +2120,45 @@ const hideSearchResult = (postId) => {
     }
   };
 
+  const saveCloudCalendarRecord = async (matchedCloudCount) => {
+    if (!currentUser || !searchForm.seen_date) return;
+
+    const finalSearchHairFeature = getFinalSearchHairFeature();
+    const payload = {
+      user_id: currentUser.id,
+      checked_date: searchForm.seen_date,
+      matched_cloud_count: matchedCloudCount,
+      hair_feature: finalSearchHairFeature,
+      female_hair_style: searchForm.female_hair_style,
+      female_hair_color: searchForm.female_hair_color,
+      female_hat: searchForm.female_hat,
+      female_bangs: searchForm.female_bangs,
+      male_hair_style: searchForm.male_hair_style,
+      male_hair_color: searchForm.male_hair_color,
+      male_hat: searchForm.male_hat,
+      male_bangs: searchForm.male_bangs,
+      top_type: searchForm.top_type,
+      top_color: searchForm.top_color,
+      outer_type: searchForm.outer_type,
+      outer_color: searchForm.outer_type === "아우터 없음" ? "" : searchForm.outer_color,
+      bottom_type: searchForm.bottom_type,
+      bottom_color: searchForm.bottom_color,
+      shoe_type: searchForm.shoe_type,
+      bag_type: searchForm.bag_type,
+      earphone_type: searchForm.earphone_type,
+      glasses_type: searchForm.glasses_type,
+      updated_at: new Date().toISOString(),
+    };
+
+    const { error } = await supabase
+      .from("cloud_calendar_records")
+      .upsert([payload], { onConflict: "user_id,checked_date" });
+
+    if (error) {
+      console.log(error);
+    }
+  };
+
   const searchCrushPosts = async () => {
   if (searchSubmitting) return;
 
@@ -2154,6 +2242,8 @@ const hideSearchResult = (postId) => {
   if (checkLogError) {
     console.log(checkLogError);
   }
+
+    await saveCloudCalendarRecord(finalResults.length);
 
     if (scoredResults.length > 0) {
       const viewedAt = new Date().toISOString();
@@ -2322,6 +2412,29 @@ const hideSearchResult = (postId) => {
     setChatLastMessages(map);
   };
 
+  const loadCloudCalendarRecords = async () => {
+    if (!currentUser) return false;
+
+    setCloudCalendarLoading(true);
+
+    const { data, error } = await supabase
+      .from("cloud_calendar_records")
+      .select("*")
+      .eq("user_id", currentUser.id)
+      .order("checked_date", { ascending: false });
+
+    if (error) {
+      toast.error("구름 달력을 불러오지 못했어요: " + error.message);
+      console.log(error);
+      setCloudCalendarLoading(false);
+      return false;
+    }
+
+    setCloudCalendarRecords(data || []);
+    setCloudCalendarLoading(false);
+    return true;
+  };
+
   const loadMyActivityData = async () => {
     if (!currentUser) return false;
 
@@ -2439,6 +2552,15 @@ const hideSearchResult = (postId) => {
 
     await leaveActiveFlow("bottom_matching", "matching");
     await loadMyActivityData();
+  };
+  const openCloudCalendarPage = async () => {
+    if (!checkProfileRequired()) return;
+
+    const today = getKoreaDateString();
+    await leaveActiveFlow("profile_cloud_calendar", "cloudCalendar");
+    setCloudCalendarMonth(parseLocalDate(today) || new Date());
+    setSelectedCloudCalendarDate(today);
+    await loadCloudCalendarRecords();
   };
   const openChatsPage = async () => {
     if (!checkProfileRequired()) return;
@@ -2808,6 +2930,42 @@ const getWeatherPlaceCounts = () => {
     active: claim.status === "accepted",
   })),
 ].sort((a, b) => new Date(b.created_at || 0) - new Date(a.created_at || 0));
+
+  const cloudCalendarRecordMap = cloudCalendarRecords.reduce((acc, record) => {
+    if (record.checked_date) {
+      acc[record.checked_date] = record;
+    }
+    return acc;
+  }, {});
+  const cloudCalendarDays = getMonthMatrix(cloudCalendarMonth);
+  const selectedCloudCalendarRecord =
+    cloudCalendarRecordMap[selectedCloudCalendarDate] || null;
+  const selectedCloudCalendarDateObject = parseLocalDate(selectedCloudCalendarDate);
+  const selectedCloudCalendarLabel = selectedCloudCalendarDateObject
+    ? `${selectedCloudCalendarDateObject.getMonth() + 1}월 ${selectedCloudCalendarDateObject.getDate()}일`
+    : "";
+  const cloudCalendarMonthTitle = `${cloudCalendarMonth.getFullYear()}년 ${
+    cloudCalendarMonth.getMonth() + 1
+  }월`;
+
+  const getCloudCalendarOutfitRows = (record) => {
+    if (!record) return [];
+
+    return [
+      ["헤어", record.hair_feature || "-"],
+      ["상의", `${record.top_color || "-"} ${record.top_type || ""}`.trim()],
+      [
+        "아우터",
+        record.outer_type === "아우터 없음"
+          ? "아우터 없음"
+          : `${record.outer_color || "-"} ${record.outer_type || ""}`.trim(),
+      ],
+      ["하의", `${record.bottom_color || "-"} ${record.bottom_type || ""}`.trim()],
+      ["신발", record.shoe_type || "-"],
+      ["소지품", `가방 ${record.bag_type || "-"} · 이어폰 ${record.earphone_type || "-"}`],
+      ["안경", record.glasses_type || "-"],
+    ];
+  };
 
   const renderSentClaimCard = (claim) => {
   return (
@@ -3615,6 +3773,22 @@ const getWeatherPlaceCounts = () => {
             <button
               type="button"
               className="mypageMenuRow"
+              onClick={openCloudCalendarPage}
+            >
+              <span className="mypageMenuIcon navy">
+                <CalendarIcon size={18} />
+              </span>
+              <span className="mypageMenuBody">
+                <b>구름 달력</b>
+                <span>내가 확인한 날의 착장과 구름 개수만 기록해요.</span>
+              </span>
+              <span className="mypageMenuChevron">
+                <ChevronRightIcon size={18} />
+              </span>
+            </button>
+            <button
+              type="button"
+              className="mypageMenuRow"
               onClick={() => {
                 setMatchingMode("notifications");
                 openMatchingPage();
@@ -3712,6 +3886,131 @@ const getWeatherPlaceCounts = () => {
             className="dangerButton"
           >
             {accountDeleting ? "탈퇴 처리 중..." : "회원탈퇴"}
+          </button>
+	        </div>
+	      )}
+
+	      {page === "cloudCalendar" && (
+	        <div className="card cloudCalendarCard">
+          <div className="cloudCalendarTop">
+            <button
+              type="button"
+              className="cloudCalendarIconButton"
+              aria-label="이전 달"
+              onClick={() => setCloudCalendarMonth((prev) => addMonths(prev, -1))}
+            >
+              ‹
+            </button>
+            <div>
+              <h2>구름 달력</h2>
+              <p className="subtitle">
+                내가 확인한 날의 착장과 구름 개수만 나에게 보여요.
+              </p>
+            </div>
+            <button
+              type="button"
+              className="cloudCalendarIconButton"
+              aria-label="다음 달"
+              onClick={() => setCloudCalendarMonth((prev) => addMonths(prev, 1))}
+            >
+              ›
+            </button>
+          </div>
+
+          <div className="cloudCalendarMonthTitle">{cloudCalendarMonthTitle}</div>
+
+          {cloudCalendarLoading ? (
+            <p className="noticeBox">구름 달력을 불러오는 중이에요...</p>
+          ) : (
+            <>
+              <div className="cloudCalendarWeekdays">
+                {["일", "월", "화", "수", "목", "금", "토"].map((day, index) => (
+                  <span
+                    key={day}
+                    className={
+                      index === 0
+                        ? "sunday"
+                        : index === 6
+                          ? "saturday"
+                          : ""
+                    }
+                  >
+                    {day}
+                  </span>
+                ))}
+              </div>
+
+              <div className="cloudCalendarGrid">
+                {cloudCalendarDays.map((day) => {
+                  const record = cloudCalendarRecordMap[day.dateKey];
+                  const hasRecord = Boolean(record);
+                  const isSelected = day.dateKey === selectedCloudCalendarDate;
+                  const matchedCount = record?.matched_cloud_count || 0;
+                  const dayClasses = [
+                    "cloudCalendarDay",
+                    day.inCurrentMonth ? "" : "outside",
+                    hasRecord ? "checked" : "unchecked",
+                    day.dayOfWeek === 0 ? "sunday" : "",
+                    day.dayOfWeek === 6 ? "saturday" : "",
+                    isSelected ? "selected" : "",
+                  ]
+                    .filter(Boolean)
+                    .join(" ");
+
+                  return (
+                    <button
+                      type="button"
+                      key={day.dateKey}
+                      className={dayClasses}
+                      onClick={() => setSelectedCloudCalendarDate(day.dateKey)}
+                    >
+                      <span className="cloudCalendarDateNumber">{day.day}</span>
+                      {matchedCount > 0 && (
+                        <span className="cloudCalendarCloudCount">☁️ {matchedCount}</span>
+                      )}
+                    </button>
+                  );
+                })}
+              </div>
+
+              <div className="cloudCalendarSelectedDate">
+                <b>{selectedCloudCalendarLabel}</b>
+                <span>{getKoreanWeekdayLabel(selectedCloudCalendarDate)}요일</span>
+              </div>
+
+              {selectedCloudCalendarRecord && (
+                <div className="cloudCalendarDetailCard">
+                  <div className="cloudCalendarDetailHeader">
+                    <span className="cloudCalendarDetailIcon">☁️</span>
+                    <div>
+                      <b>구름 확인 기록</b>
+                      <span>
+                        매칭된 구름 {selectedCloudCalendarRecord.matched_cloud_count || 0}개
+                      </span>
+                    </div>
+                  </div>
+
+                  <div className="cloudCalendarOutfitGrid">
+                    {getCloudCalendarOutfitRows(selectedCloudCalendarRecord).map(
+                      ([label, value]) => (
+                        <div key={label} className="cloudCalendarOutfitRow">
+                          <span>{label}</span>
+                          <b>{value || "-"}</b>
+                        </div>
+                      )
+                    )}
+                  </div>
+                </div>
+              )}
+            </>
+          )}
+
+          <button onClick={loadCloudCalendarRecords} className="white">
+            새로고침
+          </button>
+
+          <button onClick={() => setPage("profile")} className="white">
+            마이페이지로
           </button>
 	        </div>
 	      )}
