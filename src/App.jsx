@@ -436,6 +436,8 @@ const [verificationFile, setVerificationFile] = useState(null);
   };
 
   const loadHomeTopWeatherPlace = useCallback(async () => {
+    if (!profile.campus) return;
+
     const today = getKoreaDateString();
 
     const { data, error } = await supabase
@@ -1000,7 +1002,7 @@ const [verificationFile, setVerificationFile] = useState(null);
       }
 
       // ── profiles 테이블에 기본 정보 자동 저장 ──
-      await supabase.from("profiles").upsert(
+      const { error: profileUpsertError } = await supabase.from("profiles").upsert(
         [{
           user_id: signedUpUser.id,
           nickname: authForm.name.trim(),
@@ -1013,6 +1015,12 @@ const [verificationFile, setVerificationFile] = useState(null);
         }],
         { onConflict: "user_id" }
       );
+
+      if (profileUpsertError) {
+        toast.error("프로필 저장에 실패했어요. 잠시 후 다시 시도해주세요.");
+        console.log(profileUpsertError);
+        return;
+      }
 
       // ── 완료: 세션/유저/페이지 한 번에 설정 ──
       setProfile((prev) => ({
@@ -1107,6 +1115,7 @@ const handleLogin = async () => {
       name: "",
       student_id: "",
       department: "",
+      campus: "",
       login_id: "",
       password: "",
     });
@@ -5513,9 +5522,9 @@ const getWeatherPlaceCounts = () => {
                 const previewTime = preview?.created_at || room.updatedAt;
                 const initial = (room.otherNickname || "구").trim().charAt(0) || "구";
                 const roomStatus = chatRoomStatusMap[room.chatRoomId];
-                const roomCreatedAt = roomStatus?.created_at || room.updatedAt;
-                const roomClosedAt = roomStatus?.closed_at;
-                const expired = isChatRoomExpired(roomCreatedAt, roomClosedAt, chatListNowTick);
+                const expired = roomStatus
+                  ? isChatRoomExpired(roomStatus.created_at, roomStatus.closed_at, chatListNowTick)
+                  : false;
 
                 return (
                   <button
@@ -5536,7 +5545,9 @@ const getWeatherPlaceCounts = () => {
                         {preview?.body || "대화를 시작해보세요."}
                       </span>
                       <span className={expired ? "chatRoomListStatus expired" : "chatRoomListStatus"}>
-                        {formatChatRoomRemaining(roomCreatedAt, roomClosedAt, chatListNowTick)}
+                        {roomStatus
+                          ? formatChatRoomRemaining(roomStatus.created_at, roomStatus.closed_at, chatListNowTick)
+                          : ""}
                       </span>
                     </span>
                   </button>
