@@ -380,6 +380,74 @@ textarea {
   word-break: keep-all;
 }
 
+.privacyConsentPanel {
+  margin: 18px 0 20px;
+  padding: 0;
+  border: 1px solid #d7dde6;
+  border-radius: 8px;
+  background: #ffffff;
+  overflow: hidden;
+  text-align: left;
+}
+
+.privacyConsentBox {
+  display: flex;
+  align-items: flex-start;
+  gap: 12px;
+  margin: 0;
+  padding: 16px 16px 14px;
+  color: #1f2937;
+  cursor: pointer;
+}
+
+.privacyConsentBox input {
+  width: 20px;
+  height: 20px;
+  margin: 1px 0 0;
+  flex: 0 0 auto;
+  accent-color: #111827;
+}
+
+.privacyConsentText {
+  display: grid;
+  gap: 4px;
+  line-height: 1.45;
+}
+
+.privacyConsentText strong {
+  color: #111827;
+  font-size: 15px;
+  font-weight: 900;
+}
+
+.privacyConsentText span {
+  color: #4b5563;
+  font-size: 12.5px;
+  font-weight: 600;
+  word-break: keep-all;
+}
+
+.privacyPolicyOpenButton {
+  width: 100%;
+  min-height: 44px;
+  margin: 0;
+  padding: 0 16px;
+  border: 0;
+  border-top: 1px solid #edf0f4;
+  border-radius: 0;
+  background: #f8fafc;
+  color: #374151;
+  font-size: 13px;
+  font-weight: 800;
+  text-align: left;
+  box-shadow: none;
+}
+
+.privacyPolicyOpenButton:hover {
+  background: #f1f5f9;
+  box-shadow: none;
+}
+
 .profileImageBox {
   width: 112px;
   height: 112px;

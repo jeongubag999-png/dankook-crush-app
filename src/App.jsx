@@ -82,6 +82,10 @@ import {
   isNativeApp,
   pickImageFromLibrary,
 } from "./utils";
+import {
+  evaluateDkuAutoVerification,
+  runDkuVerificationOcr,
+} from "./dkuVerification";
 
 const CLOUD_SEND_MAX_SECONDS = 180;
 const CLOUD_SEND_STEP_NAMES = {
@@ -374,6 +378,7 @@ const [verificationFile, setVerificationFile] = useState(null);
   const [signupProgress, setSignupProgress] = useState(""); // 회원가입 진행 단계
   const [showAdmin, setShowAdmin] = useState(false); // 관리자 페이지
   const [showPrivacyPolicy, setShowPrivacyPolicy] = useState(false);
+  const [privacyConsent, setPrivacyConsent] = useState(false);
   const [blockedUserIds, setBlockedUserIds] = useState([]);
   const [accountDeleting, setAccountDeleting] = useState(false);
 
@@ -917,6 +922,10 @@ const [verificationFile, setVerificationFile] = useState(null);
       toast.error("비밀번호는 6자리 이상으로 입력해주세요.");
       return;
     }
+    if (!privacyConsent) {
+      toast.error("개인정보처리방침에 동의해주세요.");
+      return;
+    }
 
     setAuthSubmitting(true);
     isSigningUpRef.current = true;
@@ -954,51 +963,92 @@ const [verificationFile, setVerificationFile] = useState(null);
         return;
       }
 
-      // ── 2단계: 인증 사진 업로드 ──
-      setSignupProgress("2단계: 인증 사진 업로드 중...");
-      const compressedFile = await compressImage(verificationFile);
-      const filePath = makeStorageFilePath(signedUpUser.id, compressedFile);
+      // ── 2단계: MY DKU 자동 인증 시도 ──
+      setSignupProgress("2단계: MY DKU 자동 인증 확인 중...");
+      const ocrResult = await runDkuVerificationOcr(verificationFile);
+      const autoReview = evaluateDkuAutoVerification({
+        signupStudentId: authForm.student_id.trim(),
+        signupDepartment: authForm.department.trim(),
+        parsed: ocrResult.parsed,
+      });
 
-      const { error: uploadError } = await supabase.storage
-        .from("dku-verifications")
-        .upload(filePath, compressedFile, {
-          contentType: compressedFile.type,
-          upsert: false,
-        });
+      let filePath = null;
+      let finalVerificationStatus = "pending";
+      let finalReviewedAt = null;
 
-      if (uploadError) {
-        console.log(uploadError);
-        // 계정은 생성됐지만 사진 업로드 실패
-        // → 대기 화면으로 이동시키고 관리자 문의 안내
-        setProfile((prev) => ({
-          ...prev,
-          nickname: authForm.name.trim(),
-          student_year: authForm.student_id.trim(),
-        }));
-        setSession(data.session || null);
-        setCurrentUser(signedUpUser);
-        toast.error("인증 사진 업로드에 실패했어요. 단꿈 인스타그램으로 문의해주세요.");
-        setPage("verificationPending");
-        return;
+      if (ocrResult.available && autoReview.approved) {
+        finalVerificationStatus = "approved";
+        finalReviewedAt = new Date().toISOString();
+      } else {
+        // 자동 승인 실패/미지원이면 그때만 사진을 임시 보관하고 관리자 검수로 넘긴다.
+        setSignupProgress("3단계: 인증 사진 임시 업로드 중...");
+        const compressedFile = await compressImage(verificationFile);
+        filePath = makeStorageFilePath(signedUpUser.id, compressedFile);
+
+        const { error: uploadError } = await supabase.storage
+          .from("dku-verifications")
+          .upload(filePath, compressedFile, {
+            contentType: compressedFile.type,
+            upsert: false,
+          });
+
+        if (uploadError) {
+          console.log(uploadError);
+          setProfile((prev) => ({
+            ...prev,
+            nickname: authForm.name.trim(),
+            student_year: authForm.student_id.trim(),
+          }));
+          setSession(data.session || null);
+          setCurrentUser(signedUpUser);
+          toast.error("인증 사진 업로드에 실패했어요. 단꿈 인스타그램으로 문의해주세요.");
+          setPage("verificationPending");
+          return;
+        }
       }
 
-      // ── 3단계: 인증 신청 저장 ──
-      setSignupProgress("3단계: 인증 신청 저장 중...");
+      // ── 4단계: 인증 신청 저장 ──
+      setSignupProgress("4단계: 인증 결과 저장 중...");
+      const verificationPayload = {
+        user_id: signedUpUser.id,
+        name: finalVerificationStatus === "pending" ? authForm.name.trim() : null,
+        student_id: finalVerificationStatus === "pending" ? authForm.student_id.trim() : null,
+        department: authForm.department.trim(),
+        screenshot_path: finalVerificationStatus === "pending" ? filePath : null,
+        status: finalVerificationStatus,
+        reviewed_at: finalReviewedAt,
+        auto_review_status: finalVerificationStatus === "approved" ? "approved" : "manual_required",
+        auto_review_reason: autoReview.reason || ocrResult.reason || "",
+        ocr_student_id: ocrResult.parsed?.ocrStudentId || "",
+        ocr_department: ocrResult.parsed?.ocrDepartment || "",
+        ocr_enrollment_status: ocrResult.parsed?.ocrStatus || "",
+        auto_reviewed_at: new Date().toISOString(),
+      };
+
       const { error: verificationError } = await supabase
         .from("dku_verifications")
-        .insert([{
-          user_id: signedUpUser.id,
-          name: authForm.name.trim(),
-          student_id: authForm.student_id.trim(),
-          department: authForm.department.trim(),
-          screenshot_path: filePath,
-          status: "pending",
-        }]);
+        .insert([verificationPayload]);
 
       if (verificationError) {
-        toast.error("인증 신청 저장에 실패했어요. 잠시 후 다시 시도해주세요.");
         console.log(verificationError);
-        return;
+        const fallbackPayload = {
+          user_id: signedUpUser.id,
+          name: finalVerificationStatus === "pending" ? authForm.name.trim() : null,
+          student_id: finalVerificationStatus === "pending" ? authForm.student_id.trim() : null,
+          department: authForm.department.trim(),
+          screenshot_path: finalVerificationStatus === "pending" ? filePath : null,
+          status: finalVerificationStatus,
+          reviewed_at: finalReviewedAt,
+        };
+        const { error: fallbackError } = await supabase
+          .from("dku_verifications")
+          .insert([fallbackPayload]);
+
+        if (fallbackError) {
+          toast.error("인증 신청 저장에 실패했어요. 잠시 후 다시 시도해주세요.");
+          console.log(fallbackError);
+          return;
+        }
       }
 
       // ── profiles 테이블에 기본 정보 자동 저장 ──
@@ -1032,8 +1082,17 @@ const [verificationFile, setVerificationFile] = useState(null);
       }));
       setSession(data.session || null);
       setCurrentUser(signedUpUser);
-      toast.success("회원가입 신청 완료! 학생 인증 승인 후 이용할 수 있어요.");
-      setPage("verificationPending");
+      if (finalVerificationStatus === "approved") {
+        toast.success("MY DKU 자동 인증 완료! 바로 이용할 수 있어요.");
+        setPage("profile");
+      } else {
+        const manualReason = autoReview.reason || ocrResult.reason;
+        if (manualReason) {
+          toast("자동 인증 보류: " + manualReason);
+        }
+        toast.success("회원가입 신청 완료! 학생 인증 승인 후 이용할 수 있어요.");
+        setPage("verificationPending");
+      }
 
     } catch (e) {
       toast.error("예상치 못한 오류가 발생했어요. 잠시 후 다시 시도해주세요.");
@@ -3417,6 +3476,30 @@ const getWeatherPlaceCounts = () => {
 
           {authMode === "signup" && (
             <>
+              <div className="privacyConsentPanel">
+                <label className="privacyConsentBox">
+                  <input
+                    type="checkbox"
+                    checked={privacyConsent}
+                    onChange={(e) => setPrivacyConsent(e.target.checked)}
+                    disabled={authSubmitting}
+                  />
+                  <span className="privacyConsentText">
+                    <strong>모두 동의합니다.</strong>
+                    <span>
+                      단꿈 이용을 위한 개인정보 수집·이용 및 개인정보처리방침에 동의합니다.
+                    </span>
+                  </span>
+                </label>
+                <button
+                  type="button"
+                  className="privacyPolicyOpenButton"
+                  onClick={() => setShowPrivacyPolicy(true)}
+                >
+                  개인정보처리방침 보기
+                </button>
+              </div>
+
               <div className="formGroup">
                 <label className="formLabel">닉네임 또는 이름</label>
                 <input
@@ -3571,7 +3654,7 @@ const getWeatherPlaceCounts = () => {
             </>
           ) : (
             <>
-              <button onClick={handleSignUp} disabled={authSubmitting}>
+              <button onClick={handleSignUp} disabled={authSubmitting || !privacyConsent}>
                 {authSubmitting ? (signupProgress || "처리 중...") : "회원가입하기"}
               </button>
 
@@ -3584,7 +3667,10 @@ const getWeatherPlaceCounts = () => {
 
               <button
                 className="white"
-                onClick={() => setAuthMode("login")}
+                onClick={() => {
+                  setAuthMode("login");
+                  setPrivacyConsent(false);
+                }}
                 disabled={authSubmitting}
               >
                 이미 계정이 있어요
@@ -3597,13 +3683,6 @@ const getWeatherPlaceCounts = () => {
             없어요.
           </p>
 
-          <button
-            type="button"
-            className="logoutTextButton"
-            onClick={() => setShowPrivacyPolicy(true)}
-          >
-            개인정보처리방침
-          </button>
         </div>
       </div>
     );

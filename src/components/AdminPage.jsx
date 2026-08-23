@@ -116,6 +116,51 @@ export function AdminPage({ onClose }) {
     );
   };
 
+  const removeVerificationPhoto = async (item) => {
+    if (!item?.screenshot_path) return;
+
+    const { error } = await supabase.storage
+      .from("dku-verifications")
+      .remove([item.screenshot_path]);
+
+    if (error) {
+      console.log("인증 사진 삭제 실패:", error);
+    }
+  };
+
+  const updateVerificationAfterReview = async (item, payload) => {
+    await removeVerificationPhoto(item);
+
+    const privacyPayload = {
+      ...payload,
+      name: null,
+      student_id: null,
+      screenshot_path: null,
+    };
+
+    const { error } = await supabase
+      .from("dku_verifications")
+      .update(privacyPayload)
+      .eq("id", item.id);
+
+    if (!error) return { error: null };
+
+    console.log(error);
+    const fallbackPayload = {
+      status: payload.status,
+      reviewed_at: payload.reviewed_at,
+      reject_reason: payload.reject_reason,
+      name: null,
+      student_id: null,
+      screenshot_path: null,
+    };
+
+    return supabase
+      .from("dku_verifications")
+      .update(fallbackPayload)
+      .eq("id", item.id);
+  };
+
   const loadReports = async () => {
     setReportsLoading(true);
 
@@ -164,10 +209,11 @@ export function AdminPage({ onClose }) {
     if (processingId) return;
     setProcessingId(item.id);
 
-    const { error } = await supabase
-      .from("dku_verifications")
-      .update({ status: "approved", reviewed_at: new Date().toISOString() })
-      .eq("id", item.id);
+    const { error } = await updateVerificationAfterReview(item, {
+      status: "approved",
+      reviewed_at: new Date().toISOString(),
+      auto_review_status: item.auto_review_status || "manual_approved",
+    });
 
     if (error) {
       alert("승인 실패: " + error.message);
@@ -188,14 +234,12 @@ export function AdminPage({ onClose }) {
 
     setProcessingId(item.id);
 
-    const { error } = await supabase
-      .from("dku_verifications")
-      .update({
-        status: "rejected",
-        reject_reason: reason,
-        reviewed_at: new Date().toISOString(),
-      })
-      .eq("id", item.id);
+    const { error } = await updateVerificationAfterReview(item, {
+      status: "rejected",
+      reject_reason: reason,
+      reviewed_at: new Date().toISOString(),
+      auto_review_status: "manual_rejected",
+    });
 
     if (error) {
       alert("거절 실패: " + error.message);
@@ -216,9 +260,17 @@ export function AdminPage({ onClose }) {
 
     setProcessingId("bulk");
 
+    await Promise.all(verifications.filter((item) => selectedIds.has(item.id)).map(removeVerificationPhoto));
+
     const { error } = await supabase
       .from("dku_verifications")
-      .update({ status: "approved", reviewed_at: new Date().toISOString() })
+      .update({
+        status: "approved",
+        reviewed_at: new Date().toISOString(),
+        name: null,
+        student_id: null,
+        screenshot_path: null,
+      })
       .in("id", [...selectedIds]);
 
     if (error) {
@@ -358,24 +410,41 @@ export function AdminPage({ onClose }) {
                   <p>학번: {item.student_id || "-"}</p>
                   <p>학과: {item.department || "-"}</p>
                   <p className="helperText">신청: {formatDate(item.created_at)}</p>
+                  {item.auto_review_status && (
+                    <p className="helperText">
+                      자동판독: {item.auto_review_status}
+                      {item.auto_review_reason ? ` · ${item.auto_review_reason}` : ""}
+                    </p>
+                  )}
+                  {(item.ocr_student_id || item.ocr_department || item.ocr_enrollment_status) && (
+                    <p className="helperText">
+                      OCR: {[item.ocr_student_id, item.ocr_department, item.ocr_enrollment_status]
+                        .filter(Boolean)
+                        .join(" / ")}
+                    </p>
+                  )}
                   {item.reject_reason && (
                     <p className="retryErrorText">거절 사유: {item.reject_reason}</p>
                   )}
                 </div>
               </div>
 
-              <button
-                type="button"
-                className="white adminPhotoToggleBtn"
-                onClick={() => togglePhoto(item)}
-                disabled={loadingPhotoId === item.id}
-              >
-                {loadingPhotoId === item.id
-                  ? "사진 불러오는 중..."
-                  : photoUrls[item.id]
-                  ? "사진 숨기기"
-                  : "📷 인증 사진 보기"}
-              </button>
+              {item.screenshot_path ? (
+                <button
+                  type="button"
+                  className="white adminPhotoToggleBtn"
+                  onClick={() => togglePhoto(item)}
+                  disabled={loadingPhotoId === item.id}
+                >
+                  {loadingPhotoId === item.id
+                    ? "사진 불러오는 중..."
+                    : photoUrls[item.id]
+                    ? "사진 숨기기"
+                    : "📷 인증 사진 보기"}
+                </button>
+              ) : (
+                <p className="helperText">인증 사진은 저장되어 있지 않거나 검수 후 삭제됐어요.</p>
+              )}
 
               {photoUrls[item.id] && (
                 <a href={photoUrls[item.id]} target="_blank" rel="noreferrer">
