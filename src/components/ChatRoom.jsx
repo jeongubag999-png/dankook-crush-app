@@ -2,14 +2,27 @@ import { useEffect, useRef, useState } from "react";
 import toast from "react-hot-toast";
 import { supabase } from "../supabase";
 import { ChevronLeftIcon, PaperPlaneIcon } from "./Icons";
-import { formatChatBubbleTime, formatChatDateDivider, isSameChatDay } from "../utils";
+import {
+  formatChatBubbleTime,
+  formatChatDateDivider,
+  formatChatRoomRemaining,
+  isChatRoomExpired,
+  isSameChatDay,
+} from "../utils";
 
 export function ChatRoom({ roomId, currentUserId, otherNickname, onClose }) {
   const [messages, setMessages] = useState([]);
   const [input, setInput] = useState("");
   const [loading, setLoading] = useState(true);
   const [sending, setSending] = useState(false);
+  const [roomInfo, setRoomInfo] = useState(null);
+  const [now, setNow] = useState(() => Date.now());
   const bottomRef = useRef(null);
+
+  useEffect(() => {
+    const timer = setInterval(() => setNow(Date.now()), 60000);
+    return () => clearInterval(timer);
+  }, []);
 
   useEffect(() => {
     document.body.classList.add("chatRoomOpen");
@@ -24,13 +37,22 @@ export function ChatRoom({ roomId, currentUserId, otherNickname, onClose }) {
 
     const load = async () => {
       setLoading(true);
-      const { data, error } = await supabase
-        .from("chat_messages")
-        .select("*")
-        .eq("chat_room_id", roomId)
-        .order("created_at", { ascending: true });
+      const [{ data: room, error: roomError }, { data, error }] = await Promise.all([
+        supabase.from("chat_rooms").select("created_at, closed_at").eq("id", roomId).maybeSingle(),
+        supabase
+          .from("chat_messages")
+          .select("*")
+          .eq("chat_room_id", roomId)
+          .order("created_at", { ascending: true }),
+      ]);
 
       if (!mounted) return;
+
+      if (roomError) {
+        console.log(roomError);
+      } else {
+        setRoomInfo(room);
+      }
 
       if (error) {
         console.log(error);
@@ -69,9 +91,23 @@ export function ChatRoom({ roomId, currentUserId, otherNickname, onClose }) {
     bottomRef.current?.scrollIntoView({ behavior: "smooth" });
   }, [messages]);
 
+  useEffect(() => {
+    const viewport = window.visualViewport;
+    if (!viewport) return;
+
+    const scrollToBottom = () => {
+      bottomRef.current?.scrollIntoView({ behavior: "smooth", block: "end" });
+    };
+
+    viewport.addEventListener("resize", scrollToBottom);
+    return () => viewport.removeEventListener("resize", scrollToBottom);
+  }, []);
+
+  const isExpired = isChatRoomExpired(roomInfo?.created_at, roomInfo?.closed_at, now);
+
   const sendMessage = async () => {
     const body = input.trim();
-    if (!body || sending) return;
+    if (!body || sending || isExpired) return;
 
     setSending(true);
 
@@ -98,6 +134,11 @@ export function ChatRoom({ roomId, currentUserId, otherNickname, onClose }) {
         </button>
         <div className="chatRoomHeaderInfo">
           <span className="chatRoomHeaderName">{otherNickname || "상대"}</span>
+          {roomInfo && (
+            <span className="chatRoomHeaderStatus">
+              {formatChatRoomRemaining(roomInfo.created_at, roomInfo.closed_at, now)}
+            </span>
+          )}
         </div>
         <div className="chatRoomHeaderSpacer" aria-hidden="true" />
       </div>
@@ -164,25 +205,36 @@ export function ChatRoom({ roomId, currentUserId, otherNickname, onClose }) {
         <div ref={bottomRef} />
       </div>
 
-      <div className="chatRoomInputBar">
-        <input
-          value={input}
-          onChange={(e) => setInput(e.target.value)}
-          onKeyDown={(e) => {
-            if (e.key === "Enter") sendMessage();
-          }}
-          placeholder="메시지를 입력하세요"
-        />
-        <button
-          type="button"
-          className="chatSendBtn"
-          onClick={sendMessage}
-          disabled={sending || !input.trim()}
-          aria-label="보내기"
-        >
-          <PaperPlaneIcon size={19} />
-        </button>
-      </div>
+      {isExpired ? (
+        <div className="chatRoomExpiredNotice">
+          24시간이 지나 채팅방이 종료됐어요. 더 이상 메시지를 보낼 수 없어요.
+        </div>
+      ) : (
+        <div className="chatRoomInputBar">
+          <input
+            value={input}
+            onChange={(e) => setInput(e.target.value)}
+            onKeyDown={(e) => {
+              if (e.key === "Enter") sendMessage();
+            }}
+            onFocus={() => {
+              setTimeout(() => {
+                bottomRef.current?.scrollIntoView({ behavior: "smooth", block: "end" });
+              }, 300);
+            }}
+            placeholder="메시지를 입력하세요"
+          />
+          <button
+            type="button"
+            className="chatSendBtn"
+            onClick={sendMessage}
+            disabled={sending || !input.trim()}
+            aria-label="보내기"
+          >
+            <PaperPlaneIcon size={19} />
+          </button>
+        </div>
+      )}
     </div>
   );
 }

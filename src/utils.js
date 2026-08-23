@@ -161,6 +161,25 @@ export const isSameChatDay = (aText, bText) => {
   return a.toDateString() === b.toDateString();
 };
 
+export const CHAT_ROOM_TTL_MS = 24 * 60 * 60 * 1000;
+
+export const isChatRoomExpired = (createdAt, closedAt, nowMs = Date.now()) => {
+  if (closedAt) return true;
+  if (!createdAt) return false;
+  return nowMs >= new Date(createdAt).getTime() + CHAT_ROOM_TTL_MS;
+};
+
+export const formatChatRoomRemaining = (createdAt, closedAt, nowMs = Date.now()) => {
+  if (isChatRoomExpired(createdAt, closedAt, nowMs)) return "종료된 채팅방";
+  if (!createdAt) return "";
+  const remainingMs = new Date(createdAt).getTime() + CHAT_ROOM_TTL_MS - nowMs;
+  const totalMinutes = Math.floor(remainingMs / 60000);
+  const hours = Math.floor(totalMinutes / 60);
+  const minutes = totalMinutes % 60;
+  if (hours > 0) return `${hours}시간 ${minutes}분 후 종료`;
+  return `${minutes}분 후 종료`;
+};
+
 export const cleanMessage = (message) => {
   if (!message) return "";
   return message.replace(/\[찾는 성별:\s*.*?\]\s*/, "");

@@ -89,7 +89,16 @@ body {
   background: var(--v2-surface-soft);
   border-radius: var(--v2-radius-sm);
   color: var(--v2-ink);
-  font-size: 15px;
+  font-size: 16px;
+}
+
+.app .formGroup input[type="date"] {
+  width: auto;
+  max-width: 170px;
+  height: 46px;
+  min-height: 46px;
+  margin-top: 12px;
+  padding: 0 14px;
 }
 
 .app .searchableSelect {
@@ -1040,13 +1049,21 @@ body.chatRoomOpen {
 .app .chatRoomHeaderInfo {
   flex: 1;
   display: flex;
+  flex-direction: column;
+  align-items: center;
   justify-content: center;
+  gap: 2px;
 }
 
 .app .chatRoomHeaderName {
   font-size: 16px;
   font-weight: 800;
   color: var(--v2-ink);
+}
+
+.app .chatRoomHeaderStatus {
+  font-size: 11.5px;
+  color: var(--v2-muted);
 }
 
 .app .chatRoomHeaderSpacer {
@@ -1176,7 +1193,7 @@ body.chatRoomOpen {
   padding: 0 16px;
   color: var(--v2-ink);
   font-family: inherit;
-  font-size: 14.5px;
+  font-size: 16px;
 }
 
 .app .chatSendBtn {
@@ -1199,6 +1216,16 @@ body.chatRoomOpen {
   background: var(--v2-line);
   color: var(--v2-muted);
   opacity: 1;
+}
+
+.app .chatRoomExpiredNotice {
+  flex: 0 0 auto;
+  padding: 14px 16px max(14px, env(safe-area-inset-bottom));
+  background: var(--v2-surface);
+  border-top: 1px solid var(--v2-line);
+  color: var(--v2-muted);
+  font-size: 13px;
+  text-align: center;
 }
 
 /* ===== 채팅 목록 ===== */
@@ -1266,4 +1293,13 @@ body.chatRoomOpen {
   overflow: hidden;
   text-overflow: ellipsis;
   white-space: nowrap;
+}
+
+.app .chatRoomListStatus {
+  font-size: 11px;
+  color: var(--v2-blue-dark);
+}
+
+.app .chatRoomListStatus.expired {
+  color: var(--v2-red);
 }

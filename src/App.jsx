@@ -36,7 +36,8 @@ import { PrivacyPolicyPage } from "./components/PrivacyPolicyPage";
 const ADMIN_LOGIN_IDS = ["pjwo12356", "djkim5882", "tjdgns02"];
 const PUBLIC_APP_URL = "https://dankook-crush-app.vercel.app";
 import {
-  placeOptions,
+  getPlaceOptions,
+  campusOptions,
   timeOptions,
   genderOptions,
   femaleHairStyleOptions,
@@ -68,6 +69,8 @@ import {
   formatShortDateTime,
   cleanMessage,
   formatChatListTime,
+  formatChatRoomRemaining,
+  isChatRoomExpired,
   makeHairFeature,
   getOxLabel,
   cleanTagText,
@@ -201,6 +204,7 @@ function App() {
   name: "",
   student_id: "",
   department: "",
+  campus: "",
   login_id: "",
   password: "",
 });
@@ -280,6 +284,7 @@ const [verificationFile, setVerificationFile] = useState(null);
     nickname: "",
     gender: "",
     department: "",
+    campus: "",
     student_year: "",
     instagram_id: "",
     bio: "",
@@ -395,6 +400,13 @@ const [verificationFile, setVerificationFile] = useState(null);
   const [activeChatRoomId, setActiveChatRoomId] = useState(null);
   const [activeChatRoomNickname, setActiveChatRoomNickname] = useState("");
   const [chatLastMessages, setChatLastMessages] = useState({});
+  const [chatRoomStatusMap, setChatRoomStatusMap] = useState({});
+  const [chatListNowTick, setChatListNowTick] = useState(() => Date.now());
+
+  useEffect(() => {
+    const timer = setInterval(() => setChatListNowTick(Date.now()), 60000);
+    return () => clearInterval(timer);
+  }, []);
 
   const [mySentPosts, setMySentPosts] = useState([]);
   const [sentClaims, setSentClaims] = useState([]);
@@ -432,6 +444,7 @@ const [verificationFile, setVerificationFile] = useState(null);
         "id, created_at, seen_date, place, time_period, target_gender, message, sender_nickname"
       )
       .eq("seen_date", today)
+      .eq("campus", profile.campus)
       .order("created_at", { ascending: false });
 
     if (error) {
@@ -461,7 +474,7 @@ const [verificationFile, setVerificationFile] = useState(null);
 
     setHomeTopWeatherPlace(topPlace || null);
     setHomeTodayClouds(todayClouds);
-  }, []);
+  }, [profile.campus]);
 
   const getFinalPlace = () => {
     const mainPlace = crushPost.place;
@@ -500,6 +513,7 @@ const [verificationFile, setVerificationFile] = useState(null);
       nickname: "",
       gender: "",
       department: "",
+      campus: "",
       student_year: "",
       instagram_id: "",
       bio: "",
@@ -552,7 +566,7 @@ const [verificationFile, setVerificationFile] = useState(null);
 
     const { data, error } = await supabase
       .from("profiles")
-      .select("nickname, gender, department, student_year, instagram_id, bio")
+      .select("nickname, gender, department, campus, student_year, instagram_id, bio")
       .eq("user_id", user.id)
       .maybeSingle();
 
@@ -567,6 +581,7 @@ const [verificationFile, setVerificationFile] = useState(null);
         nickname: data.nickname || "",
         gender: data.gender || "",
         department: data.department || "",
+        campus: data.campus || "",
         student_year: data.student_year || "",
         instagram_id: data.instagram_id || "",
         bio: data.bio || "",
@@ -816,7 +831,7 @@ const [verificationFile, setVerificationFile] = useState(null);
       top: 0,
       behavior: "smooth",
     });
-  }, [page]);
+  }, [page, crushStep]);
 
   useEffect(() => {
     if (!currentUser) return;
@@ -865,6 +880,10 @@ const [verificationFile, setVerificationFile] = useState(null);
     }
     if (!authForm.department.trim()) {
       toast.error("학과를 입력해주세요.");
+      return;
+    }
+    if (!authForm.campus) {
+      toast.error("캠퍼스를 선택해주세요.");
       return;
     }
     if (!verificationFile) {
@@ -987,6 +1006,7 @@ const [verificationFile, setVerificationFile] = useState(null);
           nickname: authForm.name.trim(),
           student_year: authForm.student_id.trim(),
           department: authForm.department.trim(),
+          campus: authForm.campus,
           gender: "",
           instagram_id: "",
           bio: "",
@@ -1000,6 +1020,7 @@ const [verificationFile, setVerificationFile] = useState(null);
         nickname: authForm.name.trim(),
         student_year: authForm.student_id.trim(),
         department: authForm.department.trim(),
+        campus: authForm.campus,
       }));
       setSession(data.session || null);
       setCurrentUser(signedUpUser);
@@ -2085,6 +2106,7 @@ const hideSearchResult = (postId) => {
         sender_instagram: cleanInstagram(profile.instagram_id),
         sender_gender: profile.gender,
         target_gender: crushPost.target_gender,
+        campus: profile.campus,
       };
 
       let error;
@@ -2184,6 +2206,7 @@ const hideSearchResult = (postId) => {
       .select("*")
       .eq("seen_date", searchForm.seen_date)
       .eq("target_gender", profile.gender)
+      .eq("campus", profile.campus)
       .order("created_at", {
         ascending: false,
       });
@@ -2396,14 +2419,28 @@ const hideSearchResult = (postId) => {
   const loadChatPreviews = async (roomIds) => {
     if (!roomIds || roomIds.length === 0) {
       setChatLastMessages({});
+      setChatRoomStatusMap({});
       return;
     }
 
-    const { data, error } = await supabase
-      .from("chat_messages")
-      .select("chat_room_id, body, created_at")
-      .in("chat_room_id", roomIds)
-      .order("created_at", { ascending: false });
+    const [{ data, error }, { data: roomsData, error: roomsError }] = await Promise.all([
+      supabase
+        .from("chat_messages")
+        .select("chat_room_id, body, created_at")
+        .in("chat_room_id", roomIds)
+        .order("created_at", { ascending: false }),
+      supabase.from("chat_rooms").select("id, created_at, closed_at").in("id", roomIds),
+    ]);
+
+    if (roomsError) {
+      console.log(roomsError);
+    } else {
+      const statusMap = {};
+      (roomsData || []).forEach((r) => {
+        statusMap[r.id] = { created_at: r.created_at, closed_at: r.closed_at };
+      });
+      setChatRoomStatusMap(statusMap);
+    }
 
     if (error) {
       console.log(error);
@@ -2600,6 +2637,7 @@ const hideSearchResult = (postId) => {
     .from("crush_posts")
     .select("*")
     .eq("seen_date", targetDate)
+    .eq("campus", profile.campus)
     .order("created_at", { ascending: false });
 
   if (error) {
@@ -3343,7 +3381,7 @@ const getWeatherPlaceCounts = () => {
 	          <p className="subtitle">
 	            호감이라는 말보다 조금 덜 부담스럽게, 몽글한 구름으로 마음을 전해요.
 	          </p>
-	
+
 	          <div className="authTrustRow">
 	            <div className="authTrustItem">
 	              <span className="authTrustIcon">
@@ -3400,6 +3438,20 @@ const getWeatherPlaceCounts = () => {
       setAuthForm({ ...authForm, department: e.target.value })
     }
   />
+</div>
+
+<div className="formGroup">
+  <label className="formLabel">캠퍼스</label>
+  <div className="optionGrid">
+    {campusOptions.map((option) => (
+      <OptionButton
+        key={option}
+        value={option}
+        selected={authForm.campus === option}
+        onClick={() => setAuthForm({ ...authForm, campus: option })}
+      />
+    ))}
+  </div>
 </div>
 
 	<div className="formGroup">
@@ -4106,7 +4158,7 @@ const getWeatherPlaceCounts = () => {
               <div className="formGroup">
                 <label className="formLabel">장소</label>
                 <SearchableSelect
-                  options={placeOptions}
+                  options={getPlaceOptions(profile.campus)}
                   value={crushPost.place}
                   placeholder="장소 검색 또는 선택 (예: 도서관)"
                   onChange={(option) =>
@@ -5452,6 +5504,10 @@ const getWeatherPlaceCounts = () => {
                 const preview = chatLastMessages[room.chatRoomId];
                 const previewTime = preview?.created_at || room.updatedAt;
                 const initial = (room.otherNickname || "구").trim().charAt(0) || "구";
+                const roomStatus = chatRoomStatusMap[room.chatRoomId];
+                const roomCreatedAt = roomStatus?.created_at || room.updatedAt;
+                const roomClosedAt = roomStatus?.closed_at;
+                const expired = isChatRoomExpired(roomCreatedAt, roomClosedAt, chatListNowTick);
 
                 return (
                   <button
@@ -5470,6 +5526,9 @@ const getWeatherPlaceCounts = () => {
                       </span>
                       <span className="chatRoomListPreview">
                         {preview?.body || "대화를 시작해보세요."}
+                      </span>
+                      <span className={expired ? "chatRoomListStatus expired" : "chatRoomListStatus"}>
+                        {formatChatRoomRemaining(roomCreatedAt, roomClosedAt, chatListNowTick)}
                       </span>
                     </span>
                   </button>

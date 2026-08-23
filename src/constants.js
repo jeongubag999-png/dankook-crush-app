@@ -36,6 +36,42 @@ export const placeOptions = [
   "기타/직접 입력",
 ];
 
+export const jukjeonPlaceOptions = placeOptions;
+
+// TODO: 나무위키 기반 초안 — 실제 서비스 반영 전 천안캠퍼스 재학생 검토 필요
+export const cheonanPlaceOptions = [
+  "인문과학관",
+  "사회과학관",
+  "자연과학1관",
+  "자연과학2관",
+  "공학관(융합기술대학관)",
+  "보건과학관",
+  "생명자원과학관",
+  "간호대 별관",
+  "예술관 A/B동",
+  "예술관 C/D동",
+  "학생회관(웅무관)",
+  "산학협력관",
+  "율곡기념도서관",
+  "체육관",
+  "치의학관",
+  "약학관",
+  "의학관",
+  "대운동장",
+  "베어토피아",
+  "단대호수(안서호/천호지)",
+  "기숙사",
+  "학교 앞 상권/거리",
+  "버스정류장",
+  "잘 모르겠음",
+  "기타/직접 입력",
+];
+
+export const getPlaceOptions = (campus) =>
+  campus === "천안" ? cheonanPlaceOptions : jukjeonPlaceOptions;
+
+export const campusOptions = ["죽전", "천안"];
+
 export const timeOptions = [
   "00:00~02:00",
   "02:00~04:00",
