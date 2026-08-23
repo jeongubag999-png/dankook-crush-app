@@ -3880,6 +3880,14 @@ const getWeatherPlaceCounts = () => {
             프로필 정보 수정
           </h3>
 
+          <div className="formGroup">
+            <label className="formLabel">캠퍼스</label>
+            <p className="profileCampusValue">
+              단국대 {profile.campus || "-"}캠퍼스
+              <span className="profileCampusNote">변경 불가</span>
+            </p>
+          </div>
+
           <input
             placeholder="닉네임 예: 정우23"
             value={profile.nickname}
