@@ -190,6 +190,7 @@ function App() {
   const [authLoading, setAuthLoading] = useState(true);
   const [showPassword, setShowPassword] = useState(false);
   const profileLoadedUserIdRef = useRef(null);
+  const activityLoadedUserIdRef = useRef(null);
   const isSigningUpRef = useRef(false); // 회원가입 진행 중 플래그
   const cloudSendFlowIdRef = useRef(null);
   const cloudSendStartedAtRef = useRef(null);
@@ -365,6 +366,13 @@ const [verificationFile, setVerificationFile] = useState(null);
   const [searchResults, setSearchResults] = useState([]);
   const [hiddenResultIds, setHiddenResultIds] = useState([]);
   const [selectedPost, setSelectedPost] = useState(null);
+  const [sentResultPost, setSentResultPost] = useState(null);
+  const [sentCheckResults, setSentCheckResults] = useState([]);
+  const [sentCheckResultMeta, setSentCheckResultMeta] = useState({
+    rawCount: 0,
+    scoredCount: 0,
+    blockedCount: 0,
+  });
   const [maybeReactionIds, setMaybeReactionIds] = useState([]);
 
   const [claimForm, setClaimForm] = useState({
@@ -407,15 +415,37 @@ const [verificationFile, setVerificationFile] = useState(null);
   const [chatLastMessages, setChatLastMessages] = useState({});
   const [chatRoomStatusMap, setChatRoomStatusMap] = useState({});
   const [chatListNowTick, setChatListNowTick] = useState(() => Date.now());
+  const pageRef = useRef(page);
+  const matchingModeRef = useRef(matchingMode);
+  const activeChatRoomIdRef = useRef(null);
+  const mySentPostsRef = useRef([]);
+  const receivedClaimsRef = useRef([]);
+  const sentClaimsRef = useRef([]);
 
   useEffect(() => {
     const timer = setInterval(() => setChatListNowTick(Date.now()), 60000);
     return () => clearInterval(timer);
   }, []);
 
+  useEffect(() => {
+    pageRef.current = page;
+  }, [page]);
+
+  useEffect(() => {
+    matchingModeRef.current = matchingMode;
+  }, [matchingMode]);
+
+  useEffect(() => {
+    activeChatRoomIdRef.current = activeChatRoomId;
+  }, [activeChatRoomId]);
+
   const [mySentPosts, setMySentPosts] = useState([]);
   const [sentClaims, setSentClaims] = useState([]);
   const [receivedClaims, setReceivedClaims] = useState([]);
+  const [myReceivedCloudViews, setMyReceivedCloudViews] = useState([]);
+  const [senderCheckCandidates, setSenderCheckCandidates] = useState([]);
+  const [senderCheckPicks, setSenderCheckPicks] = useState([]);
+  const [receivedSenderCheckPicks, setReceivedSenderCheckPicks] = useState([]);
   const [myCloudChecks, setMyCloudChecks] = useState([]);
   const [cloudCalendarRecords, setCloudCalendarRecords] = useState([]);
   const [cloudCalendarLoading, setCloudCalendarLoading] = useState(false);
@@ -427,6 +457,41 @@ const [verificationFile, setVerificationFile] = useState(null);
   );
 
   const femaleHairGuideImage = "/hair-length-guide.png";
+
+  useEffect(() => {
+    mySentPostsRef.current = mySentPosts;
+  }, [mySentPosts]);
+
+  useEffect(() => {
+    receivedClaimsRef.current = receivedClaims;
+  }, [receivedClaims]);
+
+  useEffect(() => {
+    sentClaimsRef.current = sentClaims;
+  }, [sentClaims]);
+
+  const resetActivityData = (nextUserId = null) => {
+    setMySentPosts([]);
+    setSentClaims([]);
+    setReceivedClaims([]);
+    setMyReceivedCloudViews([]);
+    setSenderCheckCandidates([]);
+    setSenderCheckPicks([]);
+    setReceivedSenderCheckPicks([]);
+    setMyCloudChecks([]);
+    setCloudCalendarRecords([]);
+    setChatLastMessages({});
+    setChatRoomStatusMap({});
+    setSentResultPost(null);
+    setSentCheckResults([]);
+    setSentCheckResultMeta({ rawCount: 0, scoredCount: 0, blockedCount: 0 });
+    activityLoadedUserIdRef.current = nextUserId;
+  };
+
+  const resetActivityDataIfUserChanged = (nextUserId) => {
+    if (activityLoadedUserIdRef.current === nextUserId) return;
+    resetActivityData(nextUserId);
+  };
 
   const getDraftKey = () => {
     if (!currentUser?.id) return "dankum_crush_draft_guest";
@@ -637,6 +702,7 @@ const [verificationFile, setVerificationFile] = useState(null);
 
       setSession(savedSession);
       setCurrentUser(savedUser);
+      resetActivityDataIfUserChanged(savedUser?.id || null);
 
       if (savedUser) {
         // 인증 확인이 끝날 때까지 authLoading 유지 (홈 화면 노출 방지)
@@ -669,6 +735,7 @@ const [verificationFile, setVerificationFile] = useState(null);
 
       setSession(newSession);
       setCurrentUser(newUser);
+      resetActivityDataIfUserChanged(newUser?.id || null);
       setAuthLoading(false);
 
       if (newUser) {
@@ -679,6 +746,7 @@ const [verificationFile, setVerificationFile] = useState(null);
       } else {
         profileLoadedUserIdRef.current = null;
         resetProfile();
+        resetActivityData(null);
         setPage("home");
       }
     });
@@ -1001,6 +1069,7 @@ const [verificationFile, setVerificationFile] = useState(null);
           }));
           setSession(data.session || null);
           setCurrentUser(signedUpUser);
+          resetActivityData(signedUpUser?.id || null);
           toast.error("인증 사진 업로드에 실패했어요. 단꿈 인스타그램으로 문의해주세요.");
           setPage("verificationPending");
           return;
@@ -1082,6 +1151,7 @@ const [verificationFile, setVerificationFile] = useState(null);
       }));
       setSession(data.session || null);
       setCurrentUser(signedUpUser);
+      resetActivityData(signedUpUser?.id || null);
       if (finalVerificationStatus === "approved") {
         toast.success("MY DKU 자동 인증 완료! 바로 이용할 수 있어요.");
         setPage("profile");
@@ -1144,6 +1214,7 @@ const handleLogin = async () => {
 
       setSession(data.session);
       setCurrentUser(data.user);
+      resetActivityDataIfUserChanged(data.user?.id || null);
 
       if (verifyStatus === "pending" || verifyStatus === "incomplete") {
         toast.error("학생 인증이 아직 승인되지 않았어요. 승인될 때까지 기다려주세요.");
@@ -1166,6 +1237,7 @@ const handleLogin = async () => {
     setSession(null);
     setCurrentUser(null);
     resetProfile();
+    resetActivityData(null);
     setSharedPostId(null);
     setSharedPost(null);
     setGuestSharedPreview(false);
@@ -1252,6 +1324,7 @@ const handleLogin = async () => {
       setSession(null);
       setCurrentUser(null);
       resetProfile();
+      resetActivityData(null);
       setPage("home");
       toast.success("탈퇴가 완료됐어요. 그동안 이용해주셔서 감사해요.");
     } finally {
@@ -1352,12 +1425,105 @@ const containsMatch = (source, target) => {
   );
 };
 
-const getPostMatchScore = (post) => {
+const getCheckHairFeature = (checkInput) => {
+  if (checkInput.hair_feature) return checkInput.hair_feature;
+
+  const gender = checkInput.checker_gender || profile.gender;
+
+  if (gender === "여자") {
+    return makeHairFeature(
+      checkInput.female_hair_style,
+      checkInput.female_hair_color,
+      checkInput.female_hat,
+      checkInput.female_bangs
+    );
+  }
+
+  if (gender === "남자") {
+    return makeHairFeature(
+      checkInput.male_hair_style,
+      checkInput.male_hair_color,
+      checkInput.male_hat,
+      checkInput.male_bangs
+    );
+  }
+
+  return "";
+};
+
+const getCloudMatchScore = (post, checkInput) => {
   let score = 0;
   const reasons = [];
 
   // 머리: 항목(스타일/색/모자/앞머리)별로 "잘 모르겠음" 제외 후 비교.
   // 입력한 항목 중 맞은 비율만큼 30점을 부분 배점 (all-or-nothing 아님).
+  const checkHair = getCheckHairFeature(checkInput);
+  if (checkHair) {
+    const checkHairParts = checkHair
+      .split(" / ")
+      .filter((p) => p && p !== "잘 모르겠음");
+    if (checkHairParts.length > 0) {
+      const matchedHairCount = checkHairParts.filter((part) =>
+        containsMatch(post.hair_feature, part)
+      ).length;
+      const hairRatio = matchedHairCount / checkHairParts.length;
+      if (hairRatio > 0) {
+        score += HAIR_WEIGHT * hairRatio;
+      }
+      if (matchedHairCount > 0) {
+        reasons.push(`헤어 ${matchedHairCount}개 항목 일치`);
+      }
+    }
+  }
+
+  const checkField = (checkValue, weight, postValue, fallbackSource, label) => {
+    if (!checkValue || checkValue === "잘 모르겠음") return;
+    if (containsMatch(postValue, checkValue) || containsMatch(fallbackSource, checkValue)) {
+      score += weight;
+      reasons.push(`${label} 일치`);
+    }
+  };
+
+  const postStyleSource = post.clothes_style || "";
+  const postAccessorySource = post.accessory || "";
+
+  checkField(checkInput.glasses_type, FIELD_WEIGHTS.glasses_type, post.glasses_status, postAccessorySource, "안경");
+  checkField(checkInput.top_type, FIELD_WEIGHTS.top_type, post.top_type, postStyleSource, "상의 종류");
+  checkField(checkInput.top_color, FIELD_WEIGHTS.top_color, post.top_color, postStyleSource, "상의 색상");
+  checkField(checkInput.outer_type, FIELD_WEIGHTS.outer_type, post.outer_type, postStyleSource, "아우터");
+  checkField(checkInput.outer_color, FIELD_WEIGHTS.outer_color, post.outer_color, postStyleSource, "아우터 색상");
+  checkField(checkInput.bottom_type, FIELD_WEIGHTS.bottom_type, post.bottom_type, postStyleSource, "하의 종류");
+  checkField(checkInput.bottom_color, FIELD_WEIGHTS.bottom_color, post.bottom_color, postStyleSource, "하의 색상");
+  checkField(checkInput.shoe_type, FIELD_WEIGHTS.shoe_type, post.shoe_type, postAccessorySource, "신발");
+  checkField(checkInput.bag_type, FIELD_WEIGHTS.bag_type, post.bag_type, postAccessorySource, "가방");
+  checkField(checkInput.earphone_type, FIELD_WEIGHTS.earphone_type, post.earphone_type, postAccessorySource, "이어폰");
+
+  return {
+    score: Math.round(Math.min(100, score)),
+    reasons: [...new Set(reasons)].slice(0, 4),
+  };
+};
+
+const getPostMatchScore = (post) => {
+  const match = getCloudMatchScore(post, {
+    ...searchForm,
+    checker_gender: profile.gender,
+    hair_feature: getFinalSearchHairFeature(),
+  });
+
+  if (match.score > 0) return match;
+
+  let score = 0;
+  const reasons = [];
+
+  const checkField = (formValue, weight, matchSource, label) => {
+    if (!formValue || formValue === "잘 모르겠음") return;
+    if (containsMatch(matchSource, formValue)) {
+      score += weight;
+      reasons.push(`${label} 일치`);
+    }
+  };
+
   const searchHair = getFinalSearchHairFeature();
   if (searchHair) {
     const searchHairParts = searchHair
@@ -1376,14 +1542,6 @@ const getPostMatchScore = (post) => {
       }
     }
   }
-
-  const checkField = (formValue, weight, matchSource, label) => {
-    if (!formValue || formValue === "잘 모르겠음") return;
-    if (containsMatch(matchSource, formValue)) {
-      score += weight;
-      reasons.push(`${label} 일치`);
-    }
-  };
 
   checkField(searchForm.glasses_type, FIELD_WEIGHTS.glasses_type, post.accessory, "안경");
   checkField(searchForm.top_type, FIELD_WEIGHTS.top_type, post.clothes_style, "상의 종류");
@@ -2178,21 +2336,28 @@ const hideSearchResult = (postId) => {
       };
 
       let error;
+      let savedPost = null;
 
       if (editingPost) {
         // 빠른 구름 → 자세한 구름으로 업데이트
-        const { error: updateError } = await supabase
+        const { data, error: updateError } = await supabase
           .from("crush_posts")
           .update(postData)
           .eq("id", editingPost.id)
-          .eq("sender_user_id", currentUser.id);
+          .eq("sender_user_id", currentUser.id)
+          .select()
+          .maybeSingle();
         error = updateError;
+        savedPost = data || { ...editingPost, ...postData };
       } else {
         // 새 구름 생성
-        const { error: insertError } = await supabase
+        const { data, error: insertError } = await supabase
           .from("crush_posts")
-          .insert([{ ...postData, sender_user_id: currentUser.id }]);
+          .insert([{ ...postData, sender_user_id: currentUser.id }])
+          .select()
+          .maybeSingle();
         error = insertError;
+        savedPost = data;
       }
 
       if (error) {
@@ -2211,7 +2376,10 @@ const hideSearchResult = (postId) => {
       });
       setEditingPost(null);
       resetCrushPost();
-      setPage("sent");
+      if (savedPost) {
+        await loadSentCheckResultsForPost(savedPost);
+      }
+      setPage("sentResult");
     } finally {
       setPostSubmitting(false);
     }
@@ -2254,6 +2422,59 @@ const hideSearchResult = (postId) => {
     if (error) {
       console.log(error);
     }
+  };
+
+  const loadSentCheckResultsForPost = async (post) => {
+    if (!currentUser || !post?.id) return [];
+
+    setSentResultPost(post);
+    setSentCheckResults([]);
+    setSentCheckResultMeta({ rawCount: 0, scoredCount: 0, blockedCount: 0 });
+
+    const { data, error } = await supabase
+      .from("cloud_checks")
+      .select(
+        "id, checker_user_id, checker_nickname, checker_gender, seen_date, checked_at, hair_feature, female_hair_style, female_hair_color, female_hat, female_bangs, male_hair_style, male_hair_color, male_hat, male_bangs, top_type, top_color, outer_type, outer_color, bottom_type, bottom_color, shoe_type, bag_type, earphone_type, glasses_type, result_count"
+      )
+      .eq("seen_date", post.seen_date)
+      .eq("checker_gender", post.target_gender)
+      .order("checked_at", { ascending: false })
+      .limit(100);
+
+    if (error) {
+      console.log(error);
+      toast.error("구름 확인 내역을 불러오지 못했어요. Supabase SQL 적용이 필요할 수 있어요.");
+      return [];
+    }
+
+    const checkRows = data || [];
+    const availableRows = checkRows
+      .filter((check) => check.checker_user_id !== currentUser.id)
+      .filter((check) => !blockedUserIds.includes(check.checker_user_id));
+    const scoredRows = availableRows.map((check) => {
+        const match = getCloudMatchScore(post, check);
+        return {
+          ...check,
+          crush_post_id: post.id,
+          match_score: match.score,
+          match_reasons: match.reasons,
+        };
+      });
+    const results = scoredRows
+      .filter((check) => check.match_score >= MATCH_THRESHOLD)
+      .sort(
+        (a, b) =>
+          (b.match_score || 0) - (a.match_score || 0) ||
+          new Date(b.checked_at) - new Date(a.checked_at)
+      );
+
+    setSentCheckResultMeta({
+      rawCount: checkRows.length,
+      scoredCount: scoredRows.length,
+      blockedCount: checkRows.length - availableRows.length,
+    });
+    setSentCheckResults(results);
+    return results;
   };
 
   const searchCrushPosts = async () => {
@@ -2343,9 +2564,9 @@ const hideSearchResult = (postId) => {
 
     await saveCloudCalendarRecord(finalResults.length);
 
-    if (scoredResults.length > 0) {
+    if (finalResults.length > 0) {
       const viewedAt = new Date().toISOString();
-      const viewRows = scoredResults.map((post) => ({
+      const viewRows = finalResults.map((post) => ({
         crush_post_id: String(post.id),
         viewer_user_id: currentUser.id,
         viewer_nickname: profile.nickname,
@@ -2384,7 +2605,7 @@ const hideSearchResult = (postId) => {
   if (claimSubmitting) return;
 
   if (!selectedPost) {
-    toast.error("응답할 구름 글을 찾지 못했어요.");
+      toast.error("요청할 구름 글을 찾지 못했어요.");
     return;
   }
 
@@ -2413,26 +2634,30 @@ const hideSearchResult = (postId) => {
       .maybeSingle();
 
     if (existingError) {
-      toast.error("응답 확인에 실패했어요: " + existingError.message);
+      toast.error("채팅방 요청 확인에 실패했어요: " + existingError.message);
       console.log(existingError);
       return;
     }
 
     let claimError;
+    let savedClaim = existingClaim;
 
     if (existingClaim) {
-      const { error } = await supabase
+      const { data, error } = await supabase
         .from("claims")
         .update({
           claimer_nickname: profile.nickname,
           claimer_instagram: cleanInstagram(profile.instagram_id),
           claimer_message: finalMessage,
         })
-        .eq("id", existingClaim.id);
+        .eq("id", existingClaim.id)
+        .select()
+        .maybeSingle();
 
       claimError = error;
+      savedClaim = data || existingClaim;
     } else {
-      const { error } = await supabase.from("claims").insert([
+      const { data, error } = await supabase.from("claims").insert([
         {
           crush_post_id: selectedPost.id,
           claimer_user_id: currentUser.id,
@@ -2441,15 +2666,39 @@ const hideSearchResult = (postId) => {
           claimer_message: finalMessage,
           status: "pending",
         },
-      ]);
+      ]).select().maybeSingle();
 
       claimError = error;
+      savedClaim = data;
     }
 
     if (claimError) {
-      toast.error("응답 저장에 실패했어요: " + claimError.message);
+      toast.error("채팅방 요청 저장에 실패했어요: " + claimError.message);
       console.log(claimError);
       return;
+    }
+
+    const { data: senderPick, error: senderPickError } = await supabase
+      .from("sender_cloud_check_picks")
+      .select("id")
+      .eq("crush_post_id", selectedPost.id)
+      .eq("checker_user_id", currentUser.id)
+      .eq("status", "interested")
+      .maybeSingle();
+
+    if (!senderPickError && senderPick?.id && savedClaim?.id) {
+      const { error: mutualError } = await supabase
+        .from("claims")
+        .update({ status: "chat_requested", responded_at: new Date().toISOString() })
+        .eq("id", savedClaim.id);
+
+      if (mutualError) {
+        console.log(mutualError);
+      } else {
+        savedClaim = { ...savedClaim, status: "chat_requested" };
+      }
+    } else if (senderPickError) {
+      console.log(senderPickError);
     }
 
     await supabase.from("cloud_views").upsert(
@@ -2468,7 +2717,11 @@ const hideSearchResult = (postId) => {
       }
     );
 
-    toast.success("응답을 보냈어요!");
+    toast.success(
+      savedClaim?.status === "chat_requested"
+        ? "서로 확인했어요. 대화 요청이 도착했어요!"
+        : "구름 채팅방 요청을 보냈어요!"
+    );
 
     setClaimForm({
       claimer_nickname: "",
@@ -2548,32 +2801,58 @@ const hideSearchResult = (postId) => {
   };
 
   const loadMyActivityData = async () => {
-    if (!currentUser) return false;
+    if (!currentUser) {
+      resetActivityData(null);
+      return false;
+    }
+
+    const activityUserId = currentUser.id;
 
     setMatchingLoading(true);
     setMySentPosts([]);
     setSentClaims([]);
     setReceivedClaims([]);
+    setMyReceivedCloudViews([]);
+    setSenderCheckCandidates([]);
+    setSenderCheckPicks([]);
+    setReceivedSenderCheckPicks([]);
     setMyCloudChecks([]);
 
     // Round 1: 독립 쿼리 병렬 실행
-    const [checksResult, postsResult, receivedClaimsResult] =
+    const [
+      checksResult,
+      postsResult,
+      receivedClaimsResult,
+      receivedViewsResult,
+      receivedSenderPicksResult,
+    ] =
       await Promise.all([
         supabase
           .from("cloud_checks")
           .select("*")
-          .eq("checker_user_id", currentUser.id)
+          .eq("checker_user_id", activityUserId)
           .order("checked_at", { ascending: false }),
         supabase
           .from("crush_posts")
           .select("*")
-          .eq("sender_user_id", currentUser.id)
+          .eq("sender_user_id", activityUserId)
           .order("created_at", { ascending: false }),
         supabase
           .from("claims")
           .select("*")
-          .eq("claimer_user_id", currentUser.id)
+          .eq("claimer_user_id", activityUserId)
           .order("created_at", { ascending: false }),
+        supabase
+          .from("cloud_views")
+          .select("*")
+          .eq("viewer_user_id", activityUserId)
+          .order("viewed_at", { ascending: false }),
+        supabase
+          .from("sender_cloud_check_picks")
+          .select("*")
+          .eq("checker_user_id", activityUserId)
+          .eq("status", "interested")
+          .order("updated_at", { ascending: false }),
       ]);
 
     if (checksResult.error) {
@@ -2594,6 +2873,15 @@ const hideSearchResult = (postId) => {
       setMatchingLoading(false);
       return false;
     }
+    if (receivedViewsResult.error) {
+      toast.error("구름 확인 결과를 불러오지 못했어요: " + receivedViewsResult.error.message);
+      console.log(receivedViewsResult.error);
+      setMatchingLoading(false);
+      return false;
+    }
+    if (receivedSenderPicksResult.error) {
+      console.log(receivedSenderPicksResult.error);
+    }
 
     setMyCloudChecks(checksResult.data || []);
 
@@ -2601,23 +2889,56 @@ const hideSearchResult = (postId) => {
     setMySentPosts(finalMyPosts);
 
     const finalReceivedClaims = receivedClaimsResult.data || [];
+    const finalReceivedViews = (receivedViewsResult.data || []).filter(
+      (view) => !view.match_score || view.match_score >= MATCH_THRESHOLD
+    );
 
     // Round 2: Round 1 결과가 필요한 쿼리 병렬 실행
     const round2Promises = [];
 
     const sentPostIds = finalMyPosts.map((post) => post.id);
+    const sentPostDates = [...new Set(finalMyPosts.map((post) => post.seen_date).filter(Boolean))];
     const receivedClaimPostIds = [...new Set(finalReceivedClaims.map((c) => c.crush_post_id))];
+    const receivedViewPostIds = [...new Set(finalReceivedViews.map((v) => v.crush_post_id))];
+    const receivedSenderPickPostIds = [
+      ...new Set((receivedSenderPicksResult.data || []).map((pick) => pick.crush_post_id)),
+    ];
+    const receivedPostIds = [
+      ...new Set([
+        ...receivedClaimPostIds,
+        ...receivedViewPostIds,
+        ...receivedSenderPickPostIds,
+      ]),
+    ];
 
     round2Promises.push(
       sentPostIds.length > 0
         ? supabase.from("claims").select("*").in("crush_post_id", sentPostIds).order("created_at", { ascending: false })
         : Promise.resolve({ data: [], error: null }),
-      receivedClaimPostIds.length > 0
-        ? supabase.from("crush_posts").select("*").in("id", receivedClaimPostIds)
+      receivedPostIds.length > 0
+        ? supabase.from("crush_posts").select("*").in("id", receivedPostIds)
+        : Promise.resolve({ data: [], error: null }),
+      sentPostDates.length > 0
+        ? supabase
+            .from("cloud_checks")
+            .select(
+              "id, checker_user_id, checker_nickname, checker_gender, seen_date, checked_at, hair_feature, female_hair_style, female_hair_color, female_hat, female_bangs, male_hair_style, male_hair_color, male_hat, male_bangs, top_type, top_color, outer_type, outer_color, bottom_type, bottom_color, shoe_type, bag_type, earphone_type, glasses_type, result_count"
+            )
+            .in("seen_date", sentPostDates)
+            .order("checked_at", { ascending: false })
+            .limit(100)
+        : Promise.resolve({ data: [], error: null }),
+      sentPostIds.length > 0
+        ? supabase
+            .from("sender_cloud_check_picks")
+            .select("*")
+            .eq("sender_user_id", activityUserId)
+            .in("crush_post_id", sentPostIds)
+            .order("created_at", { ascending: false })
         : Promise.resolve({ data: [], error: null }),
     );
 
-    const [claimsResult, receivedPostsResult] =
+    const [claimsResult, receivedPostsResult, senderChecksResult, senderPicksResult] =
       await Promise.all(round2Promises);
 
     if (claimsResult.error) {
@@ -2632,12 +2953,48 @@ const hideSearchResult = (postId) => {
       setMatchingLoading(false);
       return false;
     }
+    if (senderChecksResult.error) {
+      console.log(senderChecksResult.error);
+    }
+    if (senderPicksResult.error) {
+      console.log(senderPicksResult.error);
+    }
 
     const finalSentClaims = (claimsResult.data || []).map((claim) => ({
       ...claim,
       post: finalMyPosts.find((item) => item.id === claim.crush_post_id),
     }));
     setSentClaims(finalSentClaims);
+    setSenderCheckPicks(senderPicksResult.error ? [] : senderPicksResult.data || []);
+
+    const claimedCheckerKeys = new Set(
+      finalSentClaims.map((claim) => `${claim.crush_post_id}:${claim.claimer_user_id}`)
+    );
+    const finalSenderCheckCandidates = (senderChecksResult.error ? [] : senderChecksResult.data || [])
+      .filter((check) => check.checker_user_id !== activityUserId)
+      .filter((check) => !blockedUserIds.includes(check.checker_user_id))
+      .flatMap((check) =>
+        finalMyPosts
+          .filter((post) => post.seen_date === check.seen_date)
+          .filter((post) => post.target_gender === check.checker_gender)
+          .filter((post) => !claimedCheckerKeys.has(`${post.id}:${check.checker_user_id}`))
+          .map((post) => {
+            const match = getCloudMatchScore(post, check);
+            return {
+              ...check,
+              crush_post_id: post.id,
+              match_score: match.score,
+              match_reasons: match.reasons,
+            };
+          })
+      )
+      .filter((check) => check.match_score >= MATCH_THRESHOLD)
+      .sort(
+        (a, b) =>
+          (b.match_score || 0) - (a.match_score || 0) ||
+          new Date(b.checked_at) - new Date(a.checked_at)
+      );
+    setSenderCheckCandidates(finalSenderCheckCandidates);
 
     const receivedPosts = receivedPostsResult.data || [];
     const combinedReceivedClaims = finalReceivedClaims.map((claim) => ({
@@ -2645,6 +3002,30 @@ const hideSearchResult = (postId) => {
       post: receivedPosts.find((item) => item.id === claim.crush_post_id) || null,
     }));
     setReceivedClaims(combinedReceivedClaims);
+    const claimedPostIds = new Set(
+      finalReceivedClaims.map((claim) => String(claim.crush_post_id))
+    );
+    const combinedReceivedViews = finalReceivedViews
+      .filter((view) => !claimedPostIds.has(String(view.crush_post_id)))
+      .map((view) => ({
+        ...view,
+        post: receivedPosts.find((item) => String(item.id) === String(view.crush_post_id)) || null,
+      }))
+      .filter((view) => view.post)
+      .filter((view) => !blockedUserIds.includes(view.post.sender_user_id));
+    setMyReceivedCloudViews(combinedReceivedViews);
+
+    const finalReceivedSenderPicks = (receivedSenderPicksResult.error
+      ? []
+      : receivedSenderPicksResult.data || []
+    )
+      .map((pick) => ({
+        ...pick,
+        post: receivedPosts.find((item) => String(item.id) === String(pick.crush_post_id)) || null,
+      }))
+      .filter((pick) => pick.post)
+      .filter((pick) => !blockedUserIds.includes(pick.sender_user_id));
+    setReceivedSenderCheckPicks(finalReceivedSenderPicks);
 
     const chatRoomIds = [
       ...finalSentClaims,
@@ -2655,6 +3036,7 @@ const hideSearchResult = (postId) => {
 
     loadChatPreviews([...new Set(chatRoomIds)]);
 
+    activityLoadedUserIdRef.current = activityUserId;
     setMatchingLoading(false);
     return true;
   };
@@ -2814,6 +3196,92 @@ const getWeatherPlaceCounts = () => {
     setChatPreviewProfile(p);
   };
 
+  const openSenderPickChatPreview = async (pick) => {
+    if (!currentUser || !pick?.post || claimActionSubmittingId) return;
+
+    setClaimActionSubmittingId(`sender-pick-${pick.id}`);
+
+    try {
+      const claimPayload = {
+        crush_post_id: pick.crush_post_id,
+        claimer_user_id: currentUser.id,
+        claimer_nickname: profile.nickname,
+        claimer_instagram: cleanInstagram(profile.instagram_id),
+        claimer_message: "구름 확인 기록을 통해 연결됐어요.",
+        status: "chat_requested",
+        responded_at: new Date().toISOString(),
+      };
+
+      const { data: existingClaim, error: existingError } = await supabase
+        .from("claims")
+        .select("*")
+        .eq("crush_post_id", pick.crush_post_id)
+        .eq("claimer_user_id", currentUser.id)
+        .maybeSingle();
+
+      if (existingError) {
+        toast.error("대화 요청을 불러오지 못했어요: " + existingError.message);
+        console.log(existingError);
+        return;
+      }
+
+      let claim = existingClaim;
+
+      if (existingClaim) {
+        const { data, error } = await supabase
+          .from("claims")
+          .update({
+            claimer_nickname: claimPayload.claimer_nickname,
+            claimer_instagram: claimPayload.claimer_instagram,
+            claimer_message: existingClaim.claimer_message || claimPayload.claimer_message,
+            status:
+              existingClaim.status === "chat_accepted"
+                ? existingClaim.status
+                : "chat_requested",
+            responded_at: claimPayload.responded_at,
+          })
+          .eq("id", existingClaim.id)
+          .select()
+          .maybeSingle();
+
+        if (error) {
+          toast.error("대화 요청 준비에 실패했어요: " + error.message);
+          console.log(error);
+          return;
+        }
+
+        claim = data || existingClaim;
+      } else {
+        const { data, error } = await supabase
+          .from("claims")
+          .insert([claimPayload])
+          .select()
+          .maybeSingle();
+
+        if (error) {
+          toast.error("대화 요청 준비에 실패했어요: " + error.message);
+          console.log(error);
+          return;
+        }
+
+        claim = data;
+      }
+
+      if (!claim) return;
+
+      const claimWithPost = { ...claim, post: pick.post };
+
+      if (claimWithPost.status === "chat_accepted" && claimWithPost.chat_room_id) {
+        openChatRoom(claimWithPost.chat_room_id, pick.post.sender_nickname);
+        return;
+      }
+
+      await openChatPreview(claimWithPost);
+    } finally {
+      setClaimActionSubmittingId(null);
+    }
+  };
+
   const openChatRoom = (roomId, nickname = "") => {
     if (!roomId) return;
     setActiveChatRoomId(roomId);
@@ -2821,23 +3289,12 @@ const getWeatherPlaceCounts = () => {
     setPage("chatRoom");
   };
 
-  const acceptChatRequest = async (claim) => {
+  const acceptChatRequest = async (claim, otherNickname = "") => {
     if (!claim?.id || chatActionSubmitting) return;
 
     setChatActionSubmitting(true);
 
     try {
-      const { error: claimError } = await supabase
-        .from("claims")
-        .update({ status: "chat_accepted", responded_at: new Date().toISOString() })
-        .eq("id", claim.id);
-
-      if (claimError) {
-        toast.error("수락에 실패했어요: " + claimError.message);
-        console.log(claimError);
-        return;
-      }
-
       const { data: room, error: roomError } = await supabase
         .from("chat_rooms")
         .upsert(
@@ -2875,21 +3332,140 @@ const getWeatherPlaceCounts = () => {
         roomId = existingRoom?.id;
       }
 
+      if (!roomId) {
+        toast.error("채팅방을 찾지 못했어요. 잠시 후 다시 시도해주세요.");
+        return;
+      }
+
       const { error: chatRoomLinkError } = await supabase
         .from("claims")
-        .update({ chat_room_id: roomId })
+        .update({
+          status: "chat_accepted",
+          chat_room_id: roomId,
+          responded_at: new Date().toISOString(),
+        })
         .eq("id", claim.id);
 
       if (chatRoomLinkError) {
+        toast.error("수락 상태 저장에 실패했어요: " + chatRoomLinkError.message);
         console.log(chatRoomLinkError);
+        return;
       }
 
       toast.success("대화를 수락했어요!");
-      openChatRoom(roomId, chatPreviewProfile?.nickname || claim.post?.sender_nickname);
+      openChatRoom(
+        roomId,
+        otherNickname ||
+          chatPreviewProfile?.nickname ||
+          (claim.claimer_user_id === currentUser?.id
+            ? claim.post?.sender_nickname
+            : claim.claimer_nickname) ||
+          ""
+      );
     } finally {
       setChatActionSubmitting(false);
     }
   };
+
+  useEffect(() => {
+    if (!currentUser) return undefined;
+
+    let cancelled = false;
+
+    const syncAcceptedChatRequests = async () => {
+      const waitablePages = ["matching", "chats", "sentResult", "claim"];
+      if (!waitablePages.includes(pageRef.current)) return;
+
+      const sentPostIds = mySentPostsRef.current.map((post) => post.id).filter(Boolean);
+      const acceptedClaimQueries = [
+        sentPostIds.length > 0
+          ? supabase
+              .from("claims")
+              .select("*")
+              .in("crush_post_id", sentPostIds)
+              .eq("status", "chat_accepted")
+              .not("chat_room_id", "is", null)
+              .order("responded_at", { ascending: false })
+              .limit(5)
+          : Promise.resolve({ data: [], error: null }),
+        supabase
+          .from("claims")
+          .select("*")
+          .eq("claimer_user_id", currentUser.id)
+          .eq("status", "chat_accepted")
+          .not("chat_room_id", "is", null)
+          .order("responded_at", { ascending: false })
+          .limit(5),
+      ];
+
+      const [sentAcceptedResult, receivedAcceptedResult] =
+        await Promise.all(acceptedClaimQueries);
+
+      if (cancelled) return;
+
+      const data = [
+        ...(sentAcceptedResult.error ? [] : sentAcceptedResult.data || []),
+        ...(receivedAcceptedResult.error ? [] : receivedAcceptedResult.data || []),
+      ];
+
+      if (!data.length) return;
+
+      setSentClaims((prev) => {
+        const byId = new Map(prev.map((claim) => [claim.id, claim]));
+        data
+          .filter((claim) => sentPostIds.includes(claim.crush_post_id))
+          .forEach((claim) => {
+          const post =
+            mySentPostsRef.current.find((item) => item.id === claim.crush_post_id) ||
+            byId.get(claim.id)?.post;
+          byId.set(claim.id, { ...byId.get(claim.id), ...claim, post });
+        });
+        return [...byId.values()].sort(
+          (a, b) => new Date(b.created_at || 0) - new Date(a.created_at || 0)
+        );
+      });
+
+      setReceivedClaims((prev) => {
+        const byId = new Map(prev.map((claim) => [claim.id, claim]));
+        data
+          .filter((claim) => claim.claimer_user_id === currentUser.id)
+          .forEach((claim) => {
+            const post = byId.get(claim.id)?.post;
+            byId.set(claim.id, { ...byId.get(claim.id), ...claim, post });
+          });
+        return [...byId.values()].sort(
+          (a, b) => new Date(b.created_at || 0) - new Date(a.created_at || 0)
+        );
+      });
+
+      const acceptedClaim = data.find(
+        (claim) => claim.chat_room_id && claim.chat_room_id !== activeChatRoomIdRef.current
+      );
+
+      if (!acceptedClaim) return;
+
+      const post = mySentPostsRef.current.find(
+        (item) => item.id === acceptedClaim.crush_post_id
+      ) || receivedClaimsRef.current.find((claim) => claim.id === acceptedClaim.id)?.post;
+
+      toast.success("상대가 대화를 수락했어요.");
+      setActiveChatRoomId(acceptedClaim.chat_room_id);
+      setActiveChatRoomNickname(
+        acceptedClaim.claimer_user_id === currentUser.id
+          ? post?.sender_nickname || ""
+          : acceptedClaim.claimer_nickname || ""
+      );
+      setPage("chatRoom");
+    };
+
+    syncAcceptedChatRequests();
+    const timer = setInterval(syncAcceptedChatRequests, 4000);
+
+    return () => {
+      cancelled = true;
+      clearInterval(timer);
+    };
+  }, [currentUser]);
 
   const deleteMyPost = async (postId) => {
     if (!currentUser) return;
@@ -2904,6 +3480,41 @@ const getWeatherPlaceCounts = () => {
     setDeletingPostId(postId);
 
     try {
+      const { error: rpcError } = await supabase.rpc("delete_my_crush_post", {
+        p_post_id: postId,
+      });
+
+      if (!rpcError) {
+        toast.success("구름을 삭제했어요.");
+        await loadMyActivityData();
+        return;
+      }
+
+      console.log(rpcError);
+
+      const { error: pickError } = await supabase
+        .from("sender_cloud_check_picks")
+        .delete()
+        .eq("crush_post_id", postId)
+        .eq("sender_user_id", currentUser.id);
+
+      if (pickError && pickError.code !== "42P01") {
+        toast.error("구름 확인 선택 내역 삭제에 실패했어요: " + pickError.message);
+        console.log(pickError);
+        return;
+      }
+
+      const { error: viewsError } = await supabase
+        .from("cloud_views")
+        .delete()
+        .eq("crush_post_id", postId);
+
+      if (viewsError) {
+        toast.error("구름 조회 기록 삭제에 실패했어요: " + viewsError.message);
+        console.log(viewsError);
+        return;
+      }
+
       const { error: claimsError } = await supabase
         .from("claims")
         .delete()
@@ -2915,15 +3526,15 @@ const getWeatherPlaceCounts = () => {
         return;
       }
 
-      const { error } = await supabase
+      const { error: postError } = await supabase
         .from("crush_posts")
         .delete()
         .eq("id", postId)
         .eq("sender_user_id", currentUser.id);
 
-      if (error) {
-        toast.error("구름 삭제에 실패했어요: " + error.message);
-        console.log(error);
+      if (postError) {
+        toast.error("구름 삭제에 실패했어요: " + postError.message);
+        console.log(postError);
         return;
       }
 
@@ -2934,6 +3545,196 @@ const getWeatherPlaceCounts = () => {
     }
   };
 
+
+  const saveSenderCheckPick = async (post, check, status) => {
+    if (!currentUser || !post?.id || !check?.id) return;
+    if (claimActionSubmittingId) return;
+
+    setClaimActionSubmittingId(`check-${check.id}`);
+
+    try {
+      const { error } = await supabase.from("sender_cloud_check_picks").upsert(
+        [
+          {
+            crush_post_id: post.id,
+            cloud_check_id: String(check.id),
+            sender_user_id: currentUser.id,
+            checker_user_id: check.checker_user_id,
+            status,
+            match_score: check.match_score || 0,
+            updated_at: new Date().toISOString(),
+          },
+        ],
+        { onConflict: "crush_post_id,cloud_check_id,sender_user_id" }
+      );
+
+      if (error) {
+        toast.error("확인 내역 선택 저장에 실패했어요. Supabase SQL 적용이 필요할 수 있어요.");
+        console.log(error);
+        return;
+      }
+
+      setSenderCheckPicks((prev) => {
+        const next = prev.filter(
+          (pick) =>
+            !(
+              pick.crush_post_id === post.id &&
+              String(pick.cloud_check_id) === String(check.id) &&
+              pick.sender_user_id === currentUser.id
+            )
+        );
+        return [
+          {
+            crush_post_id: post.id,
+            cloud_check_id: String(check.id),
+            sender_user_id: currentUser.id,
+            checker_user_id: check.checker_user_id,
+            status,
+            match_score: check.match_score || 0,
+            updated_at: new Date().toISOString(),
+          },
+          ...next,
+        ];
+      });
+
+      if (status === "interested") {
+        const { data: existingClaim, error: claimFetchError } = await supabase
+          .from("claims")
+          .select("id, status")
+          .eq("crush_post_id", post.id)
+          .eq("claimer_user_id", check.checker_user_id)
+          .maybeSingle();
+
+        if (!claimFetchError && existingClaim?.id && existingClaim.status === "pending") {
+          const { error: claimUpdateError } = await supabase
+            .from("claims")
+            .update({ status: "chat_requested", responded_at: new Date().toISOString() })
+            .eq("id", existingClaim.id);
+
+          if (claimUpdateError) {
+            console.log(claimUpdateError);
+          } else {
+            toast.success("서로 확인했어요. 대화 요청을 보냈어요!");
+            await loadMyActivityData();
+            return;
+          }
+        } else if (claimFetchError) {
+          console.log(claimFetchError);
+        }
+      }
+
+      toast.success(status === "interested" ? "상대의 확인을 기다릴게요." : "목록에서 낮춰둘게요.");
+    } finally {
+      setClaimActionSubmittingId(null);
+    }
+  };
+
+  const getSenderCheckPick = (postId, checkId) =>
+    senderCheckPicks.find(
+      (pick) =>
+        pick.crush_post_id === postId &&
+        String(pick.cloud_check_id) === String(checkId) &&
+        pick.sender_user_id === currentUser?.id
+    );
+
+  const renderCloudCheckAnswer = (check) => {
+    const joinKnownValues = (...values) =>
+      values.filter((value) => value && value !== "-").join(" ") || "-";
+
+    return (
+      <div className="qaBox">
+        <p className="qaTitle">상대가 구름 확인하기에서 입력한 내용</p>
+        <p>
+          <strong>날짜:</strong> {check.seen_date || "-"}
+        </p>
+        <p>
+          <strong>내 성별:</strong> {check.checker_gender || "-"}
+        </p>
+        <p>
+          <strong>헤어:</strong> {getCheckHairFeature(check) || "-"}
+        </p>
+        <p>
+          <strong>안경:</strong> {check.glasses_type || "-"}
+        </p>
+        <p>
+          <strong>상의:</strong> {joinKnownValues(check.top_color, check.top_type)}
+        </p>
+        <p>
+          <strong>아우터:</strong>{" "}
+          {check.outer_type === "아우터 없음"
+            ? "아우터 없음"
+            : joinKnownValues(check.outer_color, check.outer_type)}
+        </p>
+        <p>
+          <strong>하의:</strong> {joinKnownValues(check.bottom_color, check.bottom_type)}
+        </p>
+        <p>
+          <strong>신발:</strong> {check.shoe_type || "-"}
+        </p>
+        <p>
+          <strong>가방:</strong> {check.bag_type || "-"}
+        </p>
+        <p>
+          <strong>이어폰:</strong> {check.earphone_type || "-"}
+        </p>
+      </div>
+    );
+  };
+
+  const renderSenderCheckCandidateCard = (post, check) => {
+    const pick = getSenderCheckPick(post.id, check.id);
+    const isSubmitting = claimActionSubmittingId === `check-${check.id}`;
+
+    if (pick?.status === "dismissed") return null;
+
+    return (
+      <div className="cloudCheckCard senderCheckCandidateCard" key={`${post.id}-${check.id}`}>
+        <div className="postTopLine">
+          <span className="statusPill active">☁ 단서 일치 {check.match_score || 0}%</span>
+          {pick?.status === "interested" && (
+            <span className="statusPill">상대 확인 대기</span>
+          )}
+        </div>
+
+        <p>
+          <b>{formatShortDateTime(check.checked_at)}</b>
+        </p>
+
+        {check.match_reasons?.length > 0 && (
+          <div className="matchScoreBox">
+            <b>비슷하게 겹친 단서</b>
+            <span>{check.match_reasons.join(" · ")}</span>
+          </div>
+        )}
+
+        {renderCloudCheckAnswer(check)}
+
+        <div className="senderCheckActionRow">
+          <button
+            type="button"
+            onClick={() => saveSenderCheckPick(post, check, "interested")}
+            disabled={isSubmitting || pick?.status === "interested"}
+          >
+            {pick?.status === "interested" ? "선택 완료" : "이 사람 같아요"}
+          </button>
+          <button
+            type="button"
+            className="white"
+            onClick={() => saveSenderCheckPick(post, check, "dismissed")}
+            disabled={isSubmitting}
+          >
+            아닌 것 같아요
+          </button>
+        </div>
+      </div>
+    );
+  };
+
+  const getSenderCheckCandidatesForPost = (postId) =>
+    senderCheckCandidates.filter((check) => {
+      const pick = getSenderCheckPick(postId, check.id);
+      return check.crush_post_id === postId && pick?.status !== "dismissed";
+    });
 
   const sentClaimsByPostId = sentClaims
     .filter((claim) => !blockedUserIds.includes(claim.claimer_user_id))
@@ -2954,10 +3755,14 @@ const getWeatherPlaceCounts = () => {
     (post) => !sentClaimsByPostId[post.id]?.length
   );
   const receivedCloudCount = new Set(
-    receivedClaims.map((claim) => String(claim.crush_post_id))
+    [
+      ...receivedClaims.map((claim) => String(claim.crush_post_id)),
+      ...myReceivedCloudViews.map((view) => String(view.crush_post_id)),
+    ]
   ).size;
 
   const receivedCloudItems = receivedClaims;
+  const receivedViewItems = myReceivedCloudViews;
 
   const totalSentResponseCount = sentClaims.length;
   const acceptedMatchCount = [...sentClaims, ...receivedClaims].filter(
@@ -2985,6 +3790,7 @@ const getWeatherPlaceCounts = () => {
   ...new Set([
     ...mySentPosts.map((post) => post.seen_date).filter(Boolean),
     ...receivedClaims.map((claim) => claim.post?.seen_date).filter(Boolean),
+    ...myReceivedCloudViews.map((view) => view.post?.seen_date).filter(Boolean),
     ...myCloudChecks.map((check) => check.seen_date).filter(Boolean),
   ]),
 ].sort((a, b) => b.localeCompare(a));
@@ -2996,11 +3802,18 @@ const getWeatherPlaceCounts = () => {
   const selectedDateReceivedClaims = receivedClaims.filter(
     (claim) => claim.post?.seen_date === selectedActivityDate
   );
+  const selectedDateReceivedViews = myReceivedCloudViews.filter(
+    (view) => view.post?.seen_date === selectedActivityDate
+  );
 
   const selectedDateReceivedCloudCount = new Set(
-    selectedDateReceivedClaims.map((claim) => String(claim.crush_post_id))
+    [
+      ...selectedDateReceivedClaims.map((claim) => String(claim.crush_post_id)),
+      ...selectedDateReceivedViews.map((view) => String(view.crush_post_id)),
+    ]
   ).size;
   const selectedDateReceivedCloudItems = selectedDateReceivedClaims;
+  const selectedDateReceivedViewItems = selectedDateReceivedViews;
   const selectedDateCloudChecks = myCloudChecks.filter(
   (check) => check.seen_date === selectedActivityDate
 );
@@ -3052,6 +3865,18 @@ const getWeatherPlaceCounts = () => {
     created_at: claim.created_at,
     active: claim.status === "accepted",
   })),
+  ...receivedSenderCheckPicks.map((pick) => ({
+    id: `sender-pick-${pick.id || `${pick.crush_post_id}-${pick.cloud_check_id}`}`,
+    type: "나를 선택함",
+    title: "상대가 내 구름 확인 기록을 선택했어요",
+    description: `${pick.post?.seen_date || "날짜 없음"} · ${
+      pick.post?.time_period || "시간 없음"
+    } · ${pick.post?.place || "장소 없음"}`,
+    created_at: pick.updated_at || pick.created_at,
+    active: true,
+    actionLabel: "대화할지 확인하기",
+    onClick: () => openSenderPickChatPreview(pick),
+  })),
 ].sort((a, b) => new Date(b.created_at || 0) - new Date(a.created_at || 0));
 
   const cloudCalendarRecordMap = cloudCalendarRecords.reduce((acc, record) => {
@@ -3093,10 +3918,10 @@ const getWeatherPlaceCounts = () => {
   const renderSentClaimCard = (claim) => {
   return (
     <div className="responseBox" key={claim.id}>
-      <p className="miniTitle">도착한 응답</p>
+      <p className="miniTitle">채팅방 요청 도착</p>
 
       <p>
-        응답한 사람 닉네임: <b>{claim.claimer_nickname || "-"}</b>
+        요청한 사람 닉네임: <b>{claim.claimer_nickname || "-"}</b>
       </p>
 
       <p className="message">“{claim.claimer_message || "-"}”</p>
@@ -3105,20 +3930,20 @@ const getWeatherPlaceCounts = () => {
         상태:{" "}
         <b>
           {claim.status === "accepted" && "매칭 수락됨(레거시)"}
-          {claim.status === "chat_requested" && "대화 요청함"}
-          {claim.status === "chat_accepted" && "대화 중"}
-          {claim.status === "rejected" && "거절됨"}
-          {claim.status === "pending" && "응답 대기 중"}
+            {claim.status === "chat_requested" && "채팅방 요청함"}
+            {claim.status === "chat_accepted" && "대화 중"}
+            {claim.status === "rejected" && "거절됨"}
+            {claim.status === "pending" && "수락 대기 중"}
         </b>
       </p>
 
       {claim.status === "pending" && (
         <div className="claimActionRow">
           <button
-            onClick={() => requestChat(claim.id)}
+            onClick={() => acceptChatRequest(claim, claim.claimer_nickname)}
             disabled={claimActionSubmittingId === claim.id}
           >
-            {claimActionSubmittingId === claim.id ? "요청 중..." : "대화하기"}
+            {claimActionSubmittingId === claim.id ? "수락 중..." : "채팅방 수락하기"}
           </button>
           <button
             type="button"
@@ -3133,7 +3958,7 @@ const getWeatherPlaceCounts = () => {
 
       {claim.status === "chat_requested" && (
         <div className="noticeBox">
-          <p>대화 요청을 보냈어요. 상대의 수락을 기다리고 있어요.</p>
+          <p>상대에게 채팅방 요청을 보냈어요. 상대의 수락을 기다리고 있어요.</p>
         </div>
       )}
 
@@ -3185,6 +4010,7 @@ const getWeatherPlaceCounts = () => {
 
   const renderSentPostCard = (post, mode) => {
     const claims = sentClaimsByPostId[post.id] || [];
+    const checkCandidates = getSenderCheckCandidatesForPost(post.id);
 
     return (
       <details className="post postCollapsible" key={post.id}>
@@ -3207,12 +4033,31 @@ const getWeatherPlaceCounts = () => {
 
           {mode === "empty" && (
     <div className="noticeBox">
-      <p>아직 이 구름에 응답한 사람이 없어요.</p>
+      <p>아직 이 구름에 채팅방을 요청한 사람이 없어요.</p>
       <p>상대가 구름 게시판에서 이 구름을 발견하면 여기에 표시돼요.</p>
     </div>
   )}
 
           {mode === "answered" && claims.map((claim) => renderSentClaimCard(claim))}
+
+          <div className="senderCheckSection">
+            <h3 className="manageSectionTitle">구름 확인 내역 {checkCandidates.length}개</h3>
+            {checkCandidates.length === 0 ? (
+              <p className="noticeBox">
+                아직 이 구름과 비슷한 확인 내역이 없어요. 상대가 구름 확인하기에서
+                날짜와 착장을 입력하면 여기에 표시돼요.
+              </p>
+            ) : (
+              <>
+                <p className="helperText">
+                  상대의 프로필이 아니라 구름 확인하기에서 실제 입력한 내용만 보여줘요.
+                </p>
+                {checkCandidates.map((check) =>
+                  renderSenderCheckCandidateCard(post, check)
+                )}
+              </>
+            )}
+          </div>
 
           {post.clothes_style === "빠른 구름" && (
             <div className="upgradeCloudBox">
@@ -3240,7 +4085,7 @@ const getWeatherPlaceCounts = () => {
     );
   };
 
-  const renderReceivedClaimCard = (claim) => {
+	  const renderReceivedClaimCard = (claim) => {
     const post = claim.post;
 
     return (
@@ -3275,7 +4120,7 @@ const getWeatherPlaceCounts = () => {
         <hr />
 
         <p>
-          내가 보낸 응답: <b>{claim.claimer_message || "-"}</b>
+          내가 보낸 채팅방 요청: <b>{claim.claimer_message || "-"}</b>
         </p>
 
         <p>
@@ -3285,13 +4130,13 @@ const getWeatherPlaceCounts = () => {
             {claim.status === "chat_requested" && "대화 요청 도착"}
             {claim.status === "chat_accepted" && "대화 중"}
             {claim.status === "rejected" && "거절됨"}
-            {claim.status === "pending" && "상대 응답 대기 중"}
+            {claim.status === "pending" && "상대 수락 대기 중"}
           </b>
         </p>
 
         {claim.status === "pending" && (
           <div className="noticeBox">
-            <p>아직 상대가 응답하지 않았어요.</p>
+            <p>아직 상대가 수락하지 않았어요.</p>
           </div>
         )}
 
@@ -3331,6 +4176,64 @@ const getWeatherPlaceCounts = () => {
 	      </details>
 	    );
 	  };
+
+  const renderReceivedCloudViewCard = (view) => {
+    const post = view.post;
+    if (!post) return null;
+
+    const tags = makeCloudTags(post);
+
+    return (
+      <div className="post resultPost" key={`view-${view.id || view.crush_post_id}`}>
+        <div className="postTopLine">
+          <span className="statusPill active">
+            ☁ 확인한 구름 {view.match_score ? `${view.match_score}%` : ""}
+          </span>
+        </div>
+
+        {tags.length > 0 && (
+          <div className="cloudTagBox">
+            {tags.map((tag) => (
+              <span className="cloudTag" key={`${view.crush_post_id}-${tag}`}>
+                #{tag}
+              </span>
+            ))}
+          </div>
+        )}
+
+        <p>
+          <b>
+            {post.seen_date}, {post.time_period}, {post.place}
+          </b>
+        </p>
+
+        {renderPostQuestionAnswer(post)}
+
+        <p className="message">
+          “{cleanMessage(post.message) || "남긴 메시지가 없어요."}”
+        </p>
+
+        {renderCloudActionButtons(post)}
+
+        <div className="safetyActionRow">
+          <button
+            type="button"
+            className="dismissTextButton"
+            onClick={() => reportContent("post", post.id, post.sender_user_id)}
+          >
+            신고하기
+          </button>
+          <button
+            type="button"
+            className="dismissTextButton"
+            onClick={() => blockUser(post.sender_user_id, post.sender_nickname)}
+          >
+            차단하기
+          </button>
+        </div>
+      </div>
+    );
+  };
 
   const renderBottomNav = () => {
     const navItems = [
@@ -5453,9 +6356,79 @@ const getWeatherPlaceCounts = () => {
   </div>
 )}
 
+      {page === "sentResult" && (
+        <div className="card">
+          <h2>구름 확인 내역 {sentCheckResults.length}개</h2>
+
+          <p className="subtitle">
+            내가 보낸 구름과 비슷하게 입력된 구름 확인 내역을 살펴봐요.
+          </p>
+
+          {sentResultPost && (
+            <div className="noticeBox">
+              <p>
+                <b>
+                  {sentResultPost.seen_date}, {sentResultPost.time_period},{" "}
+                  {sentResultPost.place}
+                </b>
+              </p>
+              <p>찾는 사람: {sentResultPost.target_gender || "-"}</p>
+            </div>
+          )}
+
+          {sentCheckResults.length === 0 && (
+            <div className="noticeBox">
+              {sentCheckResultMeta.rawCount === 0 ? (
+                <>
+                  <p>같은 날짜와 성별로 조회 가능한 구름 확인 내역이 아직 없어요.</p>
+                  <p className="helperText">
+                    test1이 이미 구름 확인하기를 했다면 Supabase SQL/RLS 적용 여부를 확인해야 해요.
+                  </p>
+                </>
+              ) : (
+                <>
+                  <p>
+                    확인 내역 {sentCheckResultMeta.rawCount}개를 찾았지만, 단서 일치 기준을
+                    넘은 내역이 없어요.
+                  </p>
+                  <p className="helperText">
+                    차단/본인 제외 {sentCheckResultMeta.blockedCount}개 · 점수 계산 대상{" "}
+                    {sentCheckResultMeta.scoredCount}개
+                  </p>
+                </>
+              )}
+            </div>
+          )}
+
+          {sentResultPost &&
+            sentCheckResults.map((check) =>
+              renderSenderCheckCandidateCard(sentResultPost, check)
+            )}
+
+          <button
+            onClick={async () => {
+              if (sentResultPost) {
+                await loadSentCheckResultsForPost(sentResultPost);
+              }
+            }}
+            className="white"
+          >
+            다시 확인하기
+          </button>
+
+          <button onClick={openMatchingPage} className="white">
+            내 구름 관리로 가기
+          </button>
+
+          <button onClick={() => setPage("home")} className="white">
+            홈으로
+          </button>
+        </div>
+      )}
+
       {page === "claimForm" && (
         <div className="card">
-          <h2>이 구름에 응답하기</h2>
+          <h2>구름 채팅방 요청하기</h2>
 
           {selectedPost && (
             <div className="post">
@@ -5499,7 +6472,7 @@ const getWeatherPlaceCounts = () => {
           />
 
 	          <button onClick={saveClaim} disabled={claimSubmitting}>
-	            {claimSubmitting ? "응답 보내는 중..." : "응답 보내기"}
+	            {claimSubmitting ? "요청 보내는 중..." : "구름 채팅방 요청하기"}
 	          </button>
 
           <button onClick={() => setPage("result")} className="white">
@@ -5514,9 +6487,9 @@ const getWeatherPlaceCounts = () => {
 
       {page === "claim" && (
         <div className="card">
-          <h2>응답을 보냈어요</h2>
+          <h2>채팅방 요청을 보냈어요</h2>
           <p className="subtitle">
-            구름을 남긴 사람이 수락하면 서로의 인스타를 볼 수 있어요.
+            구름을 남긴 사람이 수락하면 채팅방이 열려요.
           </p>
 
           <button onClick={openMatchingPage}>내 구름 관리로 가기</button>
@@ -5908,11 +6881,11 @@ const getWeatherPlaceCounts = () => {
 
               <div className="manageSection">
                 <h3 className="manageSectionTitle">
-                  응답 대기 중 {mySentPostsWithoutResponses.length}개
+                  요청 대기 중 {mySentPostsWithoutResponses.length}개
                 </h3>
 
                 {mySentPostsWithoutResponses.length === 0 && (
-                  <p className="noticeBox">응답을 기다리는 구름이 없어요.</p>
+                  <p className="noticeBox">요청을 기다리는 구름이 없어요.</p>
                 )}
 
                 {mySentPostsWithoutResponses.map((post) =>
@@ -5928,10 +6901,11 @@ const getWeatherPlaceCounts = () => {
                 나에게 온 구름 {receivedCloudCount}개
               </h3>
 
-              {receivedCloudItems.length === 0 && (
+              {receivedCloudCount === 0 && (
                 <p className="noticeBox">아직 나에게 온 구름이 없어요.</p>
               )}
 
+              {receivedViewItems.map((view) => renderReceivedCloudViewCard(view))}
               {receivedCloudItems.map((claim) => renderReceivedClaimCard(claim))}
             </div>
           )}
@@ -5959,6 +6933,15 @@ const getWeatherPlaceCounts = () => {
                   </p>
                   <p>{item.description}</p>
                   <p className="helperText">{formatShortDateTime(item.created_at)}</p>
+                  {item.onClick && (
+                    <button
+                      type="button"
+                      onClick={item.onClick}
+                      disabled={claimActionSubmittingId === item.id}
+                    >
+                      {claimActionSubmittingId === item.id ? "여는 중..." : item.actionLabel}
+                    </button>
+                  )}
                 </div>
               ))}
             </div>
@@ -6072,6 +7055,9 @@ const getWeatherPlaceCounts = () => {
                     )}
                     {selectedDateReceivedCloudItems.map((claim) =>
                       renderReceivedClaimCard(claim)
+                    )}
+                    {selectedDateReceivedViewItems.map((view) =>
+                      renderReceivedCloudViewCard(view)
                     )}
                   </div>
                 </>

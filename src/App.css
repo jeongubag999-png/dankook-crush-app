@@ -2634,6 +2634,28 @@ textarea {
   margin: 6px 0;
 }
 
+.senderCheckSection {
+  margin-top: 16px;
+}
+
+.senderCheckCandidateCard {
+  margin-top: 10px;
+}
+
+.senderCheckActionRow {
+  display: grid;
+  grid-template-columns: 1fr 1fr;
+  gap: 10px;
+  margin-top: 12px;
+}
+
+.senderCheckActionRow button {
+  height: 64px;
+  min-height: 64px;
+  margin-top: 0;
+  align-self: stretch;
+}
+
 .activitySummaryBox.threeBox {
   grid-template-columns: repeat(3, minmax(0, 1fr));
 }
