@@ -1,7 +1,7 @@
 import { useEffect, useRef, useState } from "react";
 import toast from "react-hot-toast";
 import { supabase } from "../supabase";
-import { ChevronLeftIcon, PaperPlaneIcon } from "./Icons";
+import { ChevronLeftIcon, PaperPlaneIcon, TrashIcon } from "./Icons";
 import {
   formatChatBubbleTime,
   formatChatDateDivider,
@@ -10,12 +10,15 @@ import {
   isSameChatDay,
 } from "../utils";
 
-export function ChatRoom({ roomId, currentUserId, otherNickname, onClose }) {
+export function ChatRoom({ roomId, currentUserId, otherNickname, onClose, onDeleted }) {
   const [messages, setMessages] = useState([]);
   const [input, setInput] = useState("");
   const [loading, setLoading] = useState(true);
   const [sending, setSending] = useState(false);
   const [roomInfo, setRoomInfo] = useState(null);
+  const [instagramChoice, setInstagramChoice] = useState(null);
+  const [instagramSubmitting, setInstagramSubmitting] = useState(false);
+  const [deletingRoom, setDeletingRoom] = useState(false);
   const [now, setNow] = useState(() => Date.now());
   const bottomRef = useRef(null);
 
@@ -38,7 +41,13 @@ export function ChatRoom({ roomId, currentUserId, otherNickname, onClose }) {
     const load = async () => {
       setLoading(true);
       const [{ data: room, error: roomError }, { data, error }] = await Promise.all([
-        supabase.from("chat_rooms").select("created_at, closed_at").eq("id", roomId).maybeSingle(),
+        supabase
+          .from("chat_rooms")
+          .select(
+            "id, created_at, closed_at, sender_user_id, claimer_user_id, sender_instagram_consent, claimer_instagram_consent, instagram_revealed_at, sender_deleted_at, claimer_deleted_at"
+          )
+          .eq("id", roomId)
+          .maybeSingle(),
         supabase
           .from("chat_messages")
           .select("*")
@@ -78,6 +87,18 @@ export function ChatRoom({ roomId, currentUserId, otherNickname, onClose }) {
           setMessages((prev) => [...prev, payload.new]);
         }
       )
+      .on(
+        "postgres_changes",
+        {
+          event: "UPDATE",
+          schema: "public",
+          table: "chat_rooms",
+          filter: `id=eq.${roomId}`,
+        },
+        (payload) => {
+          setRoomInfo(payload.new);
+        }
+      )
       .subscribe();
 
     return () => {
@@ -104,6 +125,20 @@ export function ChatRoom({ roomId, currentUserId, otherNickname, onClose }) {
   }, []);
 
   const isExpired = isChatRoomExpired(roomInfo?.created_at, roomInfo?.closed_at, now);
+  const isSender = roomInfo?.sender_user_id === currentUserId;
+  const myInstagramConsent = isSender
+    ? roomInfo?.sender_instagram_consent
+    : roomInfo?.claimer_instagram_consent;
+  const otherInstagramConsent = isSender
+    ? roomInfo?.claimer_instagram_consent
+    : roomInfo?.sender_instagram_consent;
+  const bothChoseInstagram =
+    myInstagramConsent !== null &&
+    myInstagramConsent !== undefined &&
+    otherInstagramConsent !== null &&
+    otherInstagramConsent !== undefined;
+  const instagramRevealed =
+    bothChoseInstagram && myInstagramConsent === true && otherInstagramConsent === true;
 
   const sendMessage = async () => {
     const body = input.trim();
@@ -122,6 +157,111 @@ export function ChatRoom({ roomId, currentUserId, otherNickname, onClose }) {
       setInput("");
     }
     setSending(false);
+  };
+
+  const submitInstagramConsent = async () => {
+    if (!roomId || instagramChoice === null || instagramSubmitting) return;
+
+    setInstagramSubmitting(true);
+    const { data, error } = await supabase.rpc("set_chat_instagram_consent", {
+      p_room_id: roomId,
+      p_consent: instagramChoice,
+    });
+
+    if (error) {
+      console.log(error);
+      toast.error(error.message || "인스타 공개 선택 저장에 실패했어요.");
+    } else {
+      if (data) setRoomInfo(data);
+      setInstagramChoice(null);
+      toast.success("선택을 저장했어요.");
+    }
+    setInstagramSubmitting(false);
+  };
+
+  const deleteEndedChatRoom = async () => {
+    if (!roomId || deletingRoom) return;
+    const ok = window.confirm("이 종료된 채팅방을 내 목록에서 삭제할까요? 상대방 목록에서는 사라지지 않아요.");
+    if (!ok) return;
+
+    setDeletingRoom(true);
+    const { error } = await supabase.rpc("delete_my_chat_room_view", {
+      p_room_id: roomId,
+    });
+
+    if (error) {
+      console.log(error);
+      toast.error(error.message || "채팅방 삭제에 실패했어요.");
+      setDeletingRoom(false);
+      return;
+    }
+
+    toast.success("내 채팅 목록에서 삭제했어요.");
+    onDeleted?.();
+  };
+
+  const renderInstagramConsentPanel = () => {
+    if (!isExpired || !roomInfo) return null;
+
+    let statusText = "선택 후 확인을 누르면 상대의 선택이 끝날 때까지 기다려요.";
+    if (myInstagramConsent !== null && myInstagramConsent !== undefined && !bothChoseInstagram) {
+      statusText = "상대의 선택을 기다리고 있어요.";
+    } else if (bothChoseInstagram && instagramRevealed) {
+      statusText = "서로의 인스타가 공개됐어요. 아래 메시지에서 확인할 수 있어요.";
+    } else if (bothChoseInstagram) {
+      statusText = "서로의 인스타가 공개되지 않았어요.";
+    }
+
+    return (
+      <div className="chatInstagramPanel">
+        <div className="chatInstagramPanelHeader">
+          <span className="chatInstagramCloud" aria-hidden="true">☁️</span>
+          <div>
+            <b>서로의 인스타 아이디를 공개하시겠습니까?</b>
+            <p>{statusText}</p>
+          </div>
+        </div>
+
+        {(myInstagramConsent === null || myInstagramConsent === undefined) && (
+          <>
+            <div className="chatInstagramChoiceRow">
+              <button
+                type="button"
+                className={instagramChoice === true ? "selected" : ""}
+                onClick={() => setInstagramChoice(true)}
+              >
+                Yes
+              </button>
+              <button
+                type="button"
+                className={instagramChoice === false ? "selected" : ""}
+                onClick={() => setInstagramChoice(false)}
+              >
+                No
+              </button>
+            </div>
+            <button
+              type="button"
+              className="chatInstagramConfirmBtn"
+              onClick={submitInstagramConsent}
+              disabled={instagramChoice === null || instagramSubmitting}
+            >
+              {instagramSubmitting ? "저장 중..." : "확인"}
+            </button>
+          </>
+        )}
+
+        <button
+          type="button"
+          className="chatRoomDeleteBtn"
+          onClick={deleteEndedChatRoom}
+          disabled={deletingRoom}
+        >
+          <TrashIcon size={18} />
+          {deletingRoom ? "삭제 중..." : "이 채팅방 삭제하기"}
+        </button>
+      </div>
+    );
   };
 
   const nicknameInitial = (otherNickname || "구").trim().charAt(0) || "구";
@@ -202,6 +342,7 @@ export function ChatRoom({ roomId, currentUserId, otherNickname, onClose }) {
             </div>
           );
         })}
+        {renderInstagramConsentPanel()}
         <div ref={bottomRef} />
       </div>
 

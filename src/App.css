@@ -2645,6 +2645,7 @@ textarea {
 .senderCheckActionRow {
   display: grid;
   grid-template-columns: 1fr 1fr;
+  align-items: stretch;
   gap: 10px;
   margin-top: 12px;
 }
@@ -2652,8 +2653,18 @@ textarea {
 .senderCheckActionRow button {
   height: 64px;
   min-height: 64px;
+  max-height: 64px;
+  width: 100%;
+  min-width: 0;
   margin-top: 0;
+  padding: 0 12px;
+  border: 1px solid transparent;
+  border-radius: 16px;
   align-self: stretch;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  line-height: 1.25;
 }
 
 .activitySummaryBox.threeBox {
@@ -3923,16 +3934,16 @@ textarea:focus {
 
 .cloudCalendarMonthNav {
   display: grid;
-  grid-template-columns: 44px minmax(0, 1fr) 44px;
+  grid-template-columns: 48px minmax(0, 1fr) 48px;
   align-items: center;
   gap: 12px;
   margin: 4px 0 26px;
 }
 
 .cloudCalendarIconButton {
-  width: 44px;
-  height: 44px;
-  min-height: 44px;
+  width: 48px;
+  height: 48px;
+  min-height: 48px;
   margin: 0;
   padding: 0;
   border-radius: 12px;
@@ -3940,11 +3951,17 @@ textarea:focus {
   color: #43506b;
   box-shadow: none;
   border: 1px solid #ecf1f8;
-  font-size: 28px;
-  line-height: 1;
   display: flex;
   align-items: center;
   justify-content: center;
+}
+
+.card .cloudCalendarMonthNav .cloudCalendarIconButton {
+  margin: 0;
+}
+
+.cloudCalendarIconButton svg {
+  display: block;
 }
 
 .cloudCalendarMonthTitle {
@@ -3982,6 +3999,10 @@ textarea:focus {
   display: grid;
   grid-template-columns: repeat(7, minmax(0, 1fr));
   gap: 6px;
+}
+
+.card .cloudCalendarGrid .cloudCalendarDay {
+  margin-top: 0;
 }
 
 .cloudCalendarDay {
@@ -4061,6 +4082,10 @@ textarea:focus {
   font-weight: 850;
   line-height: 1;
   white-space: nowrap;
+}
+
+.cloudCalendarCloudCount.empty {
+  visibility: hidden;
 }
 
 .cloudCalendarSelectedDate {

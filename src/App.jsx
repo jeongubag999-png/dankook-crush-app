@@ -16,6 +16,7 @@ import {
   ListIcon,
   BellIcon,
   PersonIcon,
+  ChevronLeftIcon,
   ChevronRightIcon,
   ShieldCheckIcon,
   UsersIcon,
@@ -418,6 +419,7 @@ const [verificationFile, setVerificationFile] = useState(null);
   const pageRef = useRef(page);
   const matchingModeRef = useRef(matchingMode);
   const activeChatRoomIdRef = useRef(null);
+  const pendingChatRequestClaimIdRef = useRef(null);
   const mySentPostsRef = useRef([]);
   const receivedClaimsRef = useRef([]);
   const sentClaimsRef = useRef([]);
@@ -1395,6 +1397,7 @@ const HAIR_WEIGHT = 30;
 // "탈부착 난이도" 기준 배점: 하루 종일 잘 안 바뀌는 항목(상의/하의/신발)이 가장 높고,
 // 실내외 이동하며 벗었다 입었다 하는 항목(안경/아우터)은 중간, 두고 다니거나
 // 뺐다 꼈다 하는 항목(가방/이어폰)이 가장 낮음. 머리 30 + 나머지 70 = 100점 만점.
+// "잘 모르겠음"은 해당 항목 절반 점수(소수점 올림), "아우터 없음"은 12점으로 본다.
 const FIELD_WEIGHTS = {
   top_type: 9,
   top_color: 9,
@@ -1408,8 +1411,14 @@ const FIELD_WEIGHTS = {
   earphone_type: 3,
 };
 
+const UNKNOWN_MATCH_VALUES = ["잘 모르겠음", "잘 모르겠어요"];
+
+const isUnknownMatchValue = (value) => UNKNOWN_MATCH_VALUES.includes(value);
+
+const getUnknownMatchScore = (weight) => Math.ceil(weight / 2);
+
 const normalizeMatchText = (value) => {
-  if (!value || value === "잘 모르겠음") return "";
+  if (!value || isUnknownMatchValue(value)) return "";
   return String(value).replace(/\s/g, "").toLowerCase();
 };
 
@@ -1455,29 +1464,44 @@ const getCloudMatchScore = (post, checkInput) => {
   let score = 0;
   const reasons = [];
 
-  // 머리: 항목(스타일/색/모자/앞머리)별로 "잘 모르겠음" 제외 후 비교.
-  // 입력한 항목 중 맞은 비율만큼 30점을 부분 배점 (all-or-nothing 아님).
+  // 머리: 항목(스타일/색/모자/앞머리)별 부분 배점.
+  // "잘 모르겠음"은 해당 머리 항목의 절반 점수로 계산한다.
   const checkHair = getCheckHairFeature(checkInput);
   if (checkHair) {
     const checkHairParts = checkHair
       .split(" / ")
-      .filter((p) => p && p !== "잘 모르겠음");
+      .filter(Boolean);
     if (checkHairParts.length > 0) {
-      const matchedHairCount = checkHairParts.filter((part) =>
-        containsMatch(post.hair_feature, part)
-      ).length;
-      const hairRatio = matchedHairCount / checkHairParts.length;
-      if (hairRatio > 0) {
-        score += HAIR_WEIGHT * hairRatio;
+      let matchedHairCount = 0;
+      let hairMatchUnits = 0;
+
+      checkHairParts.forEach((part) => {
+        if (isUnknownMatchValue(part)) {
+          hairMatchUnits += 0.5;
+        } else if (containsMatch(post.hair_feature, part)) {
+          matchedHairCount += 1;
+          hairMatchUnits += 1;
+        }
+      });
+
+      if (hairMatchUnits > 0) {
+        score += Math.ceil(HAIR_WEIGHT * (hairMatchUnits / checkHairParts.length));
       }
       if (matchedHairCount > 0) {
         reasons.push(`헤어 ${matchedHairCount}개 항목 일치`);
+      } else if (hairMatchUnits > 0) {
+        reasons.push("헤어 일부 불확실");
       }
     }
   }
 
   const checkField = (checkValue, weight, postValue, fallbackSource, label) => {
-    if (!checkValue || checkValue === "잘 모르겠음") return;
+    if (!checkValue) return;
+    if (isUnknownMatchValue(checkValue)) {
+      score += getUnknownMatchScore(weight);
+      reasons.push(`${label} 불확실`);
+      return;
+    }
     if (containsMatch(postValue, checkValue) || containsMatch(fallbackSource, checkValue)) {
       score += weight;
       reasons.push(`${label} 일치`);
@@ -1490,8 +1514,15 @@ const getCloudMatchScore = (post, checkInput) => {
   checkField(checkInput.glasses_type, FIELD_WEIGHTS.glasses_type, post.glasses_status, postAccessorySource, "안경");
   checkField(checkInput.top_type, FIELD_WEIGHTS.top_type, post.top_type, postStyleSource, "상의 종류");
   checkField(checkInput.top_color, FIELD_WEIGHTS.top_color, post.top_color, postStyleSource, "상의 색상");
-  checkField(checkInput.outer_type, FIELD_WEIGHTS.outer_type, post.outer_type, postStyleSource, "아우터");
-  checkField(checkInput.outer_color, FIELD_WEIGHTS.outer_color, post.outer_color, postStyleSource, "아우터 색상");
+  if (checkInput.outer_type === "아우터 없음") {
+    if (containsMatch(post.outer_type, "아우터 없음") || containsMatch(postStyleSource, "아우터 없음")) {
+      score += FIELD_WEIGHTS.outer_type + FIELD_WEIGHTS.outer_color;
+      reasons.push("아우터 없음 일치");
+    }
+  } else {
+    checkField(checkInput.outer_type, FIELD_WEIGHTS.outer_type, post.outer_type, postStyleSource, "아우터");
+    checkField(checkInput.outer_color, FIELD_WEIGHTS.outer_color, post.outer_color, postStyleSource, "아우터 색상");
+  }
   checkField(checkInput.bottom_type, FIELD_WEIGHTS.bottom_type, post.bottom_type, postStyleSource, "하의 종류");
   checkField(checkInput.bottom_color, FIELD_WEIGHTS.bottom_color, post.bottom_color, postStyleSource, "하의 색상");
   checkField(checkInput.shoe_type, FIELD_WEIGHTS.shoe_type, post.shoe_type, postAccessorySource, "신발");
@@ -1517,7 +1548,12 @@ const getPostMatchScore = (post) => {
   const reasons = [];
 
   const checkField = (formValue, weight, matchSource, label) => {
-    if (!formValue || formValue === "잘 모르겠음") return;
+    if (!formValue) return;
+    if (isUnknownMatchValue(formValue)) {
+      score += getUnknownMatchScore(weight);
+      reasons.push(`${label} 불확실`);
+      return;
+    }
     if (containsMatch(matchSource, formValue)) {
       score += weight;
       reasons.push(`${label} 일치`);
@@ -1528,17 +1564,27 @@ const getPostMatchScore = (post) => {
   if (searchHair) {
     const searchHairParts = searchHair
       .split(" / ")
-      .filter((p) => p && p !== "잘 모르겠음");
+      .filter(Boolean);
     if (searchHairParts.length > 0) {
-      const matchedHairCount = searchHairParts.filter((part) =>
-        containsMatch(post.hair_feature, part)
-      ).length;
-      const hairRatio = matchedHairCount / searchHairParts.length;
-      if (hairRatio > 0) {
-        score += HAIR_WEIGHT * hairRatio;
+      let matchedHairCount = 0;
+      let hairMatchUnits = 0;
+
+      searchHairParts.forEach((part) => {
+        if (isUnknownMatchValue(part)) {
+          hairMatchUnits += 0.5;
+        } else if (containsMatch(post.hair_feature, part)) {
+          matchedHairCount += 1;
+          hairMatchUnits += 1;
+        }
+      });
+
+      if (hairMatchUnits > 0) {
+        score += Math.ceil(HAIR_WEIGHT * (hairMatchUnits / searchHairParts.length));
       }
       if (matchedHairCount > 0) {
         reasons.push(`헤어 ${matchedHairCount}개 항목 일치`);
+      } else if (hairMatchUnits > 0) {
+        reasons.push("헤어 일부 불확실");
       }
     }
   }
@@ -1546,8 +1592,15 @@ const getPostMatchScore = (post) => {
   checkField(searchForm.glasses_type, FIELD_WEIGHTS.glasses_type, post.accessory, "안경");
   checkField(searchForm.top_type, FIELD_WEIGHTS.top_type, post.clothes_style, "상의 종류");
   checkField(searchForm.top_color, FIELD_WEIGHTS.top_color, post.clothes_style, "상의 색상");
-  checkField(searchForm.outer_type, FIELD_WEIGHTS.outer_type, post.clothes_style, "아우터");
-  checkField(searchForm.outer_color, FIELD_WEIGHTS.outer_color, post.clothes_style, "아우터 색상");
+  if (searchForm.outer_type === "아우터 없음") {
+    if (containsMatch(post.clothes_style, "아우터 없음")) {
+      score += FIELD_WEIGHTS.outer_type + FIELD_WEIGHTS.outer_color;
+      reasons.push("아우터 없음 일치");
+    }
+  } else {
+    checkField(searchForm.outer_type, FIELD_WEIGHTS.outer_type, post.clothes_style, "아우터");
+    checkField(searchForm.outer_color, FIELD_WEIGHTS.outer_color, post.clothes_style, "아우터 색상");
+  }
   checkField(searchForm.bottom_type, FIELD_WEIGHTS.bottom_type, post.clothes_style, "하의 종류");
   checkField(searchForm.bottom_color, FIELD_WEIGHTS.bottom_color, post.clothes_style, "하의 색상");
   checkField(searchForm.shoe_type, FIELD_WEIGHTS.shoe_type, post.accessory, "신발");
@@ -2730,6 +2783,7 @@ const hideSearchResult = (postId) => {
       claimer_message: "",
     });
 
+    pendingChatRequestClaimIdRef.current = savedClaim?.id || null;
     setSelectedPost(null);
     setPage("claim");
   } finally {
@@ -2750,7 +2804,10 @@ const hideSearchResult = (postId) => {
         .select("chat_room_id, body, created_at")
         .in("chat_room_id", roomIds)
         .order("created_at", { ascending: false }),
-      supabase.from("chat_rooms").select("id, created_at, closed_at").in("id", roomIds),
+      supabase
+        .from("chat_rooms")
+        .select("id, created_at, closed_at, sender_user_id, claimer_user_id, sender_deleted_at, claimer_deleted_at")
+        .in("id", roomIds),
     ]);
 
     if (roomsError) {
@@ -2758,7 +2815,14 @@ const hideSearchResult = (postId) => {
     } else {
       const statusMap = {};
       (roomsData || []).forEach((r) => {
-        statusMap[r.id] = { created_at: r.created_at, closed_at: r.closed_at };
+        statusMap[r.id] = {
+          created_at: r.created_at,
+          closed_at: r.closed_at,
+          sender_user_id: r.sender_user_id,
+          claimer_user_id: r.claimer_user_id,
+          sender_deleted_at: r.sender_deleted_at,
+          claimer_deleted_at: r.claimer_deleted_at,
+        };
       });
       setChatRoomStatusMap(statusMap);
     }
@@ -3284,6 +3348,7 @@ const getWeatherPlaceCounts = () => {
 
   const openChatRoom = (roomId, nickname = "") => {
     if (!roomId) return;
+    pendingChatRequestClaimIdRef.current = null;
     setActiveChatRoomId(roomId);
     setActiveChatRoomNickname(nickname);
     setPage("chatRoom");
@@ -3438,8 +3503,16 @@ const getWeatherPlaceCounts = () => {
         );
       });
 
+      if (pageRef.current !== "claim") return;
+
+      const pendingClaimId = pendingChatRequestClaimIdRef.current;
+      if (!pendingClaimId) return;
+
       const acceptedClaim = data.find(
-        (claim) => claim.chat_room_id && claim.chat_room_id !== activeChatRoomIdRef.current
+        (claim) =>
+          claim.id === pendingClaimId &&
+          claim.chat_room_id &&
+          claim.chat_room_id !== activeChatRoomIdRef.current
       );
 
       if (!acceptedClaim) return;
@@ -3449,6 +3522,7 @@ const getWeatherPlaceCounts = () => {
       ) || receivedClaimsRef.current.find((claim) => claim.id === acceptedClaim.id)?.post;
 
       toast.success("상대가 대화를 수락했어요.");
+      pendingChatRequestClaimIdRef.current = null;
       setActiveChatRoomId(acceptedClaim.chat_room_id);
       setActiveChatRoomNickname(
         acceptedClaim.claimer_user_id === currentUser.id
@@ -3776,6 +3850,7 @@ const getWeatherPlaceCounts = () => {
         chatRoomId: claim.chat_room_id,
         otherNickname: claim.claimer_nickname || "상대",
         updatedAt: claim.responded_at || claim.created_at,
+        role: "sender",
       })),
     ...receivedClaims
       .filter((claim) => claim.status === "chat_accepted" && claim.chat_room_id)
@@ -3783,8 +3858,17 @@ const getWeatherPlaceCounts = () => {
         chatRoomId: claim.chat_room_id,
         otherNickname: claim.post?.sender_nickname || "상대",
         updatedAt: claim.responded_at || claim.created_at,
+        role: "claimer",
       })),
-  ].sort((a, b) => new Date(b.updatedAt) - new Date(a.updatedAt));
+  ]
+    .filter((room) => {
+      const roomStatus = chatRoomStatusMap[room.chatRoomId];
+      if (!roomStatus) return true;
+      return room.role === "sender"
+        ? !roomStatus.sender_deleted_at
+        : !roomStatus.claimer_deleted_at;
+    })
+    .sort((a, b) => new Date(b.updatedAt) - new Date(a.updatedAt));
 
   const activityDateOptions = [
   ...new Set([
@@ -4976,7 +5060,7 @@ const getWeatherPlaceCounts = () => {
               aria-label="이전 달"
               onClick={() => setCloudCalendarMonth((prev) => addMonths(prev, -1))}
             >
-              ‹
+              <ChevronLeftIcon size={22} />
             </button>
             <div className="cloudCalendarMonthTitle">{cloudCalendarMonthTitle}</div>
             <button
@@ -4985,7 +5069,7 @@ const getWeatherPlaceCounts = () => {
               aria-label="다음 달"
               onClick={() => setCloudCalendarMonth((prev) => addMonths(prev, 1))}
             >
-              ›
+              <ChevronRightIcon size={22} />
             </button>
           </div>
 
@@ -5044,9 +5128,16 @@ const getWeatherPlaceCounts = () => {
                       onClick={() => setSelectedCloudCalendarDate(day.dateKey)}
                     >
                       <span className="cloudCalendarDateNumber">{day.day}</span>
-                      {matchedCount > 0 && (
-                        <span className="cloudCalendarCloudCount">☁️ {matchedCount}</span>
-                      )}
+                      <span
+                        className={
+                          matchedCount > 0
+                            ? "cloudCalendarCloudCount"
+                            : "cloudCalendarCloudCount empty"
+                        }
+                        aria-hidden={matchedCount === 0}
+                      >
+                        {matchedCount > 0 ? `☁️ ${matchedCount}` : "0"}
+                      </span>
                     </button>
                   );
                 })}
@@ -6545,6 +6636,12 @@ const getWeatherPlaceCounts = () => {
           currentUserId={currentUser.id}
           otherNickname={activeChatRoomNickname}
           onClose={() => setPage("chats")}
+          onDeleted={() => {
+            setActiveChatRoomId(null);
+            setActiveChatRoomNickname("");
+            setPage("chats");
+            loadMyActivityData();
+          }}
         />
       )}
       {page === "chats" && (
