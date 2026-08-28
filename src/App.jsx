@@ -394,6 +394,29 @@ const [verificationFile, setVerificationFile] = useState(null);
   const isAdmin = ADMIN_LOGIN_IDS.includes(currentUser?.user_metadata?.login_id);
   const [matchingLoading, setMatchingLoading] = useState(false);
   const [matchingMode, setMatchingMode] = useState("sent");
+  const [notificationFilter, setNotificationFilter] = useState("sent");
+  const [expandedSentPostId, setExpandedSentPostId] = useState(null);
+  const [notificationSeenAt, setNotificationSeenAt] = useState(() => {
+    try {
+      return Number(localStorage.getItem("dankkum_notification_seen_at") || 0);
+    } catch {
+      return 0;
+    }
+  });
+  const [sentNotificationSeenAt, setSentNotificationSeenAt] = useState(() => {
+    try {
+      return Number(localStorage.getItem("dankkum_sent_notification_seen_at") || 0);
+    } catch {
+      return 0;
+    }
+  });
+  const [receivedNotificationSeenAt, setReceivedNotificationSeenAt] = useState(() => {
+    try {
+      return Number(localStorage.getItem("dankkum_received_notification_seen_at") || 0);
+    } catch {
+      return 0;
+    }
+  });
   const [activityDate, setActivityDate] = useState("");
   const [weatherDate, setWeatherDate] = useState(() => getKoreaDateString());
   const [weatherLoading, setWeatherLoading] = useState(false);
@@ -3896,6 +3919,12 @@ const getWeatherPlaceCounts = () => {
   const mySentPostsWithoutResponses = mySentPosts.filter(
     (post) => !sentClaimsByPostId[post.id]?.length
   );
+  const completedClaimStatuses = ["accepted", "chat_accepted", "rejected"];
+  const mySentPostsWithCompletedResponses = mySentPosts.filter((post) =>
+    (sentClaimsByPostId[post.id] || []).some((claim) =>
+      completedClaimStatuses.includes(claim.status)
+    )
+  );
   const receivedCloudCount = new Set(
     [
       ...receivedClaims.map((claim) => String(claim.crush_post_id)),
@@ -3907,6 +3936,42 @@ const getWeatherPlaceCounts = () => {
   const receivedCloudItems = receivedClaims;
   const receivedViewItems = myReceivedCloudViews;
   const receivedSenderPickItems = receivedSenderCheckPicks;
+  const receivedPendingClaimItems = receivedCloudItems.filter(
+    (claim) => !completedClaimStatuses.includes(claim.status)
+  );
+  const receivedCompletedClaimItems = receivedCloudItems.filter((claim) =>
+    completedClaimStatuses.includes(claim.status)
+  );
+  const sortByCloudActivityDate = (a, b) =>
+    new Date(b.sortDate || 0) - new Date(a.sortDate || 0);
+  const receivedPendingCloudItems = [
+    ...receivedSenderPickItems.map((pick) => ({
+      kind: "senderPick",
+      id: `sender-pick-${pick.id || `${pick.crush_post_id}-${pick.cloud_check_id}`}`,
+      sortDate: pick.updated_at || pick.created_at,
+      data: pick,
+    })),
+    ...receivedViewItems.map((view) => ({
+      kind: "view",
+      id: `view-${view.id || view.crush_post_id}`,
+      sortDate: view.viewed_at || view.post?.created_at,
+      data: view,
+    })),
+    ...receivedPendingClaimItems.map((claim) => ({
+      kind: "claim",
+      id: `claim-${claim.id}`,
+      sortDate: claim.responded_at || claim.created_at,
+      data: claim,
+    })),
+  ].sort(sortByCloudActivityDate);
+  const receivedCompletedCloudItems = receivedCompletedClaimItems
+    .map((claim) => ({
+      kind: "claim",
+      id: `claim-${claim.id}`,
+      sortDate: claim.responded_at || claim.created_at,
+      data: claim,
+    }))
+    .sort(sortByCloudActivityDate);
 
   const totalSentResponseCount = sentClaims.length;
   const acceptedMatchCount = [...sentClaims, ...receivedClaims].filter(
@@ -4014,6 +4079,7 @@ const getWeatherPlaceCounts = () => {
   const notificationItems = [
   ...sentClaims.map((claim) => ({
     id: `sent-${claim.id}`,
+    group: "sent",
     type: claim.status === "accepted" ? "매칭 수락" : "응답 도착",
     title:
       claim.status === "accepted"
@@ -4024,9 +4090,15 @@ const getWeatherPlaceCounts = () => {
     }`,
     created_at: claim.created_at,
     active: claim.status === "accepted",
+    onClick: () => {
+      markNotificationGroupSeen("sent");
+      setExpandedSentPostId(claim.crush_post_id);
+      setMatchingMode("sentResponsesAll");
+    },
   })),
   ...receivedSenderCheckPicks.map((pick) => ({
     id: `sender-pick-${pick.id || `${pick.crush_post_id}-${pick.cloud_check_id}`}`,
+    group: "received",
     type: "나를 선택함",
     title: "상대가 내 구름 확인 기록을 선택했어요",
     description: `${pick.post?.seen_date || "날짜 없음"} · ${
@@ -4035,9 +4107,65 @@ const getWeatherPlaceCounts = () => {
     created_at: pick.updated_at || pick.created_at,
     active: true,
     actionLabel: "채팅방 수락 / 거절하기",
-    onClick: () => openSenderPickChatPreview(pick),
+    onClick: () => {
+      markNotificationGroupSeen("received");
+      openSenderPickChatPreview(pick);
+    },
   })),
 ].sort((a, b) => new Date(b.created_at || 0) - new Date(a.created_at || 0));
+  const sentNotificationItems = notificationItems.filter((item) => item.group === "sent");
+  const receivedNotificationItems = notificationItems.filter((item) => item.group === "received");
+  const visibleNotificationItems =
+    notificationFilter === "sent" ? sentNotificationItems : receivedNotificationItems;
+  const getItemTime = (item) => new Date(item.created_at || 0).getTime();
+  const sentNotificationUnreadCount = sentNotificationItems.filter(
+    (item) => getItemTime(item) > sentNotificationSeenAt
+  ).length;
+  const receivedNotificationUnreadCount = receivedNotificationItems.filter(
+    (item) => getItemTime(item) > receivedNotificationSeenAt
+  ).length;
+  const notificationBadgeCount = Math.min(
+    notificationItems.filter((item) => getItemTime(item) > notificationSeenAt).length,
+    99
+  );
+
+  const markNotificationSeen = () => {
+    const now = Date.now();
+    setNotificationSeenAt(now);
+    try {
+      localStorage.setItem("dankkum_notification_seen_at", String(now));
+    } catch {}
+  };
+
+  const markNotificationGroupSeen = (group) => {
+    const now = Date.now();
+    if (group === "sent") {
+      setSentNotificationSeenAt(now);
+      try {
+        localStorage.setItem("dankkum_sent_notification_seen_at", String(now));
+      } catch {}
+      return;
+    }
+    setReceivedNotificationSeenAt(now);
+    try {
+      localStorage.setItem("dankkum_received_notification_seen_at", String(now));
+    } catch {}
+  };
+
+  const openNotificationsPage = () => {
+    markNotificationSeen();
+    markNotificationGroupSeen(notificationFilter);
+    setMatchingMode("notifications");
+  };
+
+  const renderBellWithBadge = (size = 21) => (
+    <span className="notificationBellWrap">
+      <BellIcon size={size} />
+      {notificationBadgeCount > 0 && (
+        <span className="notificationBadge">{notificationBadgeCount}</span>
+      )}
+    </span>
+  );
 
   const cloudCalendarRecordMap = cloudCalendarRecords.reduce((acc, record) => {
     if (record.checked_date) {
@@ -4073,6 +4201,45 @@ const getWeatherPlaceCounts = () => {
       ["소지품", `가방 ${record.bag_type || "-"} · 이어폰 ${record.earphone_type || "-"}`],
       ["안경", record.glasses_type || "-"],
     ];
+  };
+
+  const formatCloudSummaryDate = (date) => {
+    if (!date) return "--/--";
+    const parts = String(date).split("-");
+    if (parts.length < 3) return date;
+    return `${parts[1]}/${parts[2]}`;
+  };
+
+  const formatCloudListSummary = (post) =>
+    [
+      `☁ ${formatCloudSummaryDate(post?.seen_date)}`,
+      post?.place || "장소 없음",
+      post?.sender_nickname || "닉네임 없음",
+    ].join(", ");
+
+  const renderCloudFolderButton = ({ title, count, newCount = 0, onClick }) => (
+    <button
+      type="button"
+      className="cloudFolderButton"
+      onClick={onClick}
+    >
+      <span className="cloudFolderTitle">
+        {title} <b>{count}개</b>
+        {newCount > 0 && (
+          <span className="cloudFolderNewBadge">{Math.min(newCount, 99)}</span>
+        )}
+      </span>
+      <span className="cloudFolderHint">전체보기</span>
+      <span className="cloudFolderArrow" aria-hidden="true">
+        <ChevronRightIcon size={18} />
+      </span>
+    </button>
+  );
+
+  const renderReceivedCloudListItem = (item) => {
+    if (item.kind === "senderPick") return renderReceivedSenderPickCard(item.data);
+    if (item.kind === "view") return renderReceivedCloudViewCard(item.data);
+    return renderReceivedClaimCard(item.data);
   };
 
   const renderChatRequestPostDetail = (post, title = "상대가 띄운 구름 상세목록") => {
@@ -4194,18 +4361,19 @@ const getWeatherPlaceCounts = () => {
   );
 };
 
-  const renderSentPostCard = (post, mode) => {
+  const renderSentPostCard = (post, mode, defaultOpen = false) => {
     const claims = sentClaimsByPostId[post.id] || [];
     const checkCandidates = getSenderCheckCandidatesForPost(post.id);
+    const detailsProps = defaultOpen ? { open: true } : {};
 
     return (
-      <details className="post postCollapsible" key={post.id}>
+      <details className="post postCollapsible" key={post.id} {...detailsProps}>
         <summary className="postSummary">
           <span className={claims.length > 0 ? "statusPill active" : "statusPill"}>
             {claims.length > 0 ? `응답 ${claims.length}개` : "응답 없음"}
           </span>
           <span className="postSummaryText">
-            {post.seen_date}, {post.time_period}, {post.place}
+            {formatCloudListSummary(post)}
           </span>
           <span className="postSummaryArrow" aria-hidden="true">›</span>
         </summary>
@@ -4280,7 +4448,7 @@ const getWeatherPlaceCounts = () => {
           <span className="statusPill">구름 확인 응답</span>
           <span className="postSummaryText">
             {post
-              ? `${post.seen_date}, ${post.time_period}, ${post.place}`
+              ? formatCloudListSummary(post)
               : "연결된 구름 글을 찾지 못했어요"}
           </span>
           <span className="postSummaryArrow" aria-hidden="true">›</span>
@@ -4377,7 +4545,7 @@ const getWeatherPlaceCounts = () => {
         <summary className="postSummary">
           <span className="statusPill active">채팅방 요청 도착</span>
           <span className="postSummaryText">
-            {post.seen_date}, {post.time_period}, {post.place}
+            {formatCloudListSummary(post)}
           </span>
           <span className="postSummaryArrow" aria-hidden="true">›</span>
         </summary>
@@ -4426,18 +4594,25 @@ const getWeatherPlaceCounts = () => {
     const tags = makeCloudTags(post);
 
     return (
-      <div className="post resultPost" key={`view-${view.id || view.crush_post_id}`}>
-        <div className="postTopLine">
+      <details
+        className="post postCollapsible resultPost"
+        key={`view-${view.id || view.crush_post_id}`}
+      >
+        <summary className="postSummary">
           <span className="statusPill active">
             ☁ 확인한 구름 {view.match_score ? `${view.match_score}%` : ""}
           </span>
-        </div>
+          <span className="postSummaryText">{formatCloudListSummary(post)}</span>
+          <span className="postSummaryArrow" aria-hidden="true">›</span>
+        </summary>
+
+        <div className="postBody">
 
         {tags.length > 0 && (
           <div className="cloudTagBox">
             {tags.map((tag) => (
               <span className="cloudTag" key={`${view.crush_post_id}-${tag}`}>
-                #{tag}
+                {tag}
               </span>
             ))}
           </div>
@@ -4473,7 +4648,8 @@ const getWeatherPlaceCounts = () => {
             차단하기
           </button>
         </div>
-      </div>
+        </div>
+      </details>
     );
   };
 
@@ -4615,7 +4791,7 @@ const getWeatherPlaceCounts = () => {
 	                <TrashIcon size={17} />
 	              </span>
 	              <b>내가 관리</b>
-	              <span>보낸 구름 삭제 가능</span>
+	              <span>띄운 구름 삭제 가능</span>
 	            </div>
 	          </div>
 
@@ -4868,11 +5044,11 @@ const getWeatherPlaceCounts = () => {
                 className="homeV2IconBtn"
                 aria-label="알림"
                 onClick={() => {
-                  setMatchingMode("notifications");
+                  openNotificationsPage();
                   openMatchingPage();
                 }}
               >
-                <BellIcon size={19} />
+                {renderBellWithBadge(19)}
               </button>
               <button
                 type="button"
@@ -5065,7 +5241,7 @@ const getWeatherPlaceCounts = () => {
                 <PaperPlaneIcon size={18} />
               </span>
               <span className="mypageMenuBody">
-                <b>내가 보낸 구름 관리</b>
+                <b>내가 띄운 구름 관리</b>
                 <span>내가 남긴 구름과 응답 현황을 확인해요.</span>
               </span>
               <span className="mypageMenuChevron">
@@ -5092,12 +5268,12 @@ const getWeatherPlaceCounts = () => {
               type="button"
               className="mypageMenuRow"
               onClick={() => {
-                setMatchingMode("notifications");
+                openNotificationsPage();
                 openMatchingPage();
               }}
             >
               <span className="mypageMenuIcon amber">
-                <BellIcon size={18} />
+                {renderBellWithBadge(18)}
               </span>
               <span className="mypageMenuBody">
                 <b>알림 보기</b>
@@ -6540,7 +6716,7 @@ const getWeatherPlaceCounts = () => {
             <div className="cloudTagBox">
               {tags.map((tag) => (
                 <span className="cloudTag" key={`${post.id}-${tag}`}>
-                  #{tag}
+                  {tag}
                 </span>
               ))}
             </div>
@@ -6610,7 +6786,7 @@ const getWeatherPlaceCounts = () => {
           <h2>구름 확인 내역 {sentCheckResults.length}개</h2>
 
           <p className="subtitle">
-            내가 보낸 구름과 비슷하게 입력된 구름 확인 내역을 살펴봐요.
+            내가 띄운 구름과 비슷하게 입력된 구름 확인 내역을 살펴봐요.
           </p>
 
           {sentResultPost && (
@@ -7047,10 +7223,14 @@ const getWeatherPlaceCounts = () => {
         <div className="card manageCard">
           <div className="manageHeaderRow">
             <div>
-              <h2>내 구름</h2>
-              <p className="subtitle">
-                내가 남긴 구름과 받은 구름을 한눈에 확인해보세요.
-              </p>
+              <button
+                type="button"
+                className="manageTitleButton"
+                onClick={loadMyActivityData}
+                disabled={matchingLoading}
+              >
+                내 구름
+              </button>
             </div>
             <div className="manageHeaderIcons">
               <button
@@ -7061,9 +7241,9 @@ const getWeatherPlaceCounts = () => {
                     : "manageHeaderIconBtn"
                 }
                 aria-label="알림"
-                onClick={() => setMatchingMode("notifications")}
+                onClick={openNotificationsPage}
               >
-                <BellIcon size={21} />
+                {renderBellWithBadge(21)}
               </button>
               <button
                 type="button"
@@ -7082,111 +7262,223 @@ const getWeatherPlaceCounts = () => {
 
           <div className="manageTabs fourTabs">
             <button
-              className={matchingMode === "sent" ? "manageTab active" : "manageTab"}
-              onClick={() => setMatchingMode("sent")}
+              className={
+                matchingMode === "notifications"
+                  ? notificationFilter === "sent"
+                    ? "manageTab active"
+                    : "manageTab"
+                  : matchingMode.startsWith("sent")
+                    ? "manageTab active"
+                    : "manageTab"
+              }
+              onClick={() => {
+                if (matchingMode === "notifications") {
+                  markNotificationGroupSeen("sent");
+                  setNotificationFilter("sent");
+                } else {
+                  setMatchingMode("sent");
+                }
+              }}
             >
-              보낸 구름
+              띄운 구름
             </button>
 
             <button
               className={
-                matchingMode === "received" ? "manageTab active" : "manageTab"
+                matchingMode === "notifications"
+                  ? notificationFilter === "received"
+                    ? "manageTab active"
+                    : "manageTab"
+                  : matchingMode.startsWith("received")
+                    ? "manageTab active"
+                    : "manageTab"
               }
-              onClick={() => setMatchingMode("received")}
+              onClick={() => {
+                if (matchingMode === "notifications") {
+                  markNotificationGroupSeen("received");
+                  setNotificationFilter("received");
+                } else {
+                  setMatchingMode("received");
+                }
+              }}
             >
               받은 구름
             </button>
           </div>
 
-          <div className="manageSummaryGrid">
-            <div className="manageSummaryItem">
-              <span className="manageSummaryIcon">
-                <PaperPlaneIcon size={16} />
-              </span>
-              <span>띄운 구름</span>
-              <b>{mySentPosts.length}</b>
-            </div>
-
-            <div className="manageSummaryItem">
-              <span className="manageSummaryIcon">
-                <ChatIcon size={16} />
-              </span>
-              <span>도착 응답</span>
-              <b>{totalSentResponseCount}</b>
-            </div>
-
-            <div className="manageSummaryItem">
-              <span className="manageSummaryIcon">
-                <ClockIcon size={16} />
-              </span>
-              <span>나에게 온 구름</span>
-              <b>{receivedCloudCount}</b>
-            </div>
-          </div>
-
           {matchingLoading && <p className="notice">불러오는 중이에요...</p>}
 
           {!matchingLoading && matchingMode === "sent" && (
-            <>
-              <div className="manageSection">
-                <h3 className="manageSectionTitle">
-                  응답 도착 {mySentPostsWithResponses.length}개
-                </h3>
+            <div className="cloudFolderList">
+              {renderCloudFolderButton({
+                title: "☁ 응답 도착",
+                count: mySentPostsWithResponses.length,
+                newCount: sentNotificationUnreadCount,
+                onClick: () => {
+                  markNotificationGroupSeen("sent");
+                  setMatchingMode("sentResponsesAll");
+                },
+              })}
+              {renderCloudFolderButton({
+                title: "☁ 요청 대기 중",
+                count: mySentPostsWithoutResponses.length,
+                onClick: () => setMatchingMode("sentWaitingAll"),
+              })}
+              {renderCloudFolderButton({
+                title: "☁ 응답 완료 구름",
+                count: mySentPostsWithCompletedResponses.length,
+                onClick: () => setMatchingMode("sentCompletedAll"),
+              })}
+            </div>
+          )}
 
-                {mySentPostsWithResponses.length === 0 && (
-                  <p className="noticeBox">아직 응답이 도착한 구름이 없어요.</p>
-                )}
+          {!matchingLoading && matchingMode === "sentResponsesAll" && (
+            <div className="manageSection">
+              <button
+                type="button"
+                className="white backListButton"
+                onClick={() => setMatchingMode("sent")}
+              >
+                띄운 구름으로 돌아가기
+              </button>
+              <h3 className="manageSectionTitle">
+                ☁ 응답 도착 전체 {mySentPostsWithResponses.length}개
+              </h3>
+              {mySentPostsWithResponses.length === 0 && (
+                <p className="noticeBox">아직 응답이 도착한 구름이 없어요.</p>
+              )}
+              {mySentPostsWithResponses.map((post) =>
+                renderSentPostCard(post, "answered", String(post.id) === String(expandedSentPostId))
+              )}
+            </div>
+          )}
 
-                {mySentPostsWithResponses.map((post) =>
-                  renderSentPostCard(post, "answered")
-                )}
-              </div>
+          {!matchingLoading && matchingMode === "sentWaitingAll" && (
+            <div className="manageSection">
+              <button
+                type="button"
+                className="white backListButton"
+                onClick={() => setMatchingMode("sent")}
+              >
+                띄운 구름으로 돌아가기
+              </button>
+              <h3 className="manageSectionTitle">
+                ☁ 요청 대기 중 전체 {mySentPostsWithoutResponses.length}개
+              </h3>
+              {mySentPostsWithoutResponses.length === 0 && (
+                <p className="noticeBox">요청을 기다리는 구름이 없어요.</p>
+              )}
+              {mySentPostsWithoutResponses.map((post) =>
+                renderSentPostCard(post, "empty")
+              )}
+            </div>
+          )}
 
-              <div className="manageSection">
-                <h3 className="manageSectionTitle">
-                  요청 대기 중 {mySentPostsWithoutResponses.length}개
-                </h3>
-
-                {mySentPostsWithoutResponses.length === 0 && (
-                  <p className="noticeBox">요청을 기다리는 구름이 없어요.</p>
-                )}
-
-                {mySentPostsWithoutResponses.map((post) =>
-                  renderSentPostCard(post, "empty")
-                )}
-              </div>
-            </>
+          {!matchingLoading && matchingMode === "sentCompletedAll" && (
+            <div className="manageSection">
+              <button
+                type="button"
+                className="white backListButton"
+                onClick={() => setMatchingMode("sent")}
+              >
+                띄운 구름으로 돌아가기
+              </button>
+              <h3 className="manageSectionTitle">
+                ☁ 응답 완료 구름 전체 {mySentPostsWithCompletedResponses.length}개
+              </h3>
+              {mySentPostsWithCompletedResponses.length === 0 && (
+                <p className="noticeBox">아직 응답이 완료된 구름이 없어요.</p>
+              )}
+              {mySentPostsWithCompletedResponses.map((post) =>
+                renderSentPostCard(post, "answered")
+              )}
+            </div>
           )}
 
           {!matchingLoading && matchingMode === "received" && (
+            <div className="cloudFolderList">
+              {renderCloudFolderButton({
+                title: "☁ 응답 대기 구름",
+                count: receivedPendingCloudItems.length,
+                newCount: receivedNotificationUnreadCount,
+                onClick: () => {
+                  markNotificationGroupSeen("received");
+                  setMatchingMode("receivedPendingAll");
+                },
+              })}
+              {renderCloudFolderButton({
+                title: "☁ 응답 완료 구름",
+                count: receivedCompletedCloudItems.length,
+                onClick: () => setMatchingMode("receivedCompletedAll"),
+              })}
+            </div>
+          )}
+
+          {!matchingLoading && matchingMode === "receivedPendingAll" && (
             <div className="manageSection">
+              <button
+                type="button"
+                className="white backListButton"
+                onClick={() => setMatchingMode("received")}
+              >
+                받은 구름으로 돌아가기
+              </button>
               <h3 className="manageSectionTitle">
-                나에게 온 구름 {receivedCloudCount}개
+                ☁ 응답 대기 구름 전체 {receivedPendingCloudItems.length}개
               </h3>
-
-              {receivedCloudCount === 0 && (
-                <p className="noticeBox">아직 나에게 온 구름이 없어요.</p>
+              {receivedPendingCloudItems.length === 0 && (
+                <p className="noticeBox">응답을 기다리는 받은 구름이 없어요.</p>
               )}
+              {receivedPendingCloudItems.map((item) => renderReceivedCloudListItem(item))}
+            </div>
+          )}
 
-              {receivedSenderPickItems.map((pick) => renderReceivedSenderPickCard(pick))}
-              {receivedViewItems.map((view) => renderReceivedCloudViewCard(view))}
-              {receivedCloudItems.map((claim) => renderReceivedClaimCard(claim))}
+          {!matchingLoading && matchingMode === "receivedCompletedAll" && (
+            <div className="manageSection">
+              <button
+                type="button"
+                className="white backListButton"
+                onClick={() => setMatchingMode("received")}
+              >
+                받은 구름으로 돌아가기
+              </button>
+              <h3 className="manageSectionTitle">
+                ☁ 응답 완료 구름 전체 {receivedCompletedCloudItems.length}개
+              </h3>
+              {receivedCompletedCloudItems.length === 0 && (
+                <p className="noticeBox">응답이 완료된 받은 구름이 없어요.</p>
+              )}
+              {receivedCompletedCloudItems.map((item) => renderReceivedCloudListItem(item))}
             </div>
           )}
 
           {!matchingLoading && matchingMode === "notifications" && (
             <div className="manageSection">
-              <h3 className="manageSectionTitle">알림 {notificationItems.length}개</h3>
+              <h3 className="manageSectionTitle">
+                알림 {visibleNotificationItems.length}개
+              </h3>
 
-              {notificationItems.length === 0 && (
+              {visibleNotificationItems.length === 0 && (
                 <p className="noticeBox">
-                  아직 새 알림이 없어요. 응답이 오거나 매칭이 수락되면 여기에
-                  표시돼요.
+                  {notificationFilter === "sent"
+                    ? "띄운 구름에 온 새 알림이 없어요."
+                    : "받은 구름에 온 새 알림이 없어요."}
                 </p>
               )}
 
-              {notificationItems.map((item) => (
+              {visibleNotificationItems.map((item) => (
                 <div className="notificationCard" key={item.id}>
+                  {item.onClick && (
+                    <button
+                      type="button"
+                      className="notificationArrowButton"
+                      aria-label="알림 상세로 이동"
+                      onClick={item.onClick}
+                      disabled={claimActionSubmittingId === item.id}
+                    >
+                      <ChevronRightIcon size={18} />
+                    </button>
+                  )}
                   <div className="postTopLine">
                     <span className={item.active ? "statusPill active" : "statusPill"}>
                       {item.type}
@@ -7197,15 +7489,6 @@ const getWeatherPlaceCounts = () => {
                   </p>
                   <p>{item.description}</p>
                   <p className="helperText">{formatShortDateTime(item.created_at)}</p>
-                  {item.onClick && (
-                    <button
-                      type="button"
-                      onClick={item.onClick}
-                      disabled={claimActionSubmittingId === item.id}
-                    >
-                      {claimActionSubmittingId === item.id ? "여는 중..." : item.actionLabel}
-                    </button>
-                  )}
                 </div>
               ))}
             </div>
@@ -7332,13 +7615,6 @@ const getWeatherPlaceCounts = () => {
             </div>
           )}
 
-          <button onClick={openMatchingPage} className="white">
-            새로고침
-          </button>
-
-	          <button onClick={() => setPage("home")} className="white">
-	            홈으로
-	          </button>
 	        </div>
 	      )}
 	      {page !== "chatRoom" && renderBottomNav()}
