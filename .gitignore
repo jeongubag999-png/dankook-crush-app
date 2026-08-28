@@ -42,3 +42,6 @@ android/keystore/
 
 # Claude Code local config (may contain secrets from approved commands)
 .claude/
+
+# Supabase CLI local state
+supabase/.temp/

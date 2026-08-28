@@ -4,6 +4,7 @@ import { App as CapacitorApp } from "@capacitor/app";
 import "./App.css";
 import "./theme-v2.css";
 import { supabase } from "./supabase";
+import { initPush, linkPushUser, unlinkPushUser } from "./push";
 import { OptionButton } from "./components/OptionButton";
 import { SearchableSelect } from "./components/SearchableSelect";
 import { ChatRoom } from "./components/ChatRoom";
@@ -800,6 +801,18 @@ const [verificationFile, setVerificationFile] = useState(null);
       listenerHandle?.remove();
     };
   }, []);
+
+  useEffect(() => {
+    initPush();
+  }, []);
+
+  useEffect(() => {
+    if (currentUser?.id) {
+      linkPushUser(currentUser.id);
+    } else {
+      unlinkPushUser();
+    }
+  }, [currentUser]);
 
   const openSharedPost = async (postId) => {
     try {
@@ -3500,114 +3513,145 @@ const getWeatherPlaceCounts = () => {
     }
   };
 
-  useEffect(() => {
-    if (!currentUser) return undefined;
+  const handleAcceptedClaim = useCallback(
+    (claim) => {
+      if (!currentUser || !claim || claim.status !== "chat_accepted" || !claim.chat_room_id) {
+        return;
+      }
 
-    let cancelled = false;
+      const isMyClaim = claim.claimer_user_id === currentUser.id;
+      const isOnMySentPost = mySentPostsRef.current.some(
+        (post) => post.id === claim.crush_post_id
+      );
+      if (!isMyClaim && !isOnMySentPost) return;
 
-    const syncAcceptedChatRequests = async () => {
-      const waitablePages = ["matching", "chats", "sentResult", "claim"];
-      if (!waitablePages.includes(pageRef.current)) return;
-
-      const sentPostIds = mySentPostsRef.current.map((post) => post.id).filter(Boolean);
-      const acceptedClaimQueries = [
-        sentPostIds.length > 0
-          ? supabase
-              .from("claims")
-              .select("*")
-              .in("crush_post_id", sentPostIds)
-              .eq("status", "chat_accepted")
-              .not("chat_room_id", "is", null)
-              .order("responded_at", { ascending: false })
-              .limit(5)
-          : Promise.resolve({ data: [], error: null }),
-        supabase
-          .from("claims")
-          .select("*")
-          .eq("claimer_user_id", currentUser.id)
-          .eq("status", "chat_accepted")
-          .not("chat_room_id", "is", null)
-          .order("responded_at", { ascending: false })
-          .limit(5),
-      ];
-
-      const [sentAcceptedResult, receivedAcceptedResult] =
-        await Promise.all(acceptedClaimQueries);
-
-      if (cancelled) return;
-
-      const data = [
-        ...(sentAcceptedResult.error ? [] : sentAcceptedResult.data || []),
-        ...(receivedAcceptedResult.error ? [] : receivedAcceptedResult.data || []),
-      ];
-
-      if (!data.length) return;
-
-      setSentClaims((prev) => {
-        const byId = new Map(prev.map((claim) => [claim.id, claim]));
-        data
-          .filter((claim) => sentPostIds.includes(claim.crush_post_id))
-          .forEach((claim) => {
+      if (isOnMySentPost) {
+        setSentClaims((prev) => {
+          const byId = new Map(prev.map((c) => [c.id, c]));
           const post =
             mySentPostsRef.current.find((item) => item.id === claim.crush_post_id) ||
             byId.get(claim.id)?.post;
           byId.set(claim.id, { ...byId.get(claim.id), ...claim, post });
+          return [...byId.values()].sort(
+            (a, b) => new Date(b.created_at || 0) - new Date(a.created_at || 0)
+          );
         });
-        return [...byId.values()].sort(
-          (a, b) => new Date(b.created_at || 0) - new Date(a.created_at || 0)
-        );
-      });
+      }
 
-      setReceivedClaims((prev) => {
-        const byId = new Map(prev.map((claim) => [claim.id, claim]));
-        data
-          .filter((claim) => claim.claimer_user_id === currentUser.id)
-          .forEach((claim) => {
-            const post = byId.get(claim.id)?.post;
-            byId.set(claim.id, { ...byId.get(claim.id), ...claim, post });
-          });
-        return [...byId.values()].sort(
-          (a, b) => new Date(b.created_at || 0) - new Date(a.created_at || 0)
-        );
-      });
+      if (isMyClaim) {
+        setReceivedClaims((prev) => {
+          const byId = new Map(prev.map((c) => [c.id, c]));
+          const post = byId.get(claim.id)?.post;
+          byId.set(claim.id, { ...byId.get(claim.id), ...claim, post });
+          return [...byId.values()].sort(
+            (a, b) => new Date(b.created_at || 0) - new Date(a.created_at || 0)
+          );
+        });
+      }
 
       if (pageRef.current !== "claim") return;
 
       const pendingClaimId = pendingChatRequestClaimIdRef.current;
-      if (!pendingClaimId) return;
+      if (
+        !pendingClaimId ||
+        claim.id !== pendingClaimId ||
+        claim.chat_room_id === activeChatRoomIdRef.current
+      ) {
+        return;
+      }
 
-      const acceptedClaim = data.find(
-        (claim) =>
-          claim.id === pendingClaimId &&
-          claim.chat_room_id &&
-          claim.chat_room_id !== activeChatRoomIdRef.current
-      );
-
-      if (!acceptedClaim) return;
-
-      const post = mySentPostsRef.current.find(
-        (item) => item.id === acceptedClaim.crush_post_id
-      ) || receivedClaimsRef.current.find((claim) => claim.id === acceptedClaim.id)?.post;
+      const post =
+        mySentPostsRef.current.find((item) => item.id === claim.crush_post_id) ||
+        receivedClaimsRef.current.find((c) => c.id === claim.id)?.post;
 
       toast.success("상대가 대화를 수락했어요.");
       pendingChatRequestClaimIdRef.current = null;
-      setActiveChatRoomId(acceptedClaim.chat_room_id);
+      setActiveChatRoomId(claim.chat_room_id);
       setActiveChatRoomNickname(
-        acceptedClaim.claimer_user_id === currentUser.id
-          ? post?.sender_nickname || ""
-          : acceptedClaim.claimer_nickname || ""
+        isMyClaim ? post?.sender_nickname || "" : claim.claimer_nickname || ""
       );
       setPage("chatRoom");
-    };
+    },
+    [currentUser]
+  );
 
-    syncAcceptedChatRequests();
-    const timer = setInterval(syncAcceptedChatRequests, 4000);
+  // 내가 응답한(claimer) 요청이 수락되는 순간을 realtime으로 감지.
+  // (앱을 닫아둔 동안 이미 수락된 건이 있을 수 있어 구독 전에 한 번 조회해 따라잡는다.)
+  useEffect(() => {
+    if (!currentUser) return undefined;
+    let cancelled = false;
+
+    supabase
+      .from("claims")
+      .select("*")
+      .eq("claimer_user_id", currentUser.id)
+      .eq("status", "chat_accepted")
+      .not("chat_room_id", "is", null)
+      .order("responded_at", { ascending: false })
+      .limit(5)
+      .then(({ data, error }) => {
+        if (cancelled || error) return;
+        (data || []).forEach(handleAcceptedClaim);
+      });
+
+    const channel = supabase
+      .channel(`claims_as_claimer_${currentUser.id}`)
+      .on(
+        "postgres_changes",
+        {
+          event: "UPDATE",
+          schema: "public",
+          table: "claims",
+          filter: `claimer_user_id=eq.${currentUser.id}`,
+        },
+        (payload) => handleAcceptedClaim(payload.new)
+      )
+      .subscribe();
 
     return () => {
       cancelled = true;
-      clearInterval(timer);
+      supabase.removeChannel(channel);
     };
-  }, [currentUser]);
+  }, [currentUser, handleAcceptedClaim]);
+
+  // 내가 보낸 구름에 달린 응답이 수락되는 순간을 realtime으로 감지.
+  const mySentPostIdsKey = mySentPosts.map((post) => post.id).filter(Boolean).join(",");
+  useEffect(() => {
+    if (!currentUser || !mySentPostIdsKey) return undefined;
+    let cancelled = false;
+
+    supabase
+      .from("claims")
+      .select("*")
+      .in("crush_post_id", mySentPostIdsKey.split(","))
+      .eq("status", "chat_accepted")
+      .not("chat_room_id", "is", null)
+      .order("responded_at", { ascending: false })
+      .limit(5)
+      .then(({ data, error }) => {
+        if (cancelled || error) return;
+        (data || []).forEach(handleAcceptedClaim);
+      });
+
+    const channel = supabase
+      .channel(`claims_on_sent_posts_${currentUser.id}_${mySentPostIdsKey}`)
+      .on(
+        "postgres_changes",
+        {
+          event: "UPDATE",
+          schema: "public",
+          table: "claims",
+          filter: `crush_post_id=in.(${mySentPostIdsKey})`,
+        },
+        (payload) => handleAcceptedClaim(payload.new)
+      )
+      .subscribe();
+
+    return () => {
+      cancelled = true;
+      supabase.removeChannel(channel);
+    };
+  }, [currentUser, mySentPostIdsKey, handleAcceptedClaim]);
 
   const deleteMyPost = async (postId) => {
     if (!currentUser) return;
