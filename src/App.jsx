@@ -4073,7 +4073,6 @@ const getWeatherPlaceCounts = () => {
     .filter((post) => cleanMessage(post.message))
     .slice(0, 3);
   const homeWeatherCloudCount = Math.ceil(homeTodayClouds.length * 1.5);
-  const homeWeatherTickerText = `☁️ 오늘 구름 ${homeWeatherCloudCount}개가 떴어요 ☁️`;
 
   const notificationItems = [
   ...sentClaims.map((claim) => ({
@@ -5060,7 +5059,11 @@ const getWeatherPlaceCounts = () => {
 
           <div className="homeV2Banner">
             <span className="homeWeatherTickerTrack">
-              <span>{homeWeatherTickerText}</span>
+              <span className="homeWeatherTickerCloud" aria-hidden="true">☁</span>
+              <span className="homeWeatherTickerText">
+                오늘 구름 <b>{homeWeatherCloudCount}개</b>가 떴어요
+              </span>
+              <span className="homeWeatherTickerCloud" aria-hidden="true">☁</span>
             </span>
           </div>
 
