@@ -5076,7 +5076,7 @@ const getWeatherPlaceCounts = () => {
               <h1>구름, 단꿈</h1>
             </div>
             <div className="homeV2CloudMark" aria-hidden="true">
-              ☁
+              <img src="/app-icon-cloud.png" alt="" />
             </div>
             <div className="homeV2IconRow">
               <button
