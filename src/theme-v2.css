@@ -1113,6 +1113,29 @@ body.chatRoomOpen {
   flex: 0 0 auto;
 }
 
+.app .chatRoomLeaveBtn {
+  width: 40px;
+  height: 40px;
+  min-height: 40px;
+  flex: 0 0 auto;
+  margin-top: 0;
+  padding: 0;
+  border-radius: 50%;
+  background: transparent;
+  box-shadow: none;
+  color: var(--v2-muted);
+  display: flex;
+  align-items: center;
+  justify-content: center;
+}
+
+.app .chatRoomLeaveBtn:hover {
+  background: var(--v2-surface-soft);
+  color: var(--v2-ink);
+  transform: none;
+  box-shadow: none;
+}
+
 .app .chatRoomMessages {
   flex: 1 1 auto;
   overflow-y: auto;

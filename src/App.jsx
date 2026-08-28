@@ -6801,6 +6801,7 @@ const getWeatherPlaceCounts = () => {
           currentUserId={currentUser.id}
           otherNickname={activeChatRoomNickname}
           onClose={() => setPage("chats")}
+          onLeave={() => loadMyActivityData()}
           onDeleted={() => {
             setActiveChatRoomId(null);
             setActiveChatRoomNickname("");

@@ -183,6 +183,13 @@ export const EyeIcon = ({ size = 22 }) => (
   </svg>
 );
 
+export const DoorExitIcon = ({ size = 22 }) => (
+  <svg width={size} height={size} {...outlineIconProps}>
+    <path d="M13 4H7a1 1 0 0 0-1 1v14a1 1 0 0 0 1 1h6" />
+    <path d="M17 12h4M18.5 9.5 21 12l-2.5 2.5" />
+  </svg>
+);
+
 export const EyeOffIcon = ({ size = 22 }) => (
   <svg width={size} height={size} {...outlineIconProps}>
     <path d="M3 3l18 18" />

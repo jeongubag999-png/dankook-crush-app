@@ -1,7 +1,7 @@
 import { useEffect, useRef, useState } from "react";
 import toast from "react-hot-toast";
 import { supabase } from "../supabase";
-import { ChevronLeftIcon, PaperPlaneIcon, TrashIcon } from "./Icons";
+import { ChevronLeftIcon, DoorExitIcon, PaperPlaneIcon, TrashIcon } from "./Icons";
 import {
   formatChatBubbleTime,
   formatChatDateDivider,
@@ -10,7 +10,7 @@ import {
   isSameChatDay,
 } from "../utils";
 
-export function ChatRoom({ roomId, currentUserId, otherNickname, onClose, onDeleted }) {
+export function ChatRoom({ roomId, currentUserId, otherNickname, onClose, onDeleted, onLeave }) {
   const [messages, setMessages] = useState([]);
   const [input, setInput] = useState("");
   const [loading, setLoading] = useState(true);
@@ -19,6 +19,7 @@ export function ChatRoom({ roomId, currentUserId, otherNickname, onClose, onDele
   const [instagramChoice, setInstagramChoice] = useState(null);
   const [instagramSubmitting, setInstagramSubmitting] = useState(false);
   const [deletingRoom, setDeletingRoom] = useState(false);
+  const [leavingRoom, setLeavingRoom] = useState(false);
   const [now, setNow] = useState(() => Date.now());
   const bottomRef = useRef(null);
 
@@ -200,6 +201,32 @@ export function ChatRoom({ roomId, currentUserId, otherNickname, onClose, onDele
     onDeleted?.();
   };
 
+  const leaveChatRoom = async () => {
+    if (!roomId || leavingRoom || isExpired) return;
+    const ok = window.confirm(
+      "채팅방을 나가시겠어요? 나가면 채팅방이 바로 종료되고 더 이상 메시지를 보낼 수 없어요."
+    );
+    if (!ok) return;
+
+    setLeavingRoom(true);
+    const { data, error } = await supabase.rpc("close_chat_room", {
+      p_room_id: roomId,
+    });
+
+    if (error) {
+      console.log(error);
+      toast.error(error.message || "채팅방 나가기에 실패했어요.");
+      setLeavingRoom(false);
+      return;
+    }
+
+    if (data) setRoomInfo(data);
+    toast.success("채팅방을 나갔어요.");
+    setLeavingRoom(false);
+    onLeave?.();
+    onClose?.();
+  };
+
   const renderInstagramConsentPanel = () => {
     if (!isExpired || !roomInfo) return null;
 
@@ -280,7 +307,19 @@ export function ChatRoom({ roomId, currentUserId, otherNickname, onClose, onDele
             </span>
           )}
         </div>
-        <div className="chatRoomHeaderSpacer" aria-hidden="true" />
+        {isExpired ? (
+          <div className="chatRoomHeaderSpacer" aria-hidden="true" />
+        ) : (
+          <button
+            type="button"
+            className="chatRoomLeaveBtn"
+            onClick={leaveChatRoom}
+            disabled={leavingRoom}
+            aria-label="채팅방 나가기"
+          >
+            <DoorExitIcon size={20} />
+          </button>
+        )}
       </div>
 
       <div className="chatRoomMessages">
