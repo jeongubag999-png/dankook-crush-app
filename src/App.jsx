@@ -2962,6 +2962,9 @@ const hideSearchResult = (postId) => {
 
     const sentPostIds = finalMyPosts.map((post) => post.id);
     const sentPostDates = [...new Set(finalMyPosts.map((post) => post.seen_date).filter(Boolean))];
+    const myCheckDates = [
+      ...new Set((checksResult.data || []).map((check) => check.seen_date).filter(Boolean)),
+    ];
     const receivedClaimPostIds = [...new Set(finalReceivedClaims.map((c) => c.crush_post_id))];
     const receivedViewPostIds = [...new Set(finalReceivedViews.map((v) => v.crush_post_id))];
     const receivedSenderPickPostIds = [
@@ -3000,9 +3003,24 @@ const hideSearchResult = (postId) => {
             .in("crush_post_id", sentPostIds)
             .order("created_at", { ascending: false })
         : Promise.resolve({ data: [], error: null }),
+      myCheckDates.length > 0 && profile.gender && profile.campus
+        ? supabase
+            .from("crush_posts")
+            .select("*")
+            .in("seen_date", myCheckDates)
+            .eq("target_gender", profile.gender)
+            .eq("campus", profile.campus)
+            .order("created_at", { ascending: false })
+        : Promise.resolve({ data: [], error: null }),
     );
 
-    const [claimsResult, receivedPostsResult, senderChecksResult, senderPicksResult] =
+    const [
+      claimsResult,
+      receivedPostsResult,
+      senderChecksResult,
+      senderPicksResult,
+      receivedCandidatePostsResult,
+    ] =
       await Promise.all(round2Promises);
 
     if (claimsResult.error) {
@@ -3022,6 +3040,9 @@ const hideSearchResult = (postId) => {
     }
     if (senderPicksResult.error) {
       console.log(senderPicksResult.error);
+    }
+    if (receivedCandidatePostsResult.error) {
+      console.log(receivedCandidatePostsResult.error);
     }
 
     const finalSentClaims = (claimsResult.data || []).map((claim) => ({
@@ -3069,6 +3090,9 @@ const hideSearchResult = (postId) => {
     const claimedPostIds = new Set(
       finalReceivedClaims.map((claim) => String(claim.crush_post_id))
     );
+    const existingReceivedViewPostIds = new Set(
+      finalReceivedViews.map((view) => String(view.crush_post_id))
+    );
     const combinedReceivedViews = finalReceivedViews
       .filter((view) => !claimedPostIds.has(String(view.crush_post_id)))
       .map((view) => ({
@@ -3077,8 +3101,51 @@ const hideSearchResult = (postId) => {
       }))
       .filter((view) => view.post)
       .filter((view) => !blockedUserIds.includes(view.post.sender_user_id));
-    setMyReceivedCloudViews(combinedReceivedViews);
+    const retroReceivedViews = (receivedCandidatePostsResult.error
+      ? []
+      : receivedCandidatePostsResult.data || []
+    )
+      .filter((post) => post.sender_user_id !== activityUserId)
+      .filter((post) => !claimedPostIds.has(String(post.id)))
+      .filter((post) => !existingReceivedViewPostIds.has(String(post.id)))
+      .filter((post) => !blockedUserIds.includes(post.sender_user_id))
+      .map((post) => {
+        const bestMatch = (checksResult.data || [])
+          .filter((check) => check.seen_date === post.seen_date)
+          .filter((check) => check.checker_gender === post.target_gender)
+          .map((check) => {
+            const match = getCloudMatchScore(post, check);
+            return { check, match };
+          })
+          .sort(
+            (a, b) =>
+              (b.match.score || 0) - (a.match.score || 0) ||
+              new Date(b.check.checked_at) - new Date(a.check.checked_at)
+          )[0];
 
+        if (!bestMatch || bestMatch.match.score < MATCH_THRESHOLD) return null;
+
+        return {
+          id: `retro-${post.id}-${bestMatch.check.id}`,
+          crush_post_id: post.id,
+          viewer_user_id: activityUserId,
+          viewed_at: bestMatch.check.checked_at,
+          match_score: bestMatch.match.score,
+          match_reasons: bestMatch.match.reasons,
+          post,
+        };
+      })
+      .filter(Boolean);
+    const allReceivedViews = [...combinedReceivedViews, ...retroReceivedViews].sort(
+      (a, b) =>
+        new Date(b.viewed_at || b.post?.created_at || 0) -
+        new Date(a.viewed_at || a.post?.created_at || 0)
+    );
+    setMyReceivedCloudViews(allReceivedViews);
+
+    const existingReceivedClaimPostIds = new Set(
+      combinedReceivedClaims.map((claim) => String(claim.crush_post_id))
+    );
     const finalReceivedSenderPicks = (receivedSenderPicksResult.error
       ? []
       : receivedSenderPicksResult.data || []
@@ -3088,6 +3155,7 @@ const hideSearchResult = (postId) => {
         post: receivedPosts.find((item) => String(item.id) === String(pick.crush_post_id)) || null,
       }))
       .filter((pick) => pick.post)
+      .filter((pick) => !existingReceivedClaimPostIds.has(String(pick.crush_post_id)))
       .filter((pick) => !blockedUserIds.includes(pick.sender_user_id));
     setReceivedSenderCheckPicks(finalReceivedSenderPicks);
 
@@ -3218,9 +3286,9 @@ const getWeatherPlaceCounts = () => {
   };
 
   const rejectClaim = async (claimId, rejectedBy) => {
-    if (claimActionSubmittingId) return;
+    if (!claimId || claimActionSubmittingId) return;
 
-    const ok = window.confirm("이 응답을 거절할까요?");
+    const ok = window.confirm("거절 의사를 상대에게 표시할까요?");
     if (!ok) return;
 
     setClaimActionSubmittingId(claimId);
@@ -3789,7 +3857,7 @@ const getWeatherPlaceCounts = () => {
             onClick={() => saveSenderCheckPick(post, check, "interested")}
             disabled={isSubmitting || pick?.status === "interested"}
           >
-            {pick?.status === "interested" ? "선택 완료" : "이 사람 같아요"}
+            {pick?.status === "interested" ? "요청 완료" : "이 사람인 거 같아요"}
           </button>
           <button
             type="button"
@@ -3832,11 +3900,13 @@ const getWeatherPlaceCounts = () => {
     [
       ...receivedClaims.map((claim) => String(claim.crush_post_id)),
       ...myReceivedCloudViews.map((view) => String(view.crush_post_id)),
+      ...receivedSenderCheckPicks.map((pick) => String(pick.crush_post_id)),
     ]
   ).size;
 
   const receivedCloudItems = receivedClaims;
   const receivedViewItems = myReceivedCloudViews;
+  const receivedSenderPickItems = receivedSenderCheckPicks;
 
   const totalSentResponseCount = sentClaims.length;
   const acceptedMatchCount = [...sentClaims, ...receivedClaims].filter(
@@ -3875,6 +3945,7 @@ const getWeatherPlaceCounts = () => {
     ...mySentPosts.map((post) => post.seen_date).filter(Boolean),
     ...receivedClaims.map((claim) => claim.post?.seen_date).filter(Boolean),
     ...myReceivedCloudViews.map((view) => view.post?.seen_date).filter(Boolean),
+    ...receivedSenderCheckPicks.map((pick) => pick.post?.seen_date).filter(Boolean),
     ...myCloudChecks.map((check) => check.seen_date).filter(Boolean),
   ]),
 ].sort((a, b) => b.localeCompare(a));
@@ -3889,15 +3960,20 @@ const getWeatherPlaceCounts = () => {
   const selectedDateReceivedViews = myReceivedCloudViews.filter(
     (view) => view.post?.seen_date === selectedActivityDate
   );
+  const selectedDateReceivedSenderPicks = receivedSenderCheckPicks.filter(
+    (pick) => pick.post?.seen_date === selectedActivityDate
+  );
 
   const selectedDateReceivedCloudCount = new Set(
     [
       ...selectedDateReceivedClaims.map((claim) => String(claim.crush_post_id)),
       ...selectedDateReceivedViews.map((view) => String(view.crush_post_id)),
+      ...selectedDateReceivedSenderPicks.map((pick) => String(pick.crush_post_id)),
     ]
   ).size;
   const selectedDateReceivedCloudItems = selectedDateReceivedClaims;
   const selectedDateReceivedViewItems = selectedDateReceivedViews;
+  const selectedDateReceivedSenderPickItems = selectedDateReceivedSenderPicks;
   const selectedDateCloudChecks = myCloudChecks.filter(
   (check) => check.seen_date === selectedActivityDate
 );
@@ -3958,7 +4034,7 @@ const getWeatherPlaceCounts = () => {
     } · ${pick.post?.place || "장소 없음"}`,
     created_at: pick.updated_at || pick.created_at,
     active: true,
-    actionLabel: "대화할지 확인하기",
+    actionLabel: "채팅방 수락 / 거절하기",
     onClick: () => openSenderPickChatPreview(pick),
   })),
 ].sort((a, b) => new Date(b.created_at || 0) - new Date(a.created_at || 0));
@@ -3999,10 +4075,33 @@ const getWeatherPlaceCounts = () => {
     ];
   };
 
+  const renderChatRequestPostDetail = (post, title = "상대가 띄운 구름 상세목록") => {
+    if (!post) return null;
+
+    return (
+      <div className="noticeBox chatRequestDetailBox">
+        <p className="qaTitle">{title}</p>
+        <p>
+          <b>
+            {post.seen_date || "-"}, {post.time_period || "-"}, {post.place || "-"}
+          </b>
+        </p>
+        {renderPostQuestionAnswer(post)}
+        <p className="message">
+          “{cleanMessage(post.message) || "남긴 메시지가 없어요."}”
+        </p>
+      </div>
+    );
+  };
+
   const renderSentClaimCard = (claim) => {
   return (
     <div className="responseBox" key={claim.id}>
-      <p className="miniTitle">채팅방 요청 도착</p>
+      <p className="miniTitle">
+        {claim.status === "chat_requested"
+          ? "내가 보낸 채팅방 요청"
+          : "내가 찾는 사람인거 같아요"}
+      </p>
 
       <p>
         요청한 사람 닉네임: <b>{claim.claimer_nickname || "-"}</b>
@@ -4017,27 +4116,30 @@ const getWeatherPlaceCounts = () => {
             {claim.status === "chat_requested" && "채팅방 요청함"}
             {claim.status === "chat_accepted" && "대화 중"}
             {claim.status === "rejected" && "거절됨"}
-            {claim.status === "pending" && "수락 대기 중"}
+            {claim.status === "pending" && "수락/거절 선택 필요"}
         </b>
       </p>
 
       {claim.status === "pending" && (
-        <div className="claimActionRow">
-          <button
-            onClick={() => acceptChatRequest(claim, claim.claimer_nickname)}
-            disabled={claimActionSubmittingId === claim.id}
-          >
-            {claimActionSubmittingId === claim.id ? "수락 중..." : "채팅방 수락하기"}
-          </button>
-          <button
-            type="button"
-            className="white"
-            onClick={() => rejectClaim(claim.id, "sender")}
-            disabled={claimActionSubmittingId === claim.id}
-          >
-            거절
-          </button>
-        </div>
+        <>
+          <p className="requestDecisionTitle">내가 찾는 사람인거 같아요</p>
+          <div className="claimActionRow">
+            <button
+              onClick={() => acceptChatRequest(claim, claim.claimer_nickname)}
+              disabled={claimActionSubmittingId === claim.id}
+            >
+              {claimActionSubmittingId === claim.id ? "수락 중..." : "채팅방 수락하기"}
+            </button>
+            <button
+              type="button"
+              className="white"
+              onClick={() => rejectClaim(claim.id, "sender")}
+              disabled={claimActionSubmittingId === claim.id}
+            >
+              거절 의사 보내기
+            </button>
+          </div>
+        </>
       )}
 
       {claim.status === "chat_requested" && (
@@ -4260,6 +4362,62 @@ const getWeatherPlaceCounts = () => {
 	      </details>
 	    );
 	  };
+
+  const renderReceivedSenderPickCard = (pick) => {
+    const post = pick.post;
+    if (!post) return null;
+
+    const isSubmitting = claimActionSubmittingId === `sender-pick-${pick.id}`;
+
+    return (
+      <details
+        className="post postCollapsible"
+        key={`sender-pick-card-${pick.id || `${pick.crush_post_id}-${pick.cloud_check_id}`}`}
+      >
+        <summary className="postSummary">
+          <span className="statusPill active">채팅방 요청 도착</span>
+          <span className="postSummaryText">
+            {post.seen_date}, {post.time_period}, {post.place}
+          </span>
+          <span className="postSummaryArrow" aria-hidden="true">›</span>
+        </summary>
+
+        <div className="postBody">
+          <p className="miniTitle">상대가 내 구름 확인 기록을 선택했어요</p>
+          <p className="helperText">
+            상대가 띄운 구름 상세목록을 보고 채팅방을 수락하거나 거절할 수 있어요.
+          </p>
+
+          {renderChatRequestPostDetail(post)}
+
+          <button
+            type="button"
+            onClick={() => openSenderPickChatPreview(pick)}
+            disabled={isSubmitting}
+          >
+            {isSubmitting ? "여는 중..." : "채팅방 수락 / 거절하기"}
+          </button>
+
+          <div className="safetyActionRow">
+            <button
+              type="button"
+              className="dismissTextButton"
+              onClick={() => reportContent("post", post.id, post.sender_user_id)}
+            >
+              신고하기
+            </button>
+            <button
+              type="button"
+              className="dismissTextButton"
+              onClick={() => blockUser(post.sender_user_id, post.sender_nickname)}
+            >
+              차단하기
+            </button>
+          </div>
+        </div>
+      </details>
+    );
+  };
 
   const renderReceivedCloudViewCard = (view) => {
     const post = view.post;
@@ -6592,7 +6750,7 @@ const getWeatherPlaceCounts = () => {
       )}
       {page === "chatPreview" && (
         <div className="card">
-          <h2>대화 요청이 왔어요</h2>
+          <h2>구름 채팅방 요청이 왔어요</h2>
 
           {!chatPreviewProfile ? (
             <p className="notice">불러오는 중이에요...</p>
@@ -6610,19 +6768,26 @@ const getWeatherPlaceCounts = () => {
             </div>
           )}
 
+          {renderChatRequestPostDetail(chatPreviewClaim?.post)}
+
+          <p className="helperText">
+            수락하면 구름 채팅방이 바로 열리고, 거절하면 상대에게 거절 의사가 표시돼요.
+          </p>
+
           <button
             onClick={() => acceptChatRequest(chatPreviewClaim)}
             disabled={chatActionSubmitting || !chatPreviewProfile}
           >
-            {chatActionSubmitting ? "수락 중..." : "대화 수락하기"}
+            {chatActionSubmitting ? "수락 중..." : "채팅방 수락하기"}
           </button>
 
           <button
             type="button"
             className="white"
-            onClick={() => rejectClaim(chatPreviewClaim.id, "claimer")}
+            onClick={() => rejectClaim(chatPreviewClaim?.id, "claimer")}
+            disabled={chatActionSubmitting || !chatPreviewClaim?.id}
           >
-            거절
+            거절 의사 보내기
           </button>
 
           <button onClick={() => setPage("matching")} className="white">
@@ -7002,6 +7167,7 @@ const getWeatherPlaceCounts = () => {
                 <p className="noticeBox">아직 나에게 온 구름이 없어요.</p>
               )}
 
+              {receivedSenderPickItems.map((pick) => renderReceivedSenderPickCard(pick))}
               {receivedViewItems.map((view) => renderReceivedCloudViewCard(view))}
               {receivedCloudItems.map((claim) => renderReceivedClaimCard(claim))}
             </div>
@@ -7152,6 +7318,9 @@ const getWeatherPlaceCounts = () => {
                     )}
                     {selectedDateReceivedCloudItems.map((claim) =>
                       renderReceivedClaimCard(claim)
+                    )}
+                    {selectedDateReceivedSenderPickItems.map((pick) =>
+                      renderReceivedSenderPickCard(pick)
                     )}
                     {selectedDateReceivedViewItems.map((view) =>
                       renderReceivedCloudViewCard(view)
