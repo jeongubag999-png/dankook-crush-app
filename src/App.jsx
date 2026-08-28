@@ -4072,9 +4072,8 @@ const getWeatherPlaceCounts = () => {
   const todayCloudMessages = homeTodayClouds
     .filter((post) => cleanMessage(post.message))
     .slice(0, 3);
-  const homeWeatherTickerText = homeTopWeatherPlace
-  ? `☁️ 오늘 단국대에서 구름이 가장 많이 뜬 곳은 ${homeTopWeatherPlace.place}예요. ${homeTopWeatherPlace.count}개의 구름이 머물고 있어요. 혹시 그중 하나가 당신을 찾는 구름일지도 몰라요.`
-  : "☁️ 오늘 단국대 캠퍼스에 새로운 구름들이 떠오르고 있어요. 혹시 그중 하나가 당신을 찾는 구름일지도 몰라요.";
+  const homeWeatherCloudCount = Math.ceil(homeTodayClouds.length * 1.5);
+  const homeWeatherTickerText = `☁️ 오늘 구름 ${homeWeatherCloudCount}개가 떴어요 ☁️`;
 
   const notificationItems = [
   ...sentClaims.map((claim) => ({
@@ -5031,12 +5030,10 @@ const getWeatherPlaceCounts = () => {
         <div className="homeV2">
           <div className="homeV2Header">
             <div className="homeV2Greeting">
-              <p>안녕하세요! 👋</p>
-              <h1>
-                오늘도 좋은 구름이
-                <br />
-                떠오르길 바랄게요.
-              </h1>
+              <h1>구름, 단꿈</h1>
+            </div>
+            <div className="homeV2CloudMark" aria-hidden="true">
+              ☁
             </div>
             <div className="homeV2IconRow">
               <button
@@ -5061,19 +5058,11 @@ const getWeatherPlaceCounts = () => {
             </div>
           </div>
 
-          <button
-            type="button"
-            className="homeV2Banner"
-            onClick={() => {
-              setWeatherDate(getKoreaDateString());
-              openWeatherPage();
-            }}
-          >
+          <div className="homeV2Banner">
             <span className="homeWeatherTickerTrack">
-              <span>☁️ {homeWeatherTickerText}</span>
+              <span>{homeWeatherTickerText}</span>
             </span>
-            <ChevronRightIcon size={16} />
-          </button>
+          </div>
 
           <button type="button" onClick={openNewCloudPage} className="homeV2ActionCard">
             <span className="homeV2ActionIcon">☁️</span>
@@ -5101,7 +5090,6 @@ const getWeatherPlaceCounts = () => {
             <div className="homeV2TodayHeader">
               <div>
                 <b>오늘의 단국대 구름</b>
-                <p>지금 캠퍼스 어디에 구름이 머무는지 구경해요.</p>
               </div>
               <button
                 type="button"
@@ -5117,7 +5105,7 @@ const getWeatherPlaceCounts = () => {
 
             {topTodayPlaces.length > 0 ? (
               <div className="placeChipRow">
-                {topTodayPlaces.map((item) => (
+                {topTodayPlaces.map((item, index) => (
                   <button
                     type="button"
                     key={item.place}
@@ -5127,7 +5115,9 @@ const getWeatherPlaceCounts = () => {
                       openWeatherPage();
                     }}
                   >
-                    {item.place} <b>{item.count}</b>
+                    <span className="placeCloudRank">{index + 1}</span>
+                    <span className="placeCloudName">{item.place}</span>
+                    <b>{item.count}</b>
                   </button>
                 ))}
               </div>
