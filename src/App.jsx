@@ -1,4 +1,4 @@
-import { useCallback, useEffect, useRef, useState } from "react";
+import { useCallback, useEffect, useMemo, useRef, useState } from "react";
 import toast, { Toaster } from "react-hot-toast";
 import { App as CapacitorApp } from "@capacitor/app";
 import "./App.css";
@@ -3572,19 +3572,26 @@ const getWeatherPlaceCounts = () => {
       );
       setPage("chatRoom");
     },
-    [currentUser]
+    // currentUser는 토큰 리프레시마다 새 객체로 바뀌지만 이 함수가 실제로 쓰는 건
+    // currentUser.id뿐이라, id를 dep으로 써서 갱신마다 realtime 채널이 재구독되는 걸 막는다.
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+    [currentUser?.id]
   );
 
-  // 내가 응답한(claimer) 요청이 수락되는 순간을 realtime으로 감지.
-  // (앱을 닫아둔 동안 이미 수락된 건이 있을 수 있어 구독 전에 한 번 조회해 따라잡는다.)
+  // 내가 응답한(claimer) 요청이 수락되거나, 내가 보낸 구름에 달린 응답이 수락되어
+  // 채팅방이 열리는 순간을 realtime으로 감지.
+  // claims RLS가 "본인이 claimer_user_id이거나 해당 crush_post의 sender인 경우"로만
+  // 행 접근을 제한하므로, 필터 없이 구독해도 서버가 이 유저가 볼 수 있는 행만 전달한다.
+  // 덕분에 채널이 currentUser.id에만 의존하고, 구름을 새로 보내도 재구독되지 않는다.
   useEffect(() => {
-    if (!currentUser) return undefined;
+    const userId = currentUser?.id;
+    if (!userId) return undefined;
     let cancelled = false;
 
     supabase
       .from("claims")
       .select("*")
-      .eq("claimer_user_id", currentUser.id)
+      .eq("claimer_user_id", userId)
       .eq("status", "chat_accepted")
       .not("chat_room_id", "is", null)
       .order("responded_at", { ascending: false })
@@ -3595,15 +3602,10 @@ const getWeatherPlaceCounts = () => {
       });
 
     const channel = supabase
-      .channel(`claims_as_claimer_${currentUser.id}`)
+      .channel(`claims_updates_${userId}`)
       .on(
         "postgres_changes",
-        {
-          event: "UPDATE",
-          schema: "public",
-          table: "claims",
-          filter: `claimer_user_id=eq.${currentUser.id}`,
-        },
+        { event: "UPDATE", schema: "public", table: "claims" },
         (payload) => handleAcceptedClaim(payload.new)
       )
       .subscribe();
@@ -3612,12 +3614,17 @@ const getWeatherPlaceCounts = () => {
       cancelled = true;
       supabase.removeChannel(channel);
     };
-  }, [currentUser, handleAcceptedClaim]);
+  }, [currentUser?.id, handleAcceptedClaim]);
 
-  // 내가 보낸 구름에 달린 응답이 수락되는 순간을 realtime으로 감지.
-  const mySentPostIdsKey = mySentPosts.map((post) => post.id).filter(Boolean).join(",");
+  // 앱을 닫아둔 동안 내가 보낸 구름에 이미 수락된 응답이 있을 수 있어 따라잡는 catch-up.
+  // 구름을 새로 보낼 때마다 다시 실행되지만, 위 realtime 채널과 달리 재구독은 필요 없다
+  // (채널은 필터 없이 이미 모든 관련 이벤트를 받고 있다).
+  const mySentPostIdsKey = useMemo(
+    () => mySentPosts.map((post) => post.id).filter(Boolean).join(","),
+    [mySentPosts]
+  );
   useEffect(() => {
-    if (!currentUser || !mySentPostIdsKey) return undefined;
+    if (!currentUser?.id || !mySentPostIdsKey) return undefined;
     let cancelled = false;
 
     supabase
@@ -3633,25 +3640,10 @@ const getWeatherPlaceCounts = () => {
         (data || []).forEach(handleAcceptedClaim);
       });
 
-    const channel = supabase
-      .channel(`claims_on_sent_posts_${currentUser.id}_${mySentPostIdsKey}`)
-      .on(
-        "postgres_changes",
-        {
-          event: "UPDATE",
-          schema: "public",
-          table: "claims",
-          filter: `crush_post_id=in.(${mySentPostIdsKey})`,
-        },
-        (payload) => handleAcceptedClaim(payload.new)
-      )
-      .subscribe();
-
     return () => {
       cancelled = true;
-      supabase.removeChannel(channel);
     };
-  }, [currentUser, mySentPostIdsKey, handleAcceptedClaim]);
+  }, [currentUser?.id, mySentPostIdsKey, handleAcceptedClaim]);
 
   const deleteMyPost = async (postId) => {
     if (!currentUser) return;

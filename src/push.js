@@ -2,52 +2,59 @@ import { Capacitor } from "@capacitor/core";
 
 const ONESIGNAL_APP_ID = import.meta.env.VITE_ONESIGNAL_APP_ID;
 
-let initialized = false;
+let oneSignalInstance = null;
+let initPromise = null;
 
 const loadOneSignal = async () => {
+  if (oneSignalInstance) return oneSignalInstance;
   const mod = await import("onesignal-cordova-plugin");
   const candidates = [mod?.default?.default, mod?.default, mod];
-  const found = candidates.find((c) => c && typeof c.initialize === "function");
-  console.log(
-    "[push] OneSignal 모듈 후보:",
-    candidates.map((c) => typeof c?.initialize)
-  );
-  return found;
+  oneSignalInstance = candidates.find((c) => c && typeof c.initialize === "function") || null;
+  return oneSignalInstance;
 };
 
-export const initPush = async () => {
-  console.log("[push] initPush 호출됨. isNativePlatform:", Capacitor.isNativePlatform());
-  if (!Capacitor.isNativePlatform() || initialized) return;
-  if (!ONESIGNAL_APP_ID) {
-    console.log("[push] VITE_ONESIGNAL_APP_ID가 설정되지 않아 푸시 알림을 건너뜁니다.");
-    return;
+// initPush()와 linkPushUser/unlinkPushUser는 서로 다른 useEffect에서 독립적으로
+// 트리거된다. initPush의 비동기 초기화(권한 요청 포함)가 끝나기 전에 currentUser가
+// 먼저 resolve되면 링크가 조용히 스킵되던 문제가 있어, 초기화 진행 상태를
+// 하나의 Promise로 공유해 링크/언링크가 항상 그 완료를 기다리도록 한다.
+const ensureInit = () => {
+  if (!Capacitor.isNativePlatform() || !ONESIGNAL_APP_ID) return Promise.resolve(false);
+  if (!initPromise) {
+    initPromise = (async () => {
+      try {
+        const OneSignal = await loadOneSignal();
+        if (!OneSignal) {
+          initPromise = null;
+          return false;
+        }
+        OneSignal.initialize(ONESIGNAL_APP_ID);
+        await OneSignal.Notifications.requestPermission(true);
+        return true;
+      } catch (err) {
+        console.log("[push] 초기화 중 에러:", err?.message || err);
+        initPromise = null;
+        return false;
+      }
+    })();
   }
+  return initPromise;
+};
 
-  try {
-    console.log("[push] OneSignal App ID:", ONESIGNAL_APP_ID);
-    const OneSignal = await loadOneSignal();
-    if (!OneSignal) {
-      console.log("[push] OneSignal 인스턴스를 찾지 못했어요.");
-      return;
-    }
-    OneSignal.initialize(ONESIGNAL_APP_ID);
-    console.log("[push] OneSignal.initialize 호출 완료");
-    const accepted = await OneSignal.Notifications.requestPermission(true);
-    console.log("[push] requestPermission 결과:", accepted);
-    initialized = true;
-  } catch (err) {
-    console.log("[push] 초기화 중 에러:", err?.message || err);
-  }
+export const initPush = () => {
+  ensureInit();
 };
 
 export const linkPushUser = async (userId) => {
-  if (!Capacitor.isNativePlatform() || !initialized || !userId) return;
+  if (!userId) return;
+  const ready = await ensureInit();
+  if (!ready) return;
   const OneSignal = await loadOneSignal();
   OneSignal?.login(String(userId));
 };
 
 export const unlinkPushUser = async () => {
-  if (!Capacitor.isNativePlatform() || !initialized) return;
+  const ready = await ensureInit();
+  if (!ready) return;
   const OneSignal = await loadOneSignal();
   OneSignal?.logout();
 };
