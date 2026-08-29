@@ -1134,6 +1134,58 @@ textarea {
   margin: 6px 0;
 }
 
+.notificationBellWrap {
+  position: relative;
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  line-height: 1;
+}
+
+.notificationBadge {
+  position: absolute;
+  top: -9px;
+  right: -10px;
+  min-width: 18px;
+  height: 18px;
+  padding: 0 5px;
+  border-radius: 999px;
+  background: #ff3b3b;
+  color: white;
+  border: 2px solid white;
+  font-size: 10px;
+  font-weight: 950;
+  line-height: 14px;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  box-shadow: 0 6px 12px rgba(255, 59, 59, 0.24);
+}
+
+.manageTitleButton {
+  width: auto;
+  height: auto;
+  min-height: 0;
+  margin: 0;
+  padding: 0;
+  border: 0;
+  border-radius: 0;
+  background: transparent;
+  color: #071c42;
+  box-shadow: none;
+  font-size: 28px;
+  font-weight: 950;
+  line-height: 1.2;
+  text-align: left;
+}
+
+.manageTitleButton:hover {
+  background: transparent;
+  transform: none;
+  box-shadow: none;
+  color: #2f80ed;
+}
+
 .activitySummaryBox {
   display: grid;
   grid-template-columns: 1fr 1fr;
@@ -2010,6 +2062,112 @@ textarea {
   justify-content: center;
 }
 
+.backListButton {
+  margin-top: 14px;
+}
+
+.backListButton + .manageSectionTitle {
+  margin-top: 18px;
+}
+
+.cloudFolderList {
+  display: grid;
+  gap: 12px;
+  margin-top: 18px;
+}
+
+.cloudFolderButton {
+  position: relative;
+  display: grid;
+  grid-template-columns: 1fr auto 18px;
+  align-items: center;
+  column-gap: 10px;
+  width: 100%;
+  min-height: 76px;
+  height: auto;
+  margin-top: 0;
+  padding: 18px 18px;
+  border-radius: 22px;
+  border: 1px solid #d9ebff;
+  background:
+    linear-gradient(135deg, rgba(255, 255, 255, 0.96), rgba(239, 248, 255, 0.96)),
+    #f7fbff;
+  color: #0f2a56;
+  box-shadow: 0 12px 26px rgba(47, 128, 237, 0.08);
+  text-align: left;
+}
+
+.cloudFolderButton:hover {
+  transform: translateY(-1px);
+  box-shadow: 0 16px 30px rgba(47, 128, 237, 0.13);
+}
+
+.cloudFolderTitle {
+  min-width: 0;
+  font-size: 17px;
+  font-weight: 950;
+  line-height: 1.25;
+  word-break: keep-all;
+}
+
+.cloudFolderTitle b {
+  margin-left: 5px;
+  color: #2f80ed;
+}
+
+.cloudFolderNewBadge {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  min-width: 22px;
+  height: 22px;
+  margin-left: 8px;
+  padding: 0 6px;
+  border-radius: 999px;
+  background: white;
+  color: #ff3b3b;
+  border: 2px solid #ff5a5a;
+  font-size: 12px;
+  font-weight: 950;
+  line-height: 1;
+  vertical-align: middle;
+}
+
+.cloudFolderHint {
+  padding: 7px 10px;
+  border-radius: 999px;
+  background: #e8f3ff;
+  color: #3973b8;
+  font-size: 12px;
+  font-weight: 900;
+  line-height: 1;
+  white-space: nowrap;
+}
+
+.cloudFolderArrow {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  color: #8aa4c4;
+  line-height: 0;
+}
+
+.manageTitleButton,
+.manageTitleButton:hover,
+.manageTitleButton:disabled {
+  width: auto;
+  height: auto;
+  min-height: 0;
+  max-height: none;
+  margin: 0;
+  padding: 0;
+  border: 0;
+  border-radius: 0;
+  background: transparent;
+  box-shadow: none;
+  transform: none;
+}
+
 /* 마이페이지 통계는 4개라서 4등분 */
 .mypageStatsGrid {
   display: grid;
@@ -2051,14 +2209,45 @@ textarea {
 /* 알림 카드 안쪽 배지 위치 안정화 */
 .notificationCard .postTopLine {
   display: flex;
-  justify-content: flex-end;
+  justify-content: flex-start;
   align-items: center;
   margin-bottom: 10px;
 }
 
 /* 알림 카드 높이 너무 들쭉날쭉하지 않게 */
 .notificationCard {
+  position: relative;
   min-height: 140px;
+  padding-right: 58px;
+}
+
+.notificationArrowButton {
+  position: absolute;
+  top: 50%;
+  right: 18px;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  width: 34px;
+  min-width: 34px;
+  height: 34px;
+  min-height: 34px;
+  max-height: 34px;
+  margin: 0;
+  padding: 0;
+  border-radius: 999px;
+  background: #edf6ff;
+  color: #6f8fb7;
+  border: 1px solid #dcecff;
+  box-shadow: none;
+  line-height: 0;
+  transform: translateY(-50%);
+}
+
+.notificationArrowButton:hover {
+  background: #e2f0ff;
+  transform: translateY(-50%);
+  box-shadow: none;
 }
 
 /* 선택 입력칸 설명문 여백 보정 */
