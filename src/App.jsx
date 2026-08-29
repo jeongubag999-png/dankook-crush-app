@@ -98,6 +98,8 @@ const CLOUD_SEND_STEP_NAMES = {
   5: "소지품",
   6: "짧은 메시지",
 };
+const CLOUD_COUNT_MULTIPLIER = 2.5;
+const getDisplayedCloudCount = (count) => Math.ceil((Number(count) || 0) * CLOUD_COUNT_MULTIPLIER);
 const CLOUD_CHECK_STEP_NAMES = {
   1: "확인할 날짜",
   2: "헤어 정보",
@@ -422,7 +424,10 @@ const [verificationFile, setVerificationFile] = useState(null);
   const [weatherDate, setWeatherDate] = useState(() => getKoreaDateString());
   const [weatherLoading, setWeatherLoading] = useState(false);
   const [weatherClouds, setWeatherClouds] = useState([]);
-  const [selectedWeatherPlace, setSelectedWeatherPlace] = useState("");
+  const [findOwnerDate, setFindOwnerDate] = useState(() => getKoreaDateString());
+  const [findOwnerPlace, setFindOwnerPlace] = useState("");
+  const [findOwnerLoading, setFindOwnerLoading] = useState(false);
+  const [findOwnerClouds, setFindOwnerClouds] = useState([]);
   const [homeTopWeatherPlace, setHomeTopWeatherPlace] = useState(null);
   const [homeTodayClouds, setHomeTodayClouds] = useState([]);
   const [authSubmitting, setAuthSubmitting] = useState(false);
@@ -1747,7 +1752,7 @@ const hideSearchResult = (postId) => {
           if (navigator.share) {
             try {
               await navigator.share({
-                title: "☁️ 단꿈 - 이 구름 주인 찾아주기",
+                title: "단꿈 - 구름 찾아주기",
                 text: shareText,
               });
             } catch (e) {
@@ -1762,7 +1767,7 @@ const hideSearchResult = (postId) => {
           }
         }}
       >
-        ☁️ 이 구름 주인 찾아주기
+        ✉️ 구름 찾아주기
       </button>
     </>
   );
@@ -3249,7 +3254,6 @@ const hideSearchResult = (postId) => {
   }
 
   setWeatherLoading(true);
-  setSelectedWeatherPlace("");
 
   const { data, error } = await supabase
     .from("crush_posts")
@@ -3294,8 +3298,68 @@ const getWeatherPlaceCounts = () => {
     countMap[place].posts.push(post);
   });
 
-  return Object.values(countMap).sort((a, b) => b.count - a.count);
+  return Object.values(countMap)
+    .map((item) => ({
+      ...item,
+      displayCount: getDisplayedCloudCount(item.count),
+    }))
+    .sort((a, b) => b.count - a.count);
 };
+
+const loadFindOwnerClouds = async (
+  targetDate = findOwnerDate,
+  targetPlace = findOwnerPlace,
+  silent = false
+) => {
+  if (!checkProfileRequired()) return false;
+
+  if (!targetDate) {
+    if (!silent) toast.error("날짜를 선택해주세요.");
+    return false;
+  }
+
+  setFindOwnerLoading(true);
+
+  const { data, error } = await supabase.rpc("find_owner_unclaimed_clouds", {
+    p_seen_date: targetDate,
+    p_campus: profile.campus,
+    p_place: targetPlace || null,
+  });
+
+  if (error) {
+    if (!silent) {
+      toast.error("구름 찾아주기 목록을 불러오지 못했어요: " + error.message);
+    }
+    console.log(error);
+    setFindOwnerClouds([]);
+    setFindOwnerLoading(false);
+    return false;
+  }
+
+  setFindOwnerClouds(data || []);
+  setFindOwnerLoading(false);
+  return true;
+};
+
+const openFindOwnerPage = async () => {
+  if (!checkProfileRequired()) return;
+
+  const today = getKoreaDateString();
+  setFindOwnerDate(today);
+  setFindOwnerPlace("");
+  setPage("findOwner");
+  await loadFindOwnerClouds(today, "");
+};
+
+useEffect(() => {
+  if (page !== "findOwner" || !findOwnerDate || !profile.campus) return undefined;
+
+  const timer = setInterval(() => {
+    loadFindOwnerClouds(findOwnerDate, findOwnerPlace, true);
+  }, 30000);
+
+  return () => clearInterval(timer);
+}, [page, findOwnerDate, findOwnerPlace, profile.campus]);
 
   const requestChat = async (claimId) => {
     if (claimActionSubmittingId) return;
@@ -4102,13 +4166,26 @@ const getWeatherPlaceCounts = () => {
     acc[place].count += 1;
     return acc;
   }, {});
-  const topTodayPlaces = Object.values(todayPlaceCounts)
-    .sort((a, b) => b.count - a.count)
-    .slice(0, 3);
+  const todayPlaceCountItems = Object.values(todayPlaceCounts)
+    .map((item) => ({
+      ...item,
+      displayCount: getDisplayedCloudCount(item.count),
+    }))
+    .sort((a, b) => b.count - a.count);
+  const topTodayPlaces = todayPlaceCountItems.slice(0, 3);
   const todayCloudMessages = homeTodayClouds
     .filter((post) => cleanMessage(post.message))
     .slice(0, 3);
-  const homeWeatherCloudCount = Math.ceil(homeTodayClouds.length * 1.5);
+  const homeWeatherCloudCount = todayPlaceCountItems.reduce(
+    (sum, item) => sum + item.displayCount,
+    0
+  );
+  const weatherPlaceCounts = getWeatherPlaceCounts();
+  const weatherDisplayedCloudCount = weatherPlaceCounts.reduce(
+    (sum, item) => sum + item.displayCount,
+    0
+  );
+  const findOwnerPlaceOptions = getPlaceOptions(profile.campus);
 
   const notificationItems = [
   ...sentClaims.map((claim) => ({
@@ -5125,6 +5202,17 @@ const getWeatherPlaceCounts = () => {
             </span>
           </button>
 
+          <button type="button" onClick={openFindOwnerPage} className="homeV2ActionCard">
+            <span className="homeV2ActionIcon blue">✉️</span>
+            <span className="homeV2ActionText">
+              <b>구름 찾아주기</b>
+              <small>응답 없는 구름을 친구에게 공유해요.</small>
+            </span>
+            <span className="homeV2ActionChevron">
+              <ChevronRightIcon />
+            </span>
+          </button>
+
           <div className="homeV2TodayCard">
             <div className="homeV2TodayHeader">
               <div>
@@ -5156,7 +5244,7 @@ const getWeatherPlaceCounts = () => {
                   >
                     <span className="placeCloudRank">{index + 1}</span>
                     <span className="placeCloudName">{item.place}</span>
-                    <b>{item.count}</b>
+                    <b>{item.displayCount}</b>
                   </button>
                 ))}
               </div>
@@ -7116,11 +7204,10 @@ const getWeatherPlaceCounts = () => {
       )}
       {page === "weather" && (
   <div className="card weatherCard">
-    <h2>단국대학교 날씨 확인하기</h2>
+    <h2>오늘의 단국대 구름</h2>
 
     <p className="subtitle">
-      날짜를 선택하면 단국대 건물 또는 특정 장소에 구름이 몇 개 떴는지
-      확인할 수 있어요.
+      날짜를 선택하면 장소별 구름 개수 순위를 확인할 수 있어요.
     </p>
 
     <div className="weatherHeroBox">
@@ -7165,82 +7252,133 @@ const getWeatherPlaceCounts = () => {
         <div className="weatherSummaryGrid">
           <div className="weatherSummaryItem">
             <span>전체 구름</span>
-            <b>{weatherClouds.length}</b>
+            <b>{weatherDisplayedCloudCount}</b>
           </div>
 
           <div className="weatherSummaryItem">
             <span>구름 뜬 장소</span>
-            <b>{getWeatherPlaceCounts().length}</b>
+            <b>{weatherPlaceCounts.length}</b>
           </div>
         </div>
 
         <div className="weatherPlaceList">
-          {getWeatherPlaceCounts().map((item, index) => (
-            <button
-              type="button"
+          {weatherPlaceCounts.map((item, index) => (
+            <div
               key={item.place}
-              className={
-                selectedWeatherPlace === item.place
-                  ? "weatherPlaceCard active"
-                  : "weatherPlaceCard"
-              }
-              onClick={() =>
-                setSelectedWeatherPlace(
-                  selectedWeatherPlace === item.place ? "" : item.place
-                )
-              }
+              className="weatherPlaceCard"
             >
               <div className="weatherRank">#{index + 1}</div>
 
               <div className="weatherPlaceInfo">
                 <b>{item.place}</b>
-                <span>{getWeatherComment(item.count)}</span>
+                <span>{getWeatherComment(item.displayCount)}</span>
               </div>
 
               <div className="weatherCount">
-                <b>{item.count}</b>
+                <b>{item.displayCount}</b>
                 <span>개</span>
               </div>
-            </button>
+            </div>
           ))}
         </div>
-
-        {selectedWeatherPlace && (
-          <div className="weatherDetailBox">
-            <h3 className="manageSectionTitle">
-              {selectedWeatherPlace}에 뜬 구름
-            </h3>
-
-            {weatherClouds
-              .filter(
-                (post) => getMainPlaceFromPost(post) === selectedWeatherPlace
-              )
-              .map((post) => (
-                <div className="post resultPost" key={post.id}>
-                  <div className="postTopLine">
-                    <span className="statusPill active">
-                      ☁ {selectedWeatherPlace} 구름
-                    </span>
-                  </div>
-
-                  <p>
-                    <b>
-                      {post.seen_date}, {post.time_period}, {post.place}
-                    </b>
-                  </p>
-
-                  {renderPostQuestionAnswer(post)}
-
-                  <p className="message">
-                    “{cleanMessage(post.message) || "남긴 메시지가 없어요."}”
-                  </p>
-
-                  {renderCloudActionButtons(post)}
-                </div>
-              ))}
-          </div>
-        )}
       </>
+    )}
+
+    <button onClick={() => setPage("home")} className="white">
+      홈으로
+    </button>
+  </div>
+)}
+      {page === "findOwner" && (
+  <div className="card weatherCard findOwnerCard">
+    <h2>구름 찾아주기</h2>
+
+    <p className="subtitle">
+      아직 아무 응답도 받지 못한 구름만 모아 보여줘요.
+    </p>
+
+    <div className="weatherHeroBox">
+      <div className="weatherIcon">✉️</div>
+      <div>
+        <p className="weatherHeroTitle">응답 없는 구름</p>
+        <p className="weatherHeroDesc">
+          날짜와 장소를 골라 친구에게 공유할 구름을 찾아보세요.
+        </p>
+      </div>
+    </div>
+
+    <div className="formGroup">
+      <label className="formLabel">확인할 날짜</label>
+      <input
+        type="date"
+        value={findOwnerDate}
+        onChange={(e) => setFindOwnerDate(e.target.value)}
+      />
+    </div>
+
+    <div className="formGroup">
+      <label className="formLabel">장소 선택</label>
+      <select
+        value={findOwnerPlace}
+        onChange={(e) => setFindOwnerPlace(e.target.value)}
+      >
+        <option value="">전체 장소</option>
+        {findOwnerPlaceOptions.map((place) => (
+          <option value={place} key={place}>
+            {place}
+          </option>
+        ))}
+      </select>
+    </div>
+
+    <button
+      onClick={() => loadFindOwnerClouds(findOwnerDate, findOwnerPlace)}
+      disabled={findOwnerLoading}
+    >
+      {findOwnerLoading ? "구름 찾는 중..." : "이 조건으로 찾아보기"}
+    </button>
+
+    {findOwnerLoading && (
+      <p className="notice">아직 주인을 기다리는 구름을 확인하는 중이에요...</p>
+    )}
+
+    {!findOwnerLoading && findOwnerClouds.length === 0 && (
+      <div className="noticeBox">
+        <p>이 조건에 맞는 응답 없는 구름이 없어요.</p>
+        <p>누군가 응답한 구름은 이 목록에서 자동으로 빠져요.</p>
+      </div>
+    )}
+
+    {!findOwnerLoading && findOwnerClouds.length > 0 && (
+      <div className="weatherDetailBox">
+        <h3 className="manageSectionTitle">
+          주인을 기다리는 구름 {findOwnerClouds.length}개
+        </h3>
+
+        {findOwnerClouds.map((post) => (
+          <div className="post resultPost" key={post.id}>
+            <div className="postTopLine">
+              <span className="statusPill active">
+                ☁ {getMainPlaceFromPost(post)} 구름
+              </span>
+            </div>
+
+            <p>
+              <b>
+                {post.seen_date}, {post.time_period}, {post.place}
+              </b>
+            </p>
+
+            {renderPostQuestionAnswer(post)}
+
+            <p className="message">
+              “{cleanMessage(post.message) || "남긴 메시지가 없어요."}”
+            </p>
+
+            {renderCloudActionButtons(post)}
+          </div>
+        ))}
+      </div>
     )}
 
     <button onClick={() => setPage("home")} className="white">

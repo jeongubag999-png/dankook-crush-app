@@ -535,6 +535,11 @@ body {
   background: #fff3dc;
 }
 
+.app .homeV2ActionIcon.blue {
+  background: var(--v2-blue-soft);
+  color: var(--v2-blue-dark);
+}
+
 .app .homeV2ActionText {
   flex: 1;
   min-height: 44px;
