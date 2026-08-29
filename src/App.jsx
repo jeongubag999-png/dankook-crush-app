@@ -5142,7 +5142,8 @@ useEffect(() => {
         <div className="homeV2">
           <div className="homeV2Header">
             <div className="homeV2Greeting">
-              <h1>구름, 단꿈</h1>
+              <p>안녕하세요! 👋</p>
+              <h1>오늘도 좋은 구름이<br />떠오르길 바랄게요.</h1>
             </div>
             <div className="homeV2CloudMark" aria-hidden="true">
               <img src="/home-cloud-mark.png" alt="" />
