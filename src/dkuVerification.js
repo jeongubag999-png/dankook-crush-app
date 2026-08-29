@@ -63,10 +63,13 @@ const parseDkuOcrText = (text = "") => {
     cleanedText.match(/(?:^|[^0-9])(\d{7,10})(?:[^0-9]|$)/);
   const ocrStudentId = studentIdMatch?.[1] || "";
 
+  // "학과/학부/전공" 키워드가 나오는 지점까지만 잘라서 쓴다. 상태 단어(재학/재학생/
+  // 정회원 등)를 일일이 열거해서 뒤를 잘라내는 방식은 실제 화면 문구가 하나라도
+  // 다르면 department 문자열에 꼬리표가 그대로 붙어버려 비교가 깨지기 쉬웠다.
   const departmentLine =
     compactLines
-      .map((line) => line.replace(new RegExp(`[-:·]?(?:${DKU_STATUS_WORDS.join("|")}).*$`), ""))
-      .find((line) => /학과|학부|전공/.test(line) && normalizeDkuDepartmentName(line)) ||
+      .map((line) => line.match(/^.*?(?:학과|학부|전공)/)?.[0] || "")
+      .find(Boolean) ||
     "";
 
   const statusLine =
@@ -158,20 +161,12 @@ export const evaluateDkuAutoVerification = ({ signupStudentId, signupDepartment,
     };
   }
 
-  if (!inputDepartment || !ocrDepartment || inputDepartment !== ocrDepartment) {
-    return {
-      approved: false,
-      reason: "회원가입 학과와 MY DKU 학과가 일치하지 않아요.",
-      inputStudentId,
-      ocrStudentId,
-      inputDepartment,
-      ocrDepartment,
-    };
-  }
-
+  // 학과는 OCR 텍스트 형식(줄바꿈 위치, 상태 표기 등)에 따라 깨지기 쉬운 필드라
+  // 자동승인 여부를 가르는 조건에서는 뺐다. 대신 진단용으로 계속 기록만 한다
+  // (dku_verifications.ocr_department / auto_review_reason).
   return {
     approved: true,
-    reason: "학번과 학과가 자동 확인됐어요.",
+    reason: "학번이 자동 확인됐어요.",
     inputStudentId,
     ocrStudentId,
     inputDepartment,
