@@ -403,24 +403,15 @@ body {
   position: absolute;
   left: 50%;
   top: 50%;
-  width: 72px;
-  height: 48px;
   transform: translate(-50%, -50%);
-  border-radius: 999px;
-  background: linear-gradient(135deg, #fff8ff 0%, #dff3ff 48%, #ffe7f2 100%);
-  box-shadow: 0 10px 24px rgba(111, 169, 229, 0.2);
-  display: flex;
-  align-items: center;
-  justify-content: center;
-  overflow: hidden;
   pointer-events: none;
 }
 
 .app .homeV2CloudMark img {
-  width: 54px;
-  height: 54px;
-  object-fit: cover;
-  border-radius: 16px;
+  display: block;
+  width: 64px;
+  height: auto;
+  filter: drop-shadow(0 8px 12px rgba(111, 169, 229, 0.35));
 }
 
 .app .homeV2IconRow {
