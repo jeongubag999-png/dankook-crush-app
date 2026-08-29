@@ -2738,38 +2738,16 @@ const hideSearchResult = (postId) => {
   setClaimSubmitting(true);
 
   try {
-    const { data: existingClaim, error: existingError } = await supabase
-      .from("claims")
-      .select("*")
-      .eq("crush_post_id", selectedPost.id)
-      .eq("claimer_user_id", currentUser.id)
-      .maybeSingle();
-
-    if (existingError) {
-      toast.error("채팅방 요청 확인에 실패했어요: " + existingError.message);
-      console.log(existingError);
-      return;
-    }
-
     let claimError;
-    let savedClaim = existingClaim;
+    let savedClaim = null;
 
-    if (existingClaim) {
-      const { data, error } = await supabase
-        .from("claims")
-        .update({
-          claimer_nickname: profile.nickname,
-          claimer_instagram: cleanInstagram(profile.instagram_id),
-          claimer_message: finalMessage,
-        })
-        .eq("id", existingClaim.id)
-        .select()
-        .maybeSingle();
-
-      claimError = error;
-      savedClaim = data || existingClaim;
-    } else {
-      const { data, error } = await supabase.from("claims").insert([
+    // 동시 요청으로 같은 글에 claim이 중복 생성되지 않도록 먼저 insert를 시도해
+    // claims_crush_post_claimer_unique 제약이 경합을 판정하게 한다. 이미 신청한
+    // 적이 있어 제약에 걸리면(23505) 그때만 기존 행을 찾아 내용만 갱신한다
+    // (상태는 건드리지 않음).
+    const { data: insertedClaim, error: insertError } = await supabase
+      .from("claims")
+      .insert([
         {
           crush_post_id: selectedPost.id,
           claimer_user_id: currentUser.id,
@@ -2778,10 +2756,28 @@ const hideSearchResult = (postId) => {
           claimer_message: finalMessage,
           status: "pending",
         },
-      ]).select().maybeSingle();
+      ])
+      .select()
+      .maybeSingle();
+
+    if (insertError?.code === "23505") {
+      const { data, error } = await supabase
+        .from("claims")
+        .update({
+          claimer_nickname: profile.nickname,
+          claimer_instagram: cleanInstagram(profile.instagram_id),
+          claimer_message: finalMessage,
+        })
+        .eq("crush_post_id", selectedPost.id)
+        .eq("claimer_user_id", currentUser.id)
+        .select()
+        .maybeSingle();
 
       claimError = error;
       savedClaim = data;
+    } else {
+      claimError = insertError;
+      savedClaim = insertedClaim;
     }
 
     if (claimError) {
@@ -2799,15 +2795,20 @@ const hideSearchResult = (postId) => {
       .maybeSingle();
 
     if (!senderPickError && senderPick?.id && savedClaim?.id) {
-      const { error: mutualError } = await supabase
+      // 이미 다른 경로로 상태가 바뀐 경우(예: 방금 거절됨) 되살리지 않도록
+      // 여전히 pending일 때만 chat_requested로 올린다.
+      const { data: mutualClaim, error: mutualError } = await supabase
         .from("claims")
         .update({ status: "chat_requested", responded_at: new Date().toISOString() })
-        .eq("id", savedClaim.id);
+        .eq("id", savedClaim.id)
+        .eq("status", "pending")
+        .select()
+        .maybeSingle();
 
       if (mutualError) {
         console.log(mutualError);
-      } else {
-        savedClaim = { ...savedClaim, status: "chat_requested" };
+      } else if (mutualClaim) {
+        savedClaim = mutualClaim;
       }
     } else if (senderPickError) {
       console.log(senderPickError);
@@ -3412,18 +3413,29 @@ useEffect(() => {
     setClaimActionSubmittingId(claimId);
 
     try {
-      const { error } = await supabase
+      // 이미 수락되어 채팅방이 열린 claim을 뒤늦게 거절 처리하지 않도록
+      // 아직 결론 나지 않은 상태(pending/chat_requested)일 때만 업데이트한다.
+      const { data, error } = await supabase
         .from("claims")
         .update({
           status: "rejected",
           rejected_by: rejectedBy,
           responded_at: new Date().toISOString(),
         })
-        .eq("id", claimId);
+        .eq("id", claimId)
+        .in("status", ["pending", "chat_requested"])
+        .select()
+        .maybeSingle();
 
       if (error) {
         toast.error("거절에 실패했어요: " + error.message);
         console.log(error);
+        return;
+      }
+
+      if (!data) {
+        toast.error("이미 처리된 요청이에요. 새로고침 후 다시 확인해주세요.");
+        openMatchingPage();
         return;
       }
 
@@ -3484,8 +3496,9 @@ useEffect(() => {
             claimer_nickname: claimPayload.claimer_nickname,
             claimer_instagram: claimPayload.claimer_instagram,
             claimer_message: existingClaim.claimer_message || claimPayload.claimer_message,
+            // 이미 결론 난 claim(수락됨/거절됨)은 되살리지 않고 상태를 그대로 둔다.
             status:
-              existingClaim.status === "chat_accepted"
+              existingClaim.status === "chat_accepted" || existingClaim.status === "rejected"
                 ? existingClaim.status
                 : "chat_requested",
             responded_at: claimPayload.responded_at,
@@ -3588,18 +3601,28 @@ useEffect(() => {
         return;
       }
 
-      const { error: chatRoomLinkError } = await supabase
+      // 상대가 그새 거절했거나 이미 수락 처리된 claim을 뒤늦게 다시 수락하지
+      // 않도록 아직 결론 나지 않은 상태일 때만 chat_accepted로 올린다.
+      const { data: updatedClaim, error: chatRoomLinkError } = await supabase
         .from("claims")
         .update({
           status: "chat_accepted",
           chat_room_id: roomId,
           responded_at: new Date().toISOString(),
         })
-        .eq("id", claim.id);
+        .eq("id", claim.id)
+        .in("status", ["pending", "chat_requested"])
+        .select()
+        .maybeSingle();
 
       if (chatRoomLinkError) {
         toast.error("수락 상태 저장에 실패했어요: " + chatRoomLinkError.message);
         console.log(chatRoomLinkError);
+        return;
+      }
+
+      if (!updatedClaim) {
+        toast.error("이미 처리된 요청이에요. 새로고침 후 다시 확인해주세요.");
         return;
       }
 
