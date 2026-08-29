@@ -645,17 +645,20 @@ const [verificationFile, setVerificationFile] = useState(null);
       .from("dku_verifications")
       .select("status")
       .eq("user_id", user.id)
-      .maybeSingle();
+      .order("id", { ascending: false })
+      .limit(1);
 
     if (error) {
       console.log(error);
       return "none";
     }
 
-    // 레코드 자체가 없으면 → 사진 업로드 실패 등으로 인증이 미완성된 상태
-    if (!data) return "incomplete";
+    const latest = data?.[0] || null;
 
-    return data.status; // "pending" | "approved"
+    // 레코드 자체가 없으면 → 사진 업로드 실패 등으로 인증이 미완성된 상태
+    if (!latest) return "incomplete";
+
+    return latest.status; // "pending" | "approved"
   };
 
   const loadMyProfile = async (user, force = false) => {
@@ -743,7 +746,7 @@ const [verificationFile, setVerificationFile] = useState(null);
           setSession(null);
           setCurrentUser(null);
           toast.error("탈퇴 처리된 계정이에요.");
-        } else if (verifyStatus === "pending" || verifyStatus === "incomplete") {
+        } else if (verifyStatus === "pending" || verifyStatus === "incomplete" || verifyStatus === "rejected") {
           setPage("verificationPending");
         } else {
           loadMyProfile(savedUser);
@@ -1083,40 +1086,39 @@ const [verificationFile, setVerificationFile] = useState(null);
         parsed: ocrResult.parsed,
       });
 
-      let filePath = null;
       let finalVerificationStatus = "pending";
       let finalReviewedAt = null;
 
       if (ocrResult.available && autoReview.approved) {
         finalVerificationStatus = "approved";
         finalReviewedAt = new Date().toISOString();
-      } else {
-        // 자동 승인 실패/미지원이면 그때만 사진을 임시 보관하고 관리자 검수로 넘긴다.
-        setSignupProgress("3단계: 인증 사진 임시 업로드 중...");
-        const compressedFile = await compressImage(verificationFile);
-        filePath = makeStorageFilePath(signedUpUser.id, compressedFile);
+      }
 
-        const { error: uploadError } = await supabase.storage
-          .from("dku-verifications")
-          .upload(filePath, compressedFile, {
-            contentType: compressedFile.type,
-            upsert: false,
-          });
+      // 자동승인 여부와 무관하게 인증 사진은 항상 보관한다 (사후 검토/이의제기 대비 증빙).
+      setSignupProgress("3단계: 인증 사진 업로드 중...");
+      const compressedFile = await compressImage(verificationFile);
+      const filePath = makeStorageFilePath(signedUpUser.id, compressedFile);
 
-        if (uploadError) {
-          console.log(uploadError);
-          setProfile((prev) => ({
-            ...prev,
-            nickname: authForm.name.trim(),
-            student_year: authForm.student_id.trim(),
-          }));
-          setSession(data.session || null);
-          setCurrentUser(signedUpUser);
-          resetActivityData(signedUpUser?.id || null);
-          toast.error("인증 사진 업로드에 실패했어요. 단꿈 인스타그램으로 문의해주세요.");
-          setPage("verificationPending");
-          return;
-        }
+      const { error: uploadError } = await supabase.storage
+        .from("dku-verifications")
+        .upload(filePath, compressedFile, {
+          contentType: compressedFile.type,
+          upsert: false,
+        });
+
+      if (uploadError) {
+        console.log(uploadError);
+        setProfile((prev) => ({
+          ...prev,
+          nickname: authForm.name.trim(),
+          student_year: authForm.student_id.trim(),
+        }));
+        setSession(data.session || null);
+        setCurrentUser(signedUpUser);
+        resetActivityData(signedUpUser?.id || null);
+        toast.error("인증 사진 업로드에 실패했어요. 단꿈 인스타그램으로 문의해주세요.");
+        setPage("verificationPending");
+        return;
       }
 
       // ── 4단계: 인증 신청 저장 ──
@@ -1126,7 +1128,7 @@ const [verificationFile, setVerificationFile] = useState(null);
         name: finalVerificationStatus === "pending" ? authForm.name.trim() : null,
         student_id: finalVerificationStatus === "pending" ? authForm.student_id.trim() : null,
         department: authForm.department.trim(),
-        screenshot_path: finalVerificationStatus === "pending" ? filePath : null,
+        screenshot_path: filePath,
         status: finalVerificationStatus,
         reviewed_at: finalReviewedAt,
         auto_review_status: finalVerificationStatus === "approved" ? "approved" : "manual_required",
@@ -1148,13 +1150,25 @@ const [verificationFile, setVerificationFile] = useState(null);
           name: finalVerificationStatus === "pending" ? authForm.name.trim() : null,
           student_id: finalVerificationStatus === "pending" ? authForm.student_id.trim() : null,
           department: authForm.department.trim(),
-          screenshot_path: finalVerificationStatus === "pending" ? filePath : null,
+          screenshot_path: filePath,
           status: finalVerificationStatus,
           reviewed_at: finalReviewedAt,
         };
-        const { error: fallbackError } = await supabase
+
+        // 1차 저장이 왜 실패했는지 관리자 화면에서 바로 보이도록 원본 에러를 같이 남겨본다.
+        // (이 진단 필드 자체가 실패 원인이었을 수도 있으니, 실패하면 진단 필드 없이 한 번 더 시도한다)
+        let { error: fallbackError } = await supabase
           .from("dku_verifications")
-          .insert([fallbackPayload]);
+          .insert([{
+            ...fallbackPayload,
+            auto_review_status: "insert_failed",
+            auto_review_reason: `1차 저장 실패(${verificationError.code || "unknown"}): ${verificationError.message || ""}`.slice(0, 500),
+          }]);
+
+        if (fallbackError) {
+          console.log(fallbackError);
+          ({ error: fallbackError } = await supabase.from("dku_verifications").insert([fallbackPayload]));
+        }
 
         if (fallbackError) {
           toast.error("인증 신청 저장에 실패했어요. 잠시 후 다시 시도해주세요.");
@@ -1259,8 +1273,12 @@ const handleLogin = async () => {
       setCurrentUser(data.user);
       resetActivityDataIfUserChanged(data.user?.id || null);
 
-      if (verifyStatus === "pending" || verifyStatus === "incomplete") {
-        toast.error("학생 인증이 아직 승인되지 않았어요. 승인될 때까지 기다려주세요.");
+      if (verifyStatus === "pending" || verifyStatus === "incomplete" || verifyStatus === "rejected") {
+        if (verifyStatus === "rejected") {
+          toast.error("학생 인증이 거절됐어요. 인증 사진을 다시 제출해주세요.");
+        } else {
+          toast.error("학생 인증이 아직 승인되지 않았어요. 승인될 때까지 기다려주세요.");
+        }
         setPage("verificationPending");
       } else {
         setPage("home");

@@ -6,6 +6,7 @@ export function VerificationPendingPage({ currentUser, onApproved, onLogout }) {
   const [checking, setChecking] = useState(false);
   const [lastChecked, setLastChecked] = useState(null);
   const [isIncomplete, setIsIncomplete] = useState(false);
+  const [rejectReason, setRejectReason] = useState("");
   const [retryFile, setRetryFile] = useState(null);
   const [retryUploading, setRetryUploading] = useState(false);
   const [retryError, setRetryError] = useState("");
@@ -17,19 +18,27 @@ export function VerificationPendingPage({ currentUser, onApproved, onLogout }) {
 
     const { data, error } = await supabase
       .from("dku_verifications")
-      .select("status")
+      .select("status, reject_reason")
       .eq("user_id", currentUser.id)
-      .maybeSingle();
+      .order("id", { ascending: false })
+      .limit(1);
 
     setChecking(false);
     setLastChecked(new Date());
 
     if (error) { console.log(error); return; }
 
-    if (!data) { setIsIncomplete(true); return; }
+    const latest = data?.[0] || null;
+
+    if (!latest || latest.status === "rejected") {
+      setRejectReason(latest?.status === "rejected" ? latest.reject_reason || "" : "");
+      setIsIncomplete(true);
+      return;
+    }
 
     setIsIncomplete(false);
-    if (data.status === "approved") onApproved();
+    setRejectReason("");
+    if (latest.status === "approved") onApproved();
   };
 
   useEffect(() => {
@@ -56,6 +65,14 @@ export function VerificationPendingPage({ currentUser, onApproved, onLogout }) {
         console.log(uploadError);
         return;
       }
+
+      // 재제출 전 기존 인증 신청 행을 정리해 user_id당 행이 계속 쌓이지 않도록 함
+      const { error: cleanupError } = await supabase
+        .from("dku_verifications")
+        .delete()
+        .eq("user_id", currentUser.id);
+
+      if (cleanupError) console.log(cleanupError);
 
       const { data: profileData } = await supabase
         .from("profiles")
@@ -99,10 +116,13 @@ export function VerificationPendingPage({ currentUser, onApproved, onLogout }) {
       <div className="app">
         <div className="card verificationPendingCard">
           <div className="pendingCloudIcon">☁️</div>
-          <h2 className="pendingTitle">인증 사진을 올려주세요</h2>
+          <h2 className="pendingTitle">{rejectReason ? "인증이 거절됐어요" : "인증 사진을 올려주세요"}</h2>
           <p className="pendingDesc">
-            MY DKU 첫 화면 캡처를 올려주시면<br />
-            관리자 확인 후 이용할 수 있어요.
+            {rejectReason ? (
+              <>거절 사유: {rejectReason}<br />MY DKU 첫 화면 캡처를 다시 올려주세요.</>
+            ) : (
+              <>MY DKU 첫 화면 캡처를 올려주시면<br />관리자 확인 후 이용할 수 있어요.</>
+            )}
           </p>
 
           <input
