@@ -4,7 +4,7 @@ const corsHeaders = {
   "Access-Control-Allow-Methods": "POST, OPTIONS",
 };
 
-const DKU_STATUS_REJECT_WORDS = ["휴학생", "졸업생", "제적", "수료", "자퇴"];
+const DKU_STATUS_WORDS = ["재학생", "휴학생", "졸업생", "제적", "수료", "자퇴"];
 
 const parseDkuOcrText = (text = "") => {
   const cleanedText = text.replace(/\s+/g, " ").trim();
@@ -20,17 +20,19 @@ const parseDkuOcrText = (text = "") => {
   const ocrStudentId = studentIdMatch?.[1] || "";
 
   const departmentLine =
-    compactLines.find((line) => /학과|학부|전공/.test(line) && !/재학생|휴학생|졸업생|수료|제적/.test(line)) ||
+    compactLines
+      .map((line) => line.replace(new RegExp(`[-:·]?(?:${DKU_STATUS_WORDS.join("|")}).*$`), ""))
+      .find((line) => /학과|학부|전공/.test(line)) ||
     "";
 
   const statusLine =
-    compactLines.find((line) => /재학생|휴학생|졸업생|수료|제적/.test(line)) || "";
+    compactLines.find((line) => new RegExp(DKU_STATUS_WORDS.join("|")).test(line)) || "";
 
   return {
     ocrStudentId,
     ocrDepartment: departmentLine,
     ocrStatus: statusLine,
-    isEnrolled: /재학생/.test(statusLine) && !DKU_STATUS_REJECT_WORDS.some((word) => statusLine.includes(word)),
+    isEnrolled: /재학생/.test(statusLine),
   };
 };
 

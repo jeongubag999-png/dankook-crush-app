@@ -24,7 +24,7 @@ const DKU_COLLEGE_PREFIXES = [
   "약학",
 ];
 
-const DKU_STATUS_REJECT_WORDS = ["휴학생", "졸업생", "제적", "수료", "자퇴"];
+const DKU_STATUS_WORDS = ["재학생", "휴학생", "졸업생", "제적", "수료", "자퇴"];
 
 export const normalizeDkuDepartmentName = (value = "") => {
   let normalized = String(value)
@@ -64,11 +64,13 @@ const parseDkuOcrText = (text = "") => {
   const ocrStudentId = studentIdMatch?.[1] || "";
 
   const departmentLine =
-    compactLines.find((line) => /학과|학부|전공/.test(line) && !/재학생|휴학생|졸업생|수료|제적/.test(line)) ||
+    compactLines
+      .map((line) => line.replace(new RegExp(`[-:·]?(?:${DKU_STATUS_WORDS.join("|")}).*$`), ""))
+      .find((line) => /학과|학부|전공/.test(line) && normalizeDkuDepartmentName(line)) ||
     "";
 
   const statusLine =
-    compactLines.find((line) => /재학생|휴학생|졸업생|수료|제적/.test(line)) || "";
+    compactLines.find((line) => new RegExp(DKU_STATUS_WORDS.join("|")).test(line)) || "";
 
   return {
     rawText: text,
@@ -76,7 +78,7 @@ const parseDkuOcrText = (text = "") => {
     ocrStudentId,
     ocrDepartment: departmentLine,
     ocrStatus: statusLine,
-    isEnrolled: /재학생/.test(statusLine) && !DKU_STATUS_REJECT_WORDS.some((word) => statusLine.includes(word)),
+    isEnrolled: /재학생/.test(statusLine),
   };
 };
 
@@ -167,20 +169,9 @@ export const evaluateDkuAutoVerification = ({ signupStudentId, signupDepartment,
     };
   }
 
-  if (!parsed.isEnrolled) {
-    return {
-      approved: false,
-      reason: "MY DKU에서 재학생 상태를 자동 확인하지 못했어요.",
-      inputStudentId,
-      ocrStudentId,
-      inputDepartment,
-      ocrDepartment,
-    };
-  }
-
   return {
     approved: true,
-    reason: "학번, 학과, 재학생 상태가 자동 확인됐어요.",
+    reason: "학번과 학과가 자동 확인됐어요.",
     inputStudentId,
     ocrStudentId,
     inputDepartment,
