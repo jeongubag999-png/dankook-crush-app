@@ -116,31 +116,10 @@ export function AdminPage({ onClose }) {
     );
   };
 
-  const removeVerificationPhoto = async (item) => {
-    if (!item?.screenshot_path) return;
-
-    const { error } = await supabase.storage
-      .from("dku-verifications")
-      .remove([item.screenshot_path]);
-
-    if (error) {
-      console.log("인증 사진 삭제 실패:", error);
-    }
-  };
-
   const updateVerificationAfterReview = async (item, payload) => {
-    await removeVerificationPhoto(item);
-
-    const privacyPayload = {
-      ...payload,
-      name: null,
-      student_id: null,
-      screenshot_path: null,
-    };
-
     const { error } = await supabase
       .from("dku_verifications")
-      .update(privacyPayload)
+      .update(payload)
       .eq("id", item.id);
 
     if (!error) return { error: null };
@@ -150,9 +129,6 @@ export function AdminPage({ onClose }) {
       status: payload.status,
       reviewed_at: payload.reviewed_at,
       reject_reason: payload.reject_reason,
-      name: null,
-      student_id: null,
-      screenshot_path: null,
     };
 
     return supabase
@@ -260,16 +236,11 @@ export function AdminPage({ onClose }) {
 
     setProcessingId("bulk");
 
-    await Promise.all(verifications.filter((item) => selectedIds.has(item.id)).map(removeVerificationPhoto));
-
     const { error } = await supabase
       .from("dku_verifications")
       .update({
         status: "approved",
         reviewed_at: new Date().toISOString(),
-        name: null,
-        student_id: null,
-        screenshot_path: null,
       })
       .in("id", [...selectedIds]);
 
