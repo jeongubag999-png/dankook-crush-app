@@ -2473,7 +2473,7 @@ const hideSearchResult = (postId) => {
       }
 
       if (error) {
-        toast.error("구름 보내기에 실패했어요: " + error.message);
+        toast.error("구름 띄우기에 실패했어요: " + error.message);
         console.log(error);
         return;
       }
@@ -5152,7 +5152,7 @@ useEffect(() => {
           )}
 
           <p className="notice">
-            로그인하지 않으면 홈 화면, 구름 보내기, 구름 확인 기능을 사용할 수
+            로그인하지 않으면 홈 화면, 구름 띄우기, 구름 확인 기능을 사용할 수
             없어요.
           </p>
 
@@ -5225,7 +5225,7 @@ useEffect(() => {
           <button type="button" onClick={openNewCloudPage} className="homeV2ActionCard">
             <span className="homeV2ActionIcon">☁️</span>
             <span className="homeV2ActionText">
-              <b>구름 보내기</b>
+              <b>구름 띄우기</b>
               <small>스쳐간 마음을 구름으로 남겨요.</small>
             </span>
             <span className="homeV2ActionChevron">
@@ -6285,12 +6285,17 @@ useEffect(() => {
                 )}
               </div>
 
+              <p className="helperText">
+                다른 사람이 특정될 수 있는 내용을 담고 있어요. 사실과 다르거나 명예를 훼손하는
+                내용을 올리면 작성자 본인이 책임을 질 수 있으니 신중하게 작성해주세요.
+              </p>
+
               <div className="stepActions">
                 <button onClick={goBackStep} className="white">
                   이전
                 </button>
                 <button onClick={saveCrushPost} disabled={postSubmitting}>
-                  {postSubmitting ? "구름 보내는 중..." : "구름 보내기"}
+                  {postSubmitting ? "구름 띄우는 중..." : "구름 띄우기"}
                 </button>
               </div>
             </>
@@ -6315,7 +6320,7 @@ useEffect(() => {
               onClick={async () => {
                 const shareData = {
                   title: "단꿈 ☁️",
-                  text: "단꿈에 너한테 보내는 구름 남겼어 ☁️ 확인해봐",
+                  text: "단꿈에 너한테 구름 띄웠어 ☁️ 확인해봐",
                   url: PUBLIC_APP_URL,
                 };
                 if (navigator.share) {
