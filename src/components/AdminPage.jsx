@@ -21,6 +21,20 @@ export function AdminPage({ onClose }) {
   const [reportFilter, setReportFilter] = useState("pending");
   const [resolvingReportId, setResolvingReportId] = useState(null);
 
+  const [campusStats, setCampusStats] = useState([]);
+  const [campusStatsLoading, setCampusStatsLoading] = useState(true);
+
+  const loadCampusStats = async () => {
+    setCampusStatsLoading(true);
+    const { data, error } = await supabase.rpc("get_admin_campus_stats");
+    if (error) {
+      console.log(error);
+    } else {
+      setCampusStats(data || []);
+    }
+    setCampusStatsLoading(false);
+  };
+
   const loadStats = async () => {
     const [pendingRes, approvedRes, rejectedRes] = await Promise.all([
       supabase.from("dku_verifications").select("id", { count: "exact", head: true }).eq("status", "pending"),
@@ -159,6 +173,8 @@ export function AdminPage({ onClose }) {
   useEffect(() => {
     if (section === "reports") {
       loadReports();
+    } else if (section === "campus") {
+      loadCampusStats();
     }
   }, [section, reportFilter]);
 
@@ -304,6 +320,12 @@ export function AdminPage({ onClose }) {
           onClick={() => setSection("reports")}
         >
           신고 관리
+        </button>
+        <button
+          className={section === "campus" ? "manageTab active" : "manageTab"}
+          onClick={() => setSection("campus")}
+        >
+          캠퍼스 현황
         </button>
       </div>
 
@@ -526,6 +548,50 @@ export function AdminPage({ onClose }) {
           ))}
 
           <button className="white" onClick={loadReports} disabled={reportsLoading}>
+            새로고침
+          </button>
+        </>
+      )}
+
+      {section === "campus" && (
+        <>
+          {campusStatsLoading && <p className="notice">불러오는 중...</p>}
+
+          {!campusStatsLoading && campusStats.length === 0 && (
+            <p className="noticeBox">데이터가 없어요.</p>
+          )}
+
+          {!campusStatsLoading && campusStats.map((row) => (
+            <div key={row.campus} className="adminVerifyCard">
+              <div className="adminVerifyInfo">
+                <p><b>☁️ {row.campus}</b></p>
+                <div className="adminStatsBar">
+                  <div className="adminStatChip">
+                    <span className="adminStatLabel">오늘 구름</span>
+                    <span className="adminStatValue">{row.today_clouds}</span>
+                  </div>
+                  <div className="adminStatChip">
+                    <span className="adminStatLabel">전체 구름</span>
+                    <span className="adminStatValue">{row.total_clouds}</span>
+                  </div>
+                  <div className="adminStatChip">
+                    <span className="adminStatLabel">오늘 응답</span>
+                    <span className="adminStatValue">{row.today_claims}</span>
+                  </div>
+                  <div className="adminStatChip">
+                    <span className="adminStatLabel">전체 응답</span>
+                    <span className="adminStatValue">{row.total_claims}</span>
+                  </div>
+                  <div className="adminStatChip">
+                    <span className="adminStatLabel">회원수</span>
+                    <span className="adminStatValue">{row.total_members}</span>
+                  </div>
+                </div>
+              </div>
+            </div>
+          ))}
+
+          <button className="white" onClick={loadCampusStats} disabled={campusStatsLoading}>
             새로고침
           </button>
         </>
