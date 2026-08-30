@@ -25,14 +25,14 @@ const sendOneSignalPush = async (externalUserId: string, title: string, body: st
 
   if (!appId || !apiKey) {
     console.log("OneSignal 시크릿이 설정되지 않아 푸시를 건너뜁니다.");
-    return;
+    return { skipped: "no_secrets" };
   }
 
   const res = await fetch("https://onesignal.com/api/v1/notifications", {
     method: "POST",
     headers: {
       "Content-Type": "application/json",
-      Authorization: `Basic ${apiKey}`,
+      Authorization: `Key ${apiKey}`,
     },
     body: JSON.stringify({
       app_id: appId,
@@ -43,9 +43,11 @@ const sendOneSignalPush = async (externalUserId: string, title: string, body: st
     }),
   });
 
+  const resBody = await res.text();
   if (!res.ok) {
-    console.log("OneSignal 요청 실패", res.status, await res.text());
+    console.log("OneSignal 요청 실패", res.status, resBody);
   }
+  return { oneSignalStatus: res.status, oneSignalResponse: resBody };
 };
 
 Deno.serve(async (req) => {
@@ -76,6 +78,7 @@ Deno.serve(async (req) => {
 
   try {
     const { type, record } = await req.json();
+    let pushResult: Record<string, unknown> | null = null;
 
     if (type === "new_claim") {
       const postRes = await fetch(
@@ -84,23 +87,27 @@ Deno.serve(async (req) => {
       );
       const [post] = await postRes.json();
       if (post?.sender_user_id) {
-        await sendOneSignalPush(
+        pushResult = await sendOneSignalPush(
           post.sender_user_id,
           "새 구름 응답이 왔어요 ☁️",
           "누군가 내 구름에 응답했어요. 확인해보세요!"
         );
+      } else {
+        pushResult = { skipped: "no_sender_user_id" };
       }
     } else if (type === "claim_accepted") {
       if (record.claimer_user_id) {
-        await sendOneSignalPush(
+        pushResult = await sendOneSignalPush(
           record.claimer_user_id,
           "응답이 수락됐어요 🎉",
           "채팅을 시작할 수 있어요!"
         );
+      } else {
+        pushResult = { skipped: "no_claimer_user_id" };
       }
     } else if (type === "new_message") {
       const roomRes = await fetch(
-        `${supabaseUrl}/rest/v1/chat_rooms?id=eq.${record.chat_room_id}&select=sender_user_id,claimer_user_id`,
+        `${supabaseUrl}/rest/v1/chat_rooms?id=eq.${record.chat_room_id}&select=sender_user_id,claimer_user_id,crush_post_id,claim_id`,
         { headers: restHeaders }
       );
       const [room] = await roomRes.json();
@@ -110,16 +117,37 @@ Deno.serve(async (req) => {
             ? room.claimer_user_id
             : room.sender_user_id;
         if (targetUserId) {
+          let senderNickname = "새 메시지가 도착했어요 💬";
+          if (record.sender_user_id === room.sender_user_id) {
+            const postRes = await fetch(
+              `${supabaseUrl}/rest/v1/crush_posts?id=eq.${room.crush_post_id}&select=sender_nickname`,
+              { headers: restHeaders }
+            );
+            const [post] = await postRes.json();
+            if (post?.sender_nickname) senderNickname = post.sender_nickname;
+          } else {
+            const claimRes = await fetch(
+              `${supabaseUrl}/rest/v1/claims?id=eq.${room.claim_id}&select=claimer_nickname`,
+              { headers: restHeaders }
+            );
+            const [claim] = await claimRes.json();
+            if (claim?.claimer_nickname) senderNickname = claim.claimer_nickname;
+          }
+
           const preview =
             typeof record.body === "string" && record.body.length > 60
               ? `${record.body.slice(0, 60)}...`
               : record.body;
-          await sendOneSignalPush(targetUserId, "새 메시지가 도착했어요 💬", preview || "");
+          pushResult = await sendOneSignalPush(targetUserId, senderNickname, preview || "");
+        } else {
+          pushResult = { skipped: "no_target_user_id" };
         }
+      } else {
+        pushResult = { skipped: "chat_room_not_found" };
       }
     }
 
-    return jsonResponse({ ok: true });
+    return jsonResponse({ ok: true, type, pushResult });
   } catch (err) {
     console.log(err);
     return jsonResponse({ ok: false, reason: "처리 중 오류가 발생했어요." }, 500);
