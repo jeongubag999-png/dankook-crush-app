@@ -35,7 +35,6 @@ import { VerificationPendingPage } from "./components/VerificationPendingPage";
 import { AdminPage } from "./components/AdminPage";
 import { PrivacyPolicyPage } from "./components/PrivacyPolicyPage";
 
-const ADMIN_LOGIN_IDS = ["pjwo12356", "djkim5882", "tjdgns02"];
 const PUBLIC_APP_URL = "https://dankook-crush-app.vercel.app";
 import {
   getPlaceOptions,
@@ -84,10 +83,7 @@ import {
   isNativeApp,
   pickImageFromLibrary,
 } from "./utils";
-import {
-  evaluateDkuAutoVerification,
-  runDkuVerificationOcr,
-} from "./dkuVerification";
+import { submitDkuVerification } from "./dkuVerification";
 
 const CLOUD_SEND_MAX_SECONDS = 180;
 const CLOUD_SEND_STEP_NAMES = {
@@ -214,6 +210,7 @@ function App() {
   student_id: "",
   department: "",
   campus: "",
+  gender: "",
   login_id: "",
   password: "",
 });
@@ -394,7 +391,7 @@ const [verificationFile, setVerificationFile] = useState(null);
   const [blockedUserIds, setBlockedUserIds] = useState([]);
   const [accountDeleting, setAccountDeleting] = useState(false);
 
-  const isAdmin = ADMIN_LOGIN_IDS.includes(currentUser?.user_metadata?.login_id);
+  const isAdmin = currentUser?.app_metadata?.is_admin === true;
   const [matchingLoading, setMatchingLoading] = useState(false);
   const [matchingMode, setMatchingMode] = useState("sent");
   const [notificationFilter, setNotificationFilter] = useState("sent");
@@ -628,7 +625,7 @@ const [verificationFile, setVerificationFile] = useState(null);
     if (!user) return "none";
 
     // 관리자는 인증 없이 바로 통과
-    if (ADMIN_LOGIN_IDS.includes(user?.user_metadata?.login_id)) return "approved";
+    if (user?.app_metadata?.is_admin === true) return "approved";
 
     const { data: profileData } = await supabase
       .from("profiles")
@@ -1007,6 +1004,10 @@ const [verificationFile, setVerificationFile] = useState(null);
       toast.error("캠퍼스를 선택해주세요.");
       return;
     }
+    if (!authForm.gender) {
+      toast.error("성별을 선택해주세요.");
+      return;
+    }
     if (!verificationFile) {
       toast.error("MY DKU 첫 화면 캡처를 업로드해주세요.");
       return;
@@ -1077,25 +1078,9 @@ const [verificationFile, setVerificationFile] = useState(null);
         return;
       }
 
-      // ── 2단계: MY DKU 자동 인증 시도 ──
-      setSignupProgress("2단계: MY DKU 자동 인증 확인 중...");
-      const ocrResult = await runDkuVerificationOcr(verificationFile);
-      const autoReview = evaluateDkuAutoVerification({
-        signupStudentId: authForm.student_id.trim(),
-        signupDepartment: authForm.department.trim(),
-        parsed: ocrResult.parsed,
-      });
-
-      let finalVerificationStatus = "pending";
-      let finalReviewedAt = null;
-
-      if (ocrResult.available && autoReview.approved) {
-        finalVerificationStatus = "approved";
-        finalReviewedAt = new Date().toISOString();
-      }
-
+      // ── 2단계: 인증 사진 업로드 ──
       // 자동승인 여부와 무관하게 인증 사진은 항상 보관한다 (사후 검토/이의제기 대비 증빙).
-      setSignupProgress("3단계: 인증 사진 업로드 중...");
+      setSignupProgress("2단계: 인증 사진 업로드 중...");
       const compressedFile = await compressImage(verificationFile);
       const filePath = makeStorageFilePath(signedUpUser.id, compressedFile);
 
@@ -1121,61 +1106,25 @@ const [verificationFile, setVerificationFile] = useState(null);
         return;
       }
 
-      // ── 4단계: 인증 신청 저장 ──
-      setSignupProgress("4단계: 인증 결과 저장 중...");
-      const verificationPayload = {
-        user_id: signedUpUser.id,
-        name: finalVerificationStatus === "pending" ? authForm.name.trim() : null,
-        student_id: finalVerificationStatus === "pending" ? authForm.student_id.trim() : null,
-        department: authForm.department.trim(),
-        screenshot_path: filePath,
-        status: finalVerificationStatus,
-        reviewed_at: finalReviewedAt,
-        auto_review_status: finalVerificationStatus === "approved" ? "approved" : "manual_required",
-        auto_review_reason: autoReview.reason || ocrResult.reason || "",
-        ocr_student_id: ocrResult.parsed?.ocrStudentId || "",
-        ocr_department: ocrResult.parsed?.ocrDepartment || "",
-        ocr_enrollment_status: ocrResult.parsed?.ocrStatus || "",
-        auto_reviewed_at: new Date().toISOString(),
-      };
+      // ── 3단계: MY DKU 자동 인증 + 인증 신청 저장 (서버에서 한 번에 처리) ──
+      // OCR 판독, 자동승인 판정, dku_verifications insert 전부 dku-auto-verification
+      // 엣지 함수(서비스 롤) 안에서 이뤄진다. 클라이언트가 status 값을 직접 정하지
+      // 않으므로 인증 결과를 스스로 조작할 수 없다.
+      setSignupProgress("3단계: MY DKU 자동 인증 확인 중...");
+      const verificationResult = await submitDkuVerification({
+        file: verificationFile,
+        signupName: authForm.name.trim(),
+        signupStudentId: authForm.student_id.trim(),
+        signupDepartment: authForm.department.trim(),
+        screenshotPath: filePath,
+      });
 
-      const { error: verificationError } = await supabase
-        .from("dku_verifications")
-        .insert([verificationPayload]);
-
-      if (verificationError) {
-        console.log(verificationError);
-        const fallbackPayload = {
-          user_id: signedUpUser.id,
-          name: finalVerificationStatus === "pending" ? authForm.name.trim() : null,
-          student_id: finalVerificationStatus === "pending" ? authForm.student_id.trim() : null,
-          department: authForm.department.trim(),
-          screenshot_path: filePath,
-          status: finalVerificationStatus,
-          reviewed_at: finalReviewedAt,
-        };
-
-        // 1차 저장이 왜 실패했는지 관리자 화면에서 바로 보이도록 원본 에러를 같이 남겨본다.
-        // (이 진단 필드 자체가 실패 원인이었을 수도 있으니, 실패하면 진단 필드 없이 한 번 더 시도한다)
-        let { error: fallbackError } = await supabase
-          .from("dku_verifications")
-          .insert([{
-            ...fallbackPayload,
-            auto_review_status: "insert_failed",
-            auto_review_reason: `1차 저장 실패(${verificationError.code || "unknown"}): ${verificationError.message || ""}`.slice(0, 500),
-          }]);
-
-        if (fallbackError) {
-          console.log(fallbackError);
-          ({ error: fallbackError } = await supabase.from("dku_verifications").insert([fallbackPayload]));
-        }
-
-        if (fallbackError) {
-          toast.error("인증 신청 저장에 실패했어요. 잠시 후 다시 시도해주세요.");
-          console.log(fallbackError);
-          return;
-        }
+      if (!verificationResult.ok) {
+        toast.error(verificationResult.reason || "인증 신청 저장에 실패했어요. 잠시 후 다시 시도해주세요.");
+        return;
       }
+
+      const finalVerificationStatus = verificationResult.status;
 
       // ── profiles 테이블에 기본 정보 자동 저장 ──
       const { error: profileUpsertError } = await supabase.from("profiles").upsert(
@@ -1185,7 +1134,7 @@ const [verificationFile, setVerificationFile] = useState(null);
           student_year: authForm.student_id.trim(),
           department: authForm.department.trim(),
           campus: authForm.campus,
-          gender: "",
+          gender: authForm.gender,
           instagram_id: "",
           bio: "",
         }],
@@ -1205,6 +1154,7 @@ const [verificationFile, setVerificationFile] = useState(null);
         student_year: authForm.student_id.trim(),
         department: authForm.department.trim(),
         campus: authForm.campus,
+        gender: authForm.gender,
       }));
       setSession(data.session || null);
       setCurrentUser(signedUpUser);
@@ -1213,9 +1163,8 @@ const [verificationFile, setVerificationFile] = useState(null);
         toast.success("MY DKU 자동 인증 완료! 바로 이용할 수 있어요.");
         setPage("profile");
       } else {
-        const manualReason = autoReview.reason || ocrResult.reason;
-        if (manualReason) {
-          toast("자동 인증 보류: " + manualReason);
+        if (verificationResult.reason) {
+          toast("자동 인증 보류: " + verificationResult.reason);
         }
         toast.success("회원가입 신청 완료! 학생 인증 승인 후 이용할 수 있어요.");
         setPage("verificationPending");
@@ -5019,6 +4968,23 @@ useEffect(() => {
   </div>
 </div>
 
+<div className="formGroup">
+  <label className="formLabel">성별</label>
+  <p className="profileCampusNote" style={{ margin: "4px 0 10px" }}>
+    가입 후에는 변경할 수 없어요.
+  </p>
+  <div className="optionGrid">
+    {genderOptions.map((option) => (
+      <OptionButton
+        key={option}
+        value={option}
+        selected={authForm.gender === option}
+        onClick={() => setAuthForm({ ...authForm, gender: option })}
+      />
+    ))}
+  </div>
+</div>
+
 	<div className="formGroup">
 	  <label className="formLabel">단국대 학생 인증 캡처</label>
 	  <div className="verificationGuide">
@@ -5464,16 +5430,23 @@ useEffect(() => {
 
           <div className="formGroup">
             <label className="formLabel">성별</label>
-            <div className="optionGrid">
-              {genderOptions.map((option) => (
-                <OptionButton
-                  key={option}
-                  value={option}
-                  selected={profile.gender === option}
-                  onClick={() => setProfile({ ...profile, gender: option })}
-                />
-              ))}
-            </div>
+            {profile.gender ? (
+              <p className="profileCampusValue">
+                {profile.gender}
+                <span className="profileCampusNote">변경 불가</span>
+              </p>
+            ) : (
+              <div className="optionGrid">
+                {genderOptions.map((option) => (
+                  <OptionButton
+                    key={option}
+                    value={option}
+                    selected={profile.gender === option}
+                    onClick={() => setProfile({ ...profile, gender: option })}
+                  />
+                ))}
+              </div>
+            )}
           </div>
 
           <input

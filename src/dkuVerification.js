@@ -1,47 +1,5 @@
 import { supabase } from "./supabase";
 
-const DKU_COLLEGE_PREFIXES = [
-  "프리무스국제",
-  "경영경제",
-  "사회과학",
-  "과학기술",
-  "바이오융합",
-  "스포츠과학",
-  "공공인재",
-  "보건과학",
-  "음악예술",
-  "음악·예술",
-  "SW융합",
-  "외국어",
-  "문과",
-  "법과",
-  "공과",
-  "사범",
-  "예술",
-  "의과",
-  "간호",
-  "치과",
-  "약학",
-];
-
-const DKU_STATUS_WORDS = ["재학생", "휴학생", "졸업생", "제적", "수료", "자퇴"];
-
-export const normalizeDkuDepartmentName = (value = "") => {
-  let normalized = String(value)
-    .replace(/\s+/g, "")
-    .replace(/[()（）[\]{}·.,/\\|_\-:;'"“”‘’!@#$%^&*+=?~`<>]/g, "")
-    .replace(/야간|학과|학부|전공|대학/g, "");
-
-  for (const prefix of DKU_COLLEGE_PREFIXES) {
-    if (normalized.startsWith(prefix)) {
-      normalized = normalized.slice(prefix.length);
-      break;
-    }
-  }
-
-  return normalized;
-};
-
 const readImageFile = (file) =>
   new Promise((resolve, reject) => {
     const reader = new FileReader();
@@ -50,126 +8,47 @@ const readImageFile = (file) =>
     reader.readAsDataURL(file);
   });
 
-const parseDkuOcrText = (text = "") => {
-  const cleanedText = text.replace(/\s+/g, " ").trim();
-  const lines = text
-    .split(/\r?\n/)
-    .map((line) => line.trim())
-    .filter(Boolean);
-  const compactLines = lines.map((line) => line.replace(/\s+/g, ""));
-
-  const studentIdMatch =
-    cleanedText.match(/\((\d{7,10})\)/) ||
-    cleanedText.match(/(?:^|[^0-9])(\d{7,10})(?:[^0-9]|$)/);
-  const ocrStudentId = studentIdMatch?.[1] || "";
-
-  // "학과/학부/전공" 키워드가 나오는 지점까지만 잘라서 쓴다. 상태 단어(재학/재학생/
-  // 정회원 등)를 일일이 열거해서 뒤를 잘라내는 방식은 실제 화면 문구가 하나라도
-  // 다르면 department 문자열에 꼬리표가 그대로 붙어버려 비교가 깨지기 쉬웠다.
-  const departmentLine =
-    compactLines
-      .map((line) => line.match(/^.*?(?:학과|학부|전공)/)?.[0] || "")
-      .find(Boolean) ||
-    "";
-
-  const statusLine =
-    compactLines.find((line) => new RegExp(DKU_STATUS_WORDS.join("|")).test(line)) || "";
-
-  return {
-    rawText: text,
-    cleanedText,
-    ocrStudentId,
-    ocrDepartment: departmentLine,
-    ocrStatus: statusLine,
-    isEnrolled: /재학생/.test(statusLine),
-  };
-};
-
-export const runDkuVerificationOcr = async (file) => {
+// OCR 판독, 자동승인 판정, dku_verifications insert를 모두 dku-auto-verification
+// 엣지 함수(서비스 롤) 안에서 처리한다. 클라이언트는 판정 로직이나 status 값을
+// 갖지 않는다 — RLS로 클라이언트의 직접 insert를 status:'pending'으로만 제한해도
+// 정상적인 자동승인 흐름이 깨지지 않도록 하기 위함이다.
+export const submitDkuVerification = async ({
+  file,
+  signupName,
+  signupStudentId,
+  signupDepartment,
+  screenshotPath,
+}) => {
   try {
     const dataUrl = await readImageFile(file);
     const imageBase64 = String(dataUrl).split(",")[1] || "";
 
     if (!imageBase64) {
-      return {
-        available: false,
-        reason: "MY DKU 이미지를 읽지 못했어요.",
-        parsed: null,
-      };
+      return { ok: false, reason: "MY DKU 이미지를 읽지 못했어요." };
     }
 
     const { data, error } = await supabase.functions.invoke("dku-auto-verification", {
       body: {
         imageBase64,
-        mimeType: file.type,
+        signupName,
+        signupStudentId,
+        signupDepartment,
+        screenshotPath,
       },
     });
 
     if (error) {
-      console.log("MY DKU 서버 OCR 호출 실패:", error);
-      return {
-        available: false,
-        reason: "서버 자동 인증이 아직 준비되지 않았어요.",
-        parsed: null,
-      };
+      console.log("MY DKU 자동 인증 서버 호출 실패:", error);
+      return { ok: false, reason: "인증 신청 저장에 실패했어요. 잠시 후 다시 시도해주세요." };
     }
 
     if (!data?.ok) {
-      return {
-        available: false,
-        reason: data?.reason || "MY DKU 화면 글자 인식에 실패했어요.",
-        parsed: null,
-      };
+      return { ok: false, reason: data?.reason || "인증 신청 저장에 실패했어요." };
     }
 
-    return {
-      available: true,
-      reason: "",
-      parsed: data.parsed || parseDkuOcrText(data.text || ""),
-    };
+    return { ok: true, status: data.status, reason: data.reason || "" };
   } catch (error) {
-    console.log("MY DKU OCR 실패:", error);
-    return {
-      available: false,
-      reason: "MY DKU 화면 글자 인식에 실패했어요.",
-      parsed: null,
-    };
+    console.log("MY DKU 자동 인증 실패:", error);
+    return { ok: false, reason: "인증 신청 처리 중 오류가 발생했어요." };
   }
-};
-
-export const evaluateDkuAutoVerification = ({ signupStudentId, signupDepartment, parsed }) => {
-  if (!parsed) {
-    return {
-      approved: false,
-      reason: "MY DKU 화면을 자동으로 읽지 못했어요.",
-    };
-  }
-
-  const inputStudentId = String(signupStudentId || "").replace(/\D/g, "");
-  const ocrStudentId = String(parsed.ocrStudentId || "").replace(/\D/g, "");
-  const inputDepartment = normalizeDkuDepartmentName(signupDepartment);
-  const ocrDepartment = normalizeDkuDepartmentName(parsed.ocrDepartment);
-
-  if (!inputStudentId || !ocrStudentId || inputStudentId !== ocrStudentId) {
-    return {
-      approved: false,
-      reason: "회원가입 학번과 MY DKU 학번이 일치하지 않아요.",
-      inputStudentId,
-      ocrStudentId,
-      inputDepartment,
-      ocrDepartment,
-    };
-  }
-
-  // 학과는 OCR 텍스트 형식(줄바꿈 위치, 상태 표기 등)에 따라 깨지기 쉬운 필드라
-  // 자동승인 여부를 가르는 조건에서는 뺐다. 대신 진단용으로 계속 기록만 한다
-  // (dku_verifications.ocr_department / auto_review_reason).
-  return {
-    approved: true,
-    reason: "학번이 자동 확인됐어요.",
-    inputStudentId,
-    ocrStudentId,
-    inputDepartment,
-    ocrDepartment,
-  };
 };
