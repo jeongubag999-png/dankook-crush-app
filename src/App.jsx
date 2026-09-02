@@ -2622,6 +2622,7 @@ const hideSearchResult = (postId) => {
       checker_nickname: profile.nickname,
       checker_gender: profile.gender,
       checker_instagram: cleanInstagram(profile.instagram_id),
+      campus: profile.campus,
 
       seen_date: searchForm.seen_date,
 
