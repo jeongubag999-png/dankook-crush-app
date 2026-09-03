@@ -1,5 +1,11 @@
 import { useEffect, useRef, useState } from "react";
 
+const normalizeSearchText = (value) =>
+  String(value || "")
+    .replace(/\s/g, "")
+    .replace(/[·.,/()-]/g, "")
+    .toLowerCase();
+
 export function SearchableSelect({ options, value, onChange, placeholder }) {
   const [query, setQuery] = useState("");
   const [open, setOpen] = useState(false);
@@ -15,8 +21,9 @@ export function SearchableSelect({ options, value, onChange, placeholder }) {
     return () => document.removeEventListener("mousedown", handleOutsideClick);
   }, []);
 
+  const normalizedQuery = normalizeSearchText(query);
   const filteredOptions = options.filter((option) =>
-    option.toLowerCase().includes(query.toLowerCase())
+    normalizeSearchText(option).includes(normalizedQuery)
   );
 
   return (
@@ -30,6 +37,18 @@ export function SearchableSelect({ options, value, onChange, placeholder }) {
           setOpen(true);
         }}
         onChange={(e) => setQuery(e.target.value)}
+        onKeyDown={(e) => {
+          if (e.key === "Escape") {
+            setQuery("");
+            setOpen(false);
+          }
+          if (e.key === "Enter" && open && filteredOptions[0]) {
+            e.preventDefault();
+            onChange(filteredOptions[0]);
+            setQuery("");
+            setOpen(false);
+          }
+        }}
       />
       {open && (
         <div className="searchableSelectList">
@@ -48,7 +67,10 @@ export function SearchableSelect({ options, value, onChange, placeholder }) {
                 setOpen(false);
               }}
             >
-              {option}
+              <span>{option}</span>
+              {value === option && (
+                <span className="searchableSelectCheck">선택됨</span>
+              )}
             </button>
           ))}
         </div>

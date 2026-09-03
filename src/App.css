@@ -179,6 +179,69 @@ textarea::placeholder {
   color: #b6aaa5;
 }
 
+.searchableSelect {
+  position: relative;
+}
+
+.searchableSelectList {
+  position: absolute;
+  z-index: 30;
+  top: calc(100% + 8px);
+  left: 0;
+  right: 0;
+  max-height: 280px;
+  overflow-y: auto;
+  padding: 8px;
+  border: 1px solid #eadbd5;
+  border-radius: 18px;
+  background: #fff;
+  box-shadow: 0 18px 36px rgba(47, 42, 40, 0.12);
+}
+
+.searchableSelectOption {
+  width: 100%;
+  min-height: 44px;
+  height: auto;
+  margin: 0;
+  padding: 11px 12px;
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 10px;
+  border: 0;
+  border-radius: 12px;
+  background: transparent;
+  color: #2f2a28;
+  box-shadow: none;
+  font-size: 14px;
+  font-weight: 700;
+  line-height: 1.35;
+  text-align: left;
+}
+
+.searchableSelectOption:hover {
+  transform: none;
+  background: #f4f8ff;
+  box-shadow: none;
+}
+
+.searchableSelectCheck {
+  flex-shrink: 0;
+  padding: 4px 8px;
+  border-radius: 999px;
+  background: #eaf3ff;
+  color: #2477d4;
+  font-size: 12px;
+}
+
+.searchableSelectEmpty {
+  margin: 0;
+  padding: 12px;
+  color: #8f817b;
+  font-size: 14px;
+  text-align: center;
+}
+
 input[type="checkbox"] {
   width: 18px;
   height: 18px;

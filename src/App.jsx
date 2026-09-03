@@ -40,6 +40,8 @@ const PUBLIC_APP_URL = "https://dankook-crush-app.vercel.app";
 import {
   getPlaceOptions,
   campusOptions,
+  departmentOptions,
+  getDepartmentCampus,
   timeOptions,
   genderOptions,
   femaleHairStyleOptions,
@@ -997,7 +999,7 @@ const [verificationFile, setVerificationFile] = useState(null);
       return;
     }
     if (!authForm.department.trim()) {
-      toast.error("학과를 입력해주세요.");
+      toast.error("학과를 선택해주세요.");
       return;
     }
     if (!authForm.campus) {
@@ -4955,15 +4957,20 @@ useEffect(() => {
                 />
               </div>
               <div className="formGroup">
-  <label className="formLabel">학과</label>
-  <input
-    placeholder="예: 경영경제 글로벌경영학과"
-    value={authForm.department}
-    onChange={(e) =>
-      setAuthForm({ ...authForm, department: e.target.value })
-    }
-  />
-</div>
+                <label className="formLabel">학과</label>
+                <SearchableSelect
+                  options={departmentOptions}
+                  value={authForm.department}
+                  placeholder="학과명 또는 단과대 검색"
+                  onChange={(option) =>
+                    setAuthForm({
+                      ...authForm,
+                      department: option,
+                      campus: getDepartmentCampus(option) || authForm.campus,
+                    })
+                  }
+                />
+              </div>
 
 <div className="formGroup">
   <label className="formLabel">캠퍼스</label>
