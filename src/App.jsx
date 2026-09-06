@@ -60,6 +60,7 @@ import {
   earphoneOptions,
   shoeOptions,
   matchOptions,
+  togetherCloudCategories,
 } from "./constants";
 import {
   getKoreaDateString,
@@ -183,6 +184,45 @@ const getKoreanWeekdayLabel = (dateString) => {
   const date = parseLocalDate(dateString);
   if (!date) return "";
   return ["일", "월", "화", "수", "목", "금", "토"][date.getDay()];
+};
+
+const togetherCloudCategoryMeta = {
+  "밥/카페": { icon: "☕", tone: "mint" },
+  술: { icon: "🍻", tone: "peach" },
+  운동: { icon: "🏃", tone: "blue" },
+  "공부/스터디": { icon: "📚", tone: "violet" },
+  게임: { icon: "🎮", tone: "green" },
+  행사: { icon: "🎪", tone: "pink" },
+  "프로젝트/대외활동": { icon: "✨", tone: "navy" },
+  취미: { icon: "🎨", tone: "yellow" },
+  이동: { icon: "🚕", tone: "gray" },
+  "친구 만들기": { icon: "🤝", tone: "sky" },
+  기타: { icon: "☁️", tone: "soft" },
+};
+
+const emptyTogetherCloudForm = {
+  category: "밥/카페",
+  title: "",
+  body: "",
+  event_date: "",
+  time_period: "",
+  place: "",
+  custom_place: "",
+  max_members: 4,
+  request_message: "",
+};
+
+const getTogetherCloudPlace = (cloud) => {
+  if (!cloud) return "";
+  return [cloud.place, cloud.custom_place].filter(Boolean).join(" · ");
+};
+
+const getTogetherCloudStatusLabel = (status) => {
+  if (status === "full") return "가득 찬 구름";
+  if (status === "closed") return "마감된 구름";
+  if (status === "expired") return "지난 구름";
+  if (status === "hidden") return "숨겨진 구름";
+  return "함께할 사람을 기다려요";
 };
 
 function App() {
@@ -454,6 +494,14 @@ const [verificationFile, setVerificationFile] = useState(null);
   const mySentPostsRef = useRef([]);
   const receivedClaimsRef = useRef([]);
   const sentClaimsRef = useRef([]);
+  const [togetherClouds, setTogetherClouds] = useState([]);
+  const [togetherRequests, setTogetherRequests] = useState([]);
+  const [togetherLoading, setTogetherLoading] = useState(false);
+  const [togetherSubmitting, setTogetherSubmitting] = useState(false);
+  const [togetherActionSubmittingId, setTogetherActionSubmittingId] = useState(null);
+  const [selectedTogetherCategory, setSelectedTogetherCategory] = useState("밥/카페");
+  const [selectedTogetherCloud, setSelectedTogetherCloud] = useState(null);
+  const [togetherCloudForm, setTogetherCloudForm] = useState(emptyTogetherCloudForm);
 
   useEffect(() => {
     const timer = setInterval(() => setChatListNowTick(Date.now()), 60000);
@@ -1428,6 +1476,233 @@ const handleLogin = async () => {
 
     setBlockedUserIds((prev) => [...new Set([...prev, targetUserId])]);
     toast.success("차단했어요.");
+  };
+
+  const loadTogetherClouds = useCallback(async () => {
+    if (!currentUser) return;
+
+    setTogetherLoading(true);
+    try {
+      const [cloudResult, requestResult] = await Promise.all([
+        supabase
+          .from("together_clouds")
+          .select("*")
+          .order("created_at", { ascending: false }),
+        supabase
+          .from("together_cloud_requests")
+          .select("*")
+          .order("created_at", { ascending: false }),
+      ]);
+
+      if (cloudResult.error) throw cloudResult.error;
+      if (requestResult.error) throw requestResult.error;
+
+      const visibleClouds = (cloudResult.data || []).filter(
+        (cloud) => !blockedUserIds.includes(cloud.author_id)
+      );
+      const requests = requestResult.data || [];
+
+      setTogetherClouds(visibleClouds);
+      setTogetherRequests(requests);
+      setSelectedTogetherCloud((current) =>
+        current ? visibleClouds.find((cloud) => cloud.id === current.id) || current : current
+      );
+    } catch (error) {
+      console.log(error);
+      setTogetherClouds([]);
+      setTogetherRequests([]);
+      toast.error("같이할 구름을 불러오지 못했어요. DB migration 적용이 필요할 수 있어요.");
+    } finally {
+      setTogetherLoading(false);
+    }
+  }, [currentUser, blockedUserIds]);
+
+  useEffect(() => {
+    if (!currentUser) return;
+    if (!["boards", "togetherBoard", "togetherCreate", "togetherDetail"].includes(page)) return;
+    loadTogetherClouds();
+  }, [currentUser, page, loadTogetherClouds]);
+
+  const openBoardsPage = async () => {
+    await leaveActiveFlow("bottom_boards", "boards");
+  };
+
+  const openTogetherBoard = (category) => {
+    setSelectedTogetherCategory(category);
+    setPage("togetherBoard");
+  };
+
+  const openTogetherCreate = (category = selectedTogetherCategory) => {
+    setTogetherCloudForm({
+      ...emptyTogetherCloudForm,
+      category,
+      event_date: getKoreaDateString(),
+    });
+    setPage("togetherCreate");
+  };
+
+  const openTogetherDetail = (cloud) => {
+    setSelectedTogetherCloud(cloud);
+    setSelectedTogetherCategory(cloud.category);
+    setPage("togetherDetail");
+  };
+
+  const updateTogetherCloudForm = (field, value) => {
+    setTogetherCloudForm((prev) => ({ ...prev, [field]: value }));
+  };
+
+  const createTogetherCloud = async () => {
+    if (!currentUser || togetherSubmitting) return;
+
+    const title = togetherCloudForm.title.trim();
+    const body = togetherCloudForm.body.trim();
+    const place = togetherCloudForm.place.trim();
+
+    if (!title || !body || !togetherCloudForm.event_date || !togetherCloudForm.time_period || !place) {
+      toast.error("제목, 내용, 날짜, 시간, 장소를 모두 채워주세요.");
+      return;
+    }
+
+    const maxMembers = Number(togetherCloudForm.max_members);
+    if (!Number.isInteger(maxMembers) || maxMembers < 2 || maxMembers > 20) {
+      toast.error("함께할 인원은 2명부터 20명까지 가능해요.");
+      return;
+    }
+
+    setTogetherSubmitting(true);
+    try {
+      const { data, error } = await supabase
+        .from("together_clouds")
+        .insert([
+          {
+            author_id: currentUser.id,
+            author_nickname: profile.nickname || authForm.name || "단꿈이",
+            campus: profile.campus || null,
+            category: togetherCloudForm.category,
+            title,
+            body,
+            event_date: togetherCloudForm.event_date,
+            time_period: togetherCloudForm.time_period,
+            place,
+            custom_place: togetherCloudForm.custom_place.trim(),
+            max_members: maxMembers,
+          },
+        ])
+        .select()
+        .single();
+
+      if (error) throw error;
+
+      toast.success("같이할 구름이 떠올랐어요.");
+      setTogetherClouds((prev) => [data, ...prev]);
+      openTogetherBoard(data.category);
+    } catch (error) {
+      console.log(error);
+      toast.error("같이할 구름을 띄우지 못했어요: " + error.message);
+    } finally {
+      setTogetherSubmitting(false);
+    }
+  };
+
+  const requestTogetherCloud = async (cloud) => {
+    if (!currentUser || togetherActionSubmittingId) return;
+
+    const requestMessage = window.prompt("작성자에게 남길 말을 적어주세요.", "");
+    if (requestMessage === null) return;
+
+    setTogetherActionSubmittingId(cloud.id);
+    try {
+      const { error } = await supabase.rpc("request_together_cloud", {
+        p_together_cloud_id: cloud.id,
+        p_request_message: requestMessage,
+      });
+
+      if (error) throw error;
+
+      toast.success("함께 요청을 보냈어요.");
+      await loadTogetherClouds();
+    } catch (error) {
+      console.log(error);
+      toast.error(error.message || "함께 요청을 보내지 못했어요.");
+    } finally {
+      setTogetherActionSubmittingId(null);
+    }
+  };
+
+  const cancelTogetherRequest = async (request) => {
+    if (!request || togetherActionSubmittingId) return;
+
+    setTogetherActionSubmittingId(request.id);
+    try {
+      const { error } = await supabase
+        .from("together_cloud_requests")
+        .update({ status: "cancelled" })
+        .eq("id", request.id)
+        .eq("requester_id", currentUser.id)
+        .eq("status", "pending");
+
+      if (error) throw error;
+
+      toast.success("함께 요청을 취소했어요.");
+      await loadTogetherClouds();
+    } catch (error) {
+      console.log(error);
+      toast.error(error.message || "함께 요청을 취소하지 못했어요.");
+    } finally {
+      setTogetherActionSubmittingId(null);
+    }
+  };
+
+  const respondTogetherRequest = async (request, status) => {
+    if (!request || togetherActionSubmittingId) return;
+
+    const responseMessage =
+      status === "rejected"
+        ? window.prompt("정중히 전할 말을 적어주세요.", "")
+        : "";
+    if (responseMessage === null) return;
+
+    setTogetherActionSubmittingId(request.id);
+    try {
+      const { error } = await supabase.rpc("respond_together_cloud_request", {
+        p_request_id: request.id,
+        p_status: status,
+        p_response_message: responseMessage,
+      });
+
+      if (error) throw error;
+
+      toast.success(status === "accepted" ? "함께하기를 수락했어요." : "거절 의사를 전했어요.");
+      await loadTogetherClouds();
+    } catch (error) {
+      console.log(error);
+      toast.error(error.message || "함께 요청을 처리하지 못했어요.");
+    } finally {
+      setTogetherActionSubmittingId(null);
+    }
+  };
+
+  const closeTogetherCloud = async (cloud) => {
+    if (!cloud || togetherActionSubmittingId) return;
+    const ok = window.confirm("이 같이할 구름을 마감할까요?");
+    if (!ok) return;
+
+    setTogetherActionSubmittingId(cloud.id);
+    try {
+      const { error } = await supabase.rpc("close_together_cloud", {
+        p_together_cloud_id: cloud.id,
+      });
+
+      if (error) throw error;
+
+      toast.success("같이할 구름을 마감했어요.");
+      await loadTogetherClouds();
+    } catch (error) {
+      console.log(error);
+      toast.error(error.message || "마감하지 못했어요.");
+    } finally {
+      setTogetherActionSubmittingId(null);
+    }
   };
 
 // 날짜·성별은 DB 쿼리에서 이미 정확히 일치하는 것만 가져오므로(or/not 필터),
@@ -4767,6 +5042,32 @@ useEffect(() => {
     );
   };
 
+  const selectedTogetherBoardClouds = togetherClouds
+    .filter((cloud) => cloud.category === selectedTogetherCategory)
+    .sort((a, b) => {
+      const aOpen = a.status === "recruiting" ? 0 : 1;
+      const bOpen = b.status === "recruiting" ? 0 : 1;
+      if (aOpen !== bOpen) return aOpen - bOpen;
+      return new Date(b.created_at).getTime() - new Date(a.created_at).getTime();
+    });
+
+  const selectedTogetherCloudRequests = togetherRequests.filter(
+    (request) => request.together_cloud_id === selectedTogetherCloud?.id
+  );
+
+  const mySelectedTogetherRequest = selectedTogetherCloudRequests.find(
+    (request) => request.requester_id === currentUser?.id
+  );
+
+  const myTogetherCloudRequests = togetherRequests.filter((request) =>
+    togetherClouds.some(
+      (cloud) =>
+        cloud.id === request.together_cloud_id &&
+        cloud.author_id === currentUser?.id &&
+        request.status === "pending"
+    )
+  );
+
   const renderBottomNav = () => {
     const navItems = [
       {
@@ -4777,18 +5078,18 @@ useEffect(() => {
         onClick: () => leaveActiveFlow("bottom_home", "home"),
       },
       {
-        key: "send",
-        label: "보내기",
-        icon: <PlusIcon size={20} />,
-        active: page === "send" || page === "sent",
-        onClick: openSendPage,
+        key: "chats",
+        label: "채팅",
+        icon: <ChatIcon size={20} />,
+        active: page === "chats" || page === "chatRoom" || page === "chatPreview",
+        onClick: openChatsPage,
       },
       {
-        key: "search",
-        label: "확인",
+        key: "boards",
+        label: "게시판",
         icon: <SearchIcon size={20} />,
-        active: page === "search" || page === "result" || page === "reply",
-        onClick: openSearchPage,
+        active: ["boards", "togetherBoard", "togetherCreate", "togetherDetail"].includes(page),
+        onClick: openBoardsPage,
       },
       {
         key: "matching",
@@ -4799,13 +5100,6 @@ useEffect(() => {
           setMatchingMode("sent");
           openMatchingPage();
         },
-      },
-      {
-        key: "chats",
-        label: "채팅",
-        icon: <ChatIcon size={20} />,
-        active: page === "chats" || page === "chatRoom" || page === "chatPreview",
-        onClick: openChatsPage,
       },
     ];
 
@@ -7174,6 +7468,374 @@ useEffect(() => {
           )}
         </div>
       )}
+      {page === "boards" && (
+        <div className="card togetherCard">
+          <div className="togetherHeader">
+            <div>
+              <h2>같이할 구름</h2>
+              <p className="subtitle">함께하고 싶은 순간을 구름판에서 찾아봐요.</p>
+              {myTogetherCloudRequests.length > 0 && (
+                <p className="togetherNoticePill">
+                  나에게 온 함께 요청 {myTogetherCloudRequests.length}개
+                </p>
+              )}
+            </div>
+            <button type="button" className="white smallRefreshBtn" onClick={loadTogetherClouds}>
+              새로고침
+            </button>
+          </div>
+
+          {togetherLoading && <p className="helperText">같이할 구름을 불러오고 있어요...</p>}
+
+          <div className="togetherBoardGrid">
+            {togetherCloudCategories.map((category) => {
+              const categoryClouds = togetherClouds.filter((cloud) => cloud.category === category);
+              const openClouds = categoryClouds.filter((cloud) => cloud.status === "recruiting");
+              const latestCloud = categoryClouds[0];
+              const meta = togetherCloudCategoryMeta[category] || togetherCloudCategoryMeta.기타;
+
+              return (
+                <button
+                  type="button"
+                  key={category}
+                  className={`togetherBoardCard ${meta.tone}`}
+                  onClick={() => openTogetherBoard(category)}
+                >
+                  <span className="togetherBoardIcon">{meta.icon}</span>
+                  <span className="togetherBoardText">
+                    <b>{category} 구름판</b>
+                    <small>지금 {openClouds.length}개의 구름이 떠 있어요</small>
+                    <em>{latestCloud ? `“${latestCloud.title}”` : "첫 같이할 구름을 기다려요"}</em>
+                  </span>
+                  <span className="togetherBoardArrow">
+                    <ChevronRightIcon />
+                  </span>
+                </button>
+              );
+            })}
+          </div>
+        </div>
+      )}
+
+      {page === "togetherBoard" && (
+        <div className="card togetherCard">
+          <div className="togetherListHeader">
+            <button type="button" className="textBackButton" onClick={() => setPage("boards")}>
+              ‹ 구름판으로
+            </button>
+            <h2>{selectedTogetherCategory} 구름판</h2>
+            <p className="subtitle">
+              작성자가 확인한 뒤 함께할 수 있는 구름만 모았어요.
+            </p>
+          </div>
+
+          {togetherLoading && <p className="helperText">구름을 불러오고 있어요...</p>}
+
+          {!togetherLoading && selectedTogetherBoardClouds.length === 0 && (
+            <div className="emptyState">
+              <span>☁️</span>
+              <p>아직 이 구름판에 떠 있는 구름이 없어요.</p>
+            </div>
+          )}
+
+          <div className="togetherCloudList">
+            {selectedTogetherBoardClouds.map((cloud) => (
+              <button
+                type="button"
+                key={cloud.id}
+                className="togetherCloudCard"
+                onClick={() => openTogetherDetail(cloud)}
+              >
+                <span className="togetherCloudTop">
+                  <b>☁️ {cloud.title}</b>
+                  <small>{getTogetherCloudStatusLabel(cloud.status)}</small>
+                </span>
+                <span className="togetherCloudMeta">
+                  {cloud.accepted_count || 0}/{cloud.max_members}명 ·{" "}
+                  {formatDateLabel(cloud.event_date)} · {cloud.time_period}
+                </span>
+                <span className="togetherCloudMeta">
+                  {getTogetherCloudPlace(cloud)} · {cloud.author_nickname}
+                </span>
+                <span className="togetherCloudPreview">{cloud.body}</span>
+              </button>
+            ))}
+          </div>
+
+          <button
+            type="button"
+            className="togetherFab"
+            aria-label="같이할 구름 띄우기"
+            onClick={() => openTogetherCreate(selectedTogetherCategory)}
+          >
+            <span>☁️</span>
+            <PlusIcon size={18} />
+          </button>
+        </div>
+      )}
+
+      {page === "togetherCreate" && (
+        <div className="card togetherCard">
+          <button type="button" className="textBackButton" onClick={() => openTogetherBoard(selectedTogetherCategory)}>
+            ‹ {selectedTogetherCategory} 구름판으로
+          </button>
+          <h2>같이할 구름 띄우기</h2>
+          <p className="subtitle">작성자가 확인한 뒤 함께하는 승인형 구름이에요.</p>
+
+          <div className="formGroup">
+            <label className="formLabel">구름판</label>
+            <select
+              value={togetherCloudForm.category}
+              onChange={(e) => updateTogetherCloudForm("category", e.target.value)}
+            >
+              {togetherCloudCategories.map((category) => (
+                <option key={category} value={category}>
+                  {category}
+                </option>
+              ))}
+            </select>
+          </div>
+
+          <div className="formGroup">
+            <label className="formLabel">제목</label>
+            <input
+              placeholder="예: 오늘 저녁 러닝 같이 할 사람"
+              value={togetherCloudForm.title}
+              onChange={(e) => updateTogetherCloudForm("title", e.target.value)}
+            />
+          </div>
+
+          <div className="formGroup">
+            <label className="formLabel">작성자 한마디</label>
+            <textarea
+              placeholder="어떤 사람과 함께하고 싶은지 가볍게 남겨주세요."
+              value={togetherCloudForm.body}
+              onChange={(e) => updateTogetherCloudForm("body", e.target.value)}
+            />
+          </div>
+
+          <div className="formGroup">
+            <label className="formLabel">날짜</label>
+            <input
+              type="date"
+              value={togetherCloudForm.event_date}
+              onChange={(e) => updateTogetherCloudForm("event_date", e.target.value)}
+            />
+          </div>
+
+          <div className="formGroup">
+            <label className="formLabel">시간</label>
+            <select
+              value={togetherCloudForm.time_period}
+              onChange={(e) => updateTogetherCloudForm("time_period", e.target.value)}
+            >
+              <option value="">시간 선택</option>
+              {timeOptions.map((option) => (
+                <option key={option}>{option}</option>
+              ))}
+            </select>
+          </div>
+
+          <div className="formGroup">
+            <label className="formLabel">장소</label>
+            <SearchableSelect
+              options={getPlaceOptions(profile.campus)}
+              value={togetherCloudForm.place}
+              placeholder="장소 검색 또는 선택"
+              onChange={(option) => {
+                updateTogetherCloudForm("place", option);
+                updateTogetherCloudForm("custom_place", "");
+              }}
+            />
+          </div>
+
+          <div className="formGroup">
+            <label className="formLabel">구체적인 위치</label>
+            <input
+              placeholder="예: 1층 입구, 운동장 스탠드, 도서관 2층"
+              value={togetherCloudForm.custom_place}
+              onChange={(e) => updateTogetherCloudForm("custom_place", e.target.value)}
+            />
+          </div>
+
+          <div className="formGroup">
+            <label className="formLabel">함께할 인원</label>
+            <input
+              type="number"
+              min="2"
+              max="20"
+              value={togetherCloudForm.max_members}
+              onChange={(e) => updateTogetherCloudForm("max_members", e.target.value)}
+            />
+          </div>
+
+          <button type="button" onClick={createTogetherCloud} disabled={togetherSubmitting}>
+            {togetherSubmitting ? "띄우는 중..." : "구름 띄우기"}
+          </button>
+        </div>
+      )}
+
+      {page === "togetherDetail" && (
+        <div className="card togetherCard">
+          {selectedTogetherCloud ? (
+            <>
+              <button
+                type="button"
+                className="textBackButton"
+                onClick={() => openTogetherBoard(selectedTogetherCloud.category)}
+              >
+                ‹ {selectedTogetherCloud.category} 구름판으로
+              </button>
+
+              <div className="togetherDetailHero">
+                <span>☁️</span>
+                <p>{selectedTogetherCloud.category} 구름판</p>
+                <h2>{selectedTogetherCloud.title}</h2>
+                <b>
+                  {selectedTogetherCloud.accepted_count || 0}/{selectedTogetherCloud.max_members}명 ·{" "}
+                  {getTogetherCloudStatusLabel(selectedTogetherCloud.status)}
+                </b>
+              </div>
+
+              <div className="summaryBox">
+                <p>
+                  <strong>작성자:</strong> {selectedTogetherCloud.author_nickname}
+                </p>
+                <p>
+                  <strong>날짜:</strong> {formatDateLabel(selectedTogetherCloud.event_date)}
+                </p>
+                <p>
+                  <strong>시간:</strong> {selectedTogetherCloud.time_period}
+                </p>
+                <p>
+                  <strong>장소:</strong> {getTogetherCloudPlace(selectedTogetherCloud)}
+                </p>
+              </div>
+
+              <div className="noticeBox">
+                <b>작성자 한마디</b>
+                <p>{selectedTogetherCloud.body}</p>
+              </div>
+
+              {selectedTogetherCloud.author_id === currentUser?.id ? (
+                <div className="togetherOwnerPanel">
+                  <h3>나에게 온 함께 요청</h3>
+                  {selectedTogetherCloudRequests.filter((request) => request.status === "pending").length === 0 ? (
+                    <p className="helperText">아직 도착한 함께 요청이 없어요.</p>
+                  ) : (
+                    selectedTogetherCloudRequests
+                      .filter((request) => request.status === "pending")
+                      .map((request) => (
+                        <div className="togetherRequestCard" key={request.id}>
+                          <b>{request.requester_nickname}</b>
+                          <p>{request.request_message || "남긴 말이 없어요."}</p>
+                          <div className="togetherRequestActions">
+                            <button
+                              type="button"
+                              onClick={() => respondTogetherRequest(request, "accepted")}
+                              disabled={togetherActionSubmittingId === request.id}
+                            >
+                              수락
+                            </button>
+                            <button
+                              type="button"
+                              className="white"
+                              onClick={() => respondTogetherRequest(request, "rejected")}
+                              disabled={togetherActionSubmittingId === request.id}
+                            >
+                              거절
+                            </button>
+                          </div>
+                        </div>
+                      ))
+                  )}
+                  {selectedTogetherCloud.status === "recruiting" && (
+                    <button
+                      type="button"
+                      className="white"
+                      onClick={() => closeTogetherCloud(selectedTogetherCloud)}
+                      disabled={togetherActionSubmittingId === selectedTogetherCloud.id}
+                    >
+                      모집 마감하기
+                    </button>
+                  )}
+                </div>
+              ) : (
+                <div className="togetherGuestPanel">
+                  {!mySelectedTogetherRequest && selectedTogetherCloud.status === "recruiting" && (
+                    <button
+                      type="button"
+                      onClick={() => requestTogetherCloud(selectedTogetherCloud)}
+                      disabled={togetherActionSubmittingId === selectedTogetherCloud.id}
+                    >
+                      함께 요청 보내기
+                    </button>
+                  )}
+                  {mySelectedTogetherRequest?.status === "pending" && (
+                    <button
+                      type="button"
+                      className="white"
+                      onClick={() => cancelTogetherRequest(mySelectedTogetherRequest)}
+                      disabled={togetherActionSubmittingId === mySelectedTogetherRequest.id}
+                    >
+                      요청 취소하기
+                    </button>
+                  )}
+                  {mySelectedTogetherRequest?.status === "accepted" && (
+                    <button type="button" disabled>
+                      함께하기 확정
+                    </button>
+                  )}
+                  {mySelectedTogetherRequest?.status === "rejected" && (
+                    <button type="button" className="white" disabled>
+                      이번 구름은 함께하기 어려워요
+                    </button>
+                  )}
+                  {selectedTogetherCloud.status !== "recruiting" && !mySelectedTogetherRequest && (
+                    <button type="button" className="white" disabled>
+                      마감된 구름이에요
+                    </button>
+                  )}
+                </div>
+              )}
+
+              <div className="safetyActionRow">
+                <button
+                  type="button"
+                  className="dismissTextButton"
+                  onClick={() =>
+                    reportContent(
+                      "together_cloud",
+                      selectedTogetherCloud.id,
+                      selectedTogetherCloud.author_id
+                    )
+                  }
+                >
+                  신고하기
+                </button>
+                <button
+                  type="button"
+                  className="dismissTextButton"
+                  onClick={() =>
+                    blockUser(selectedTogetherCloud.author_id, selectedTogetherCloud.author_nickname)
+                  }
+                >
+                  차단하기
+                </button>
+              </div>
+            </>
+          ) : (
+            <>
+              <h2>같이할 구름</h2>
+              <p className="subtitle">선택한 구름을 찾지 못했어요.</p>
+              <button type="button" onClick={() => setPage("boards")} className="white">
+                구름판으로 돌아가기
+              </button>
+            </>
+          )}
+        </div>
+      )}
+
       {page === "sharedPost" && (
         <div className="card">
           <h2>☁️ 공유된 구름</h2>

@@ -4202,6 +4202,295 @@ textarea:focus {
   margin-top: 0;
 }
 
+.togetherCard {
+  position: relative;
+  overflow: visible;
+}
+
+.togetherHeader,
+.togetherListHeader {
+  text-align: left;
+}
+
+.togetherHeader {
+  display: flex;
+  align-items: flex-start;
+  justify-content: space-between;
+  gap: 12px;
+}
+
+.smallRefreshBtn {
+  width: auto;
+  min-width: 82px;
+  height: 38px;
+  min-height: 38px;
+  margin: 0;
+  padding: 0 12px;
+  font-size: 12px;
+}
+
+.togetherNoticePill {
+  display: inline-flex;
+  align-items: center;
+  width: auto;
+  margin: 8px 0 0;
+  padding: 6px 10px;
+  border-radius: 999px;
+  background: #fff1f2;
+  color: #e11d48;
+  font-size: 12px;
+  font-weight: 800;
+}
+
+.togetherBoardGrid,
+.togetherCloudList {
+  display: grid;
+  gap: 12px;
+}
+
+.togetherBoardCard,
+.togetherCloudCard {
+  width: 100%;
+  height: auto;
+  min-height: 0;
+  margin: 0;
+  border: 1px solid #d7e8ff;
+  border-radius: 18px;
+  background: #f7fbff;
+  box-shadow: none;
+  color: #062454;
+  text-align: left;
+}
+
+.togetherBoardCard {
+  display: grid;
+  grid-template-columns: 50px 1fr 24px;
+  align-items: center;
+  gap: 12px;
+  padding: 14px;
+}
+
+.togetherBoardCard:hover,
+.togetherCloudCard:hover {
+  transform: translateY(-1px);
+  box-shadow: 0 12px 24px rgba(47, 128, 237, 0.08);
+}
+
+.togetherBoardIcon {
+  width: 48px;
+  height: 48px;
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  border-radius: 50%;
+  background: #fff;
+  font-size: 22px;
+}
+
+.togetherBoardText,
+.togetherCloudTop {
+  display: flex;
+  flex-direction: column;
+  gap: 5px;
+  min-width: 0;
+}
+
+.togetherBoardText b,
+.togetherCloudTop b {
+  font-size: 16px;
+  line-height: 1.25;
+}
+
+.togetherBoardText small,
+.togetherCloudTop small,
+.togetherCloudMeta,
+.togetherCloudPreview {
+  color: #6b7f9d;
+  font-size: 12px;
+  line-height: 1.35;
+}
+
+.togetherBoardText em {
+  color: #2477d4;
+  font-size: 12px;
+  font-style: normal;
+  font-weight: 800;
+  white-space: nowrap;
+  overflow: hidden;
+  text-overflow: ellipsis;
+}
+
+.togetherBoardArrow {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  color: #8aa8cc;
+}
+
+.togetherBoardCard.mint { background: #f1fbf7; border-color: #cdeee2; }
+.togetherBoardCard.peach { background: #fff7ed; border-color: #fed7aa; }
+.togetherBoardCard.blue { background: #eff8ff; border-color: #bfdbfe; }
+.togetherBoardCard.violet { background: #f5f3ff; border-color: #ddd6fe; }
+.togetherBoardCard.green { background: #f0fdf4; border-color: #bbf7d0; }
+.togetherBoardCard.pink { background: #fff1f2; border-color: #fecdd3; }
+.togetherBoardCard.navy { background: #f5f7fb; border-color: #cbd5e1; }
+.togetherBoardCard.yellow { background: #fefce8; border-color: #fde68a; }
+.togetherBoardCard.gray { background: #f8fafc; border-color: #e2e8f0; }
+.togetherBoardCard.sky { background: #f0f9ff; border-color: #bae6fd; }
+.togetherBoardCard.soft { background: #f7fbff; border-color: #d7e8ff; }
+
+.textBackButton {
+  width: auto;
+  height: auto;
+  min-height: 0;
+  margin: 0 0 12px;
+  padding: 0;
+  border: 0;
+  background: transparent;
+  color: #2477d4;
+  box-shadow: none;
+  font-size: 14px;
+  font-weight: 800;
+}
+
+.textBackButton:hover {
+  transform: none;
+  box-shadow: none;
+}
+
+.emptyState {
+  display: grid;
+  justify-items: center;
+  gap: 8px;
+  padding: 24px 12px;
+  border: 1px dashed #cfe2ff;
+  border-radius: 18px;
+  background: #f7fbff;
+  color: #6b7f9d;
+  text-align: center;
+}
+
+.emptyState span {
+  font-size: 28px;
+}
+
+.emptyState p {
+  margin: 0;
+  font-size: 14px;
+}
+
+.togetherCloudCard {
+  display: grid;
+  gap: 7px;
+  padding: 16px;
+}
+
+.togetherCloudPreview {
+  display: -webkit-box;
+  overflow: hidden;
+  -webkit-line-clamp: 2;
+  -webkit-box-orient: vertical;
+}
+
+.togetherFab {
+  position: fixed;
+  right: max(18px, calc((100vw - 480px) / 2 + 18px));
+  bottom: calc(92px + env(safe-area-inset-bottom));
+  z-index: 20;
+  width: 62px;
+  height: 62px;
+  min-height: 62px;
+  margin: 0;
+  padding: 0;
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  gap: 2px;
+  border: 1px solid #bfdbfe;
+  border-radius: 50%;
+  background: linear-gradient(135deg, #ffffff, #eaf3ff);
+  color: #2477d4;
+  box-shadow: 0 18px 28px rgba(37, 99, 235, 0.16);
+}
+
+.togetherFab span {
+  font-size: 21px;
+  line-height: 1;
+}
+
+.togetherDetailHero {
+  display: grid;
+  justify-items: center;
+  gap: 6px;
+  padding: 18px 12px;
+  margin-bottom: 14px;
+  border: 1px solid #d7e8ff;
+  border-radius: 20px;
+  background: linear-gradient(180deg, #f7fbff, #ffffff);
+  text-align: center;
+}
+
+.togetherDetailHero span {
+  font-size: 34px;
+}
+
+.togetherDetailHero p,
+.togetherDetailHero h2,
+.togetherDetailHero b {
+  margin: 0;
+}
+
+.togetherDetailHero p {
+  color: #2477d4;
+  font-size: 13px;
+  font-weight: 800;
+}
+
+.togetherDetailHero h2 {
+  font-size: 21px;
+  line-height: 1.25;
+}
+
+.togetherDetailHero b {
+  color: #6b7f9d;
+  font-size: 13px;
+}
+
+.togetherOwnerPanel,
+.togetherGuestPanel {
+  display: grid;
+  gap: 12px;
+  margin-top: 14px;
+}
+
+.togetherOwnerPanel h3 {
+  margin: 0;
+  font-size: 17px;
+  color: #062454;
+}
+
+.togetherRequestCard {
+  display: grid;
+  gap: 8px;
+  padding: 14px;
+  border: 1px solid #d7e8ff;
+  border-radius: 16px;
+  background: #f7fbff;
+}
+
+.togetherRequestCard p {
+  margin: 0;
+  color: #4b5563;
+  font-size: 14px;
+  line-height: 1.45;
+}
+
+.togetherRequestActions {
+  display: grid;
+  grid-template-columns: 1fr 1fr;
+  gap: 8px;
+}
+
 .cloudCalendarCard {
   text-align: left;
 }
