@@ -1533,6 +1533,7 @@ const handleLogin = async () => {
   };
 
   const openTogetherCreate = (category = selectedTogetherCategory) => {
+    setSelectedTogetherCategory(category);
     setTogetherCloudForm({
       ...emptyTogetherCloudForm,
       category,
@@ -7584,16 +7585,11 @@ useEffect(() => {
 
           <div className="formGroup">
             <label className="formLabel">구름판</label>
-            <select
-              value={togetherCloudForm.category}
-              onChange={(e) => updateTogetherCloudForm("category", e.target.value)}
-            >
-              {togetherCloudCategories.map((category) => (
-                <option key={category} value={category}>
-                  {category}
-                </option>
-              ))}
-            </select>
+            <div className="fixedTogetherCategory">
+              <span>☁️</span>
+              <b>{togetherCloudForm.category}</b>
+              <small>이 구름판에 고정돼요</small>
+            </div>
           </div>
 
           <div className="formGroup">

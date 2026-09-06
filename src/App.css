@@ -4229,6 +4229,36 @@ textarea:focus {
   font-size: 12px;
 }
 
+.fixedTogetherCategory {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  width: 100%;
+  min-height: 58px;
+  padding: 0 18px;
+  border: 1px solid #d7e8ff;
+  border-radius: 18px;
+  background: #f3f9ff;
+  color: #08245c;
+}
+
+.fixedTogetherCategory span {
+  font-size: 20px;
+  line-height: 1;
+}
+
+.fixedTogetherCategory b {
+  font-size: 17px;
+  font-weight: 800;
+}
+
+.fixedTogetherCategory small {
+  margin-left: auto;
+  color: #6b7da0;
+  font-size: 12px;
+  white-space: nowrap;
+}
+
 .togetherNoticePill {
   display: inline-flex;
   align-items: center;
