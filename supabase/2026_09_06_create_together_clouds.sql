@@ -31,6 +31,7 @@ create table if not exists public.together_clouds (
       '취미',
       '이동',
       '친구 만들기',
+      '글로벌',
       '기타'
     )
   ),

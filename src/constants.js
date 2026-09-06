@@ -196,17 +196,7 @@ export const getDepartmentCampus = (departmentName) =>
   departmentRecords.find((department) => department.name === departmentName)?.campus || "";
 
 export const togetherCloudCategories = [
-  "밥/카페",
-  "술",
-  "운동",
-  "공부/스터디",
-  "게임",
-  "행사",
-  "프로젝트/대외활동",
-  "취미",
-  "이동",
-  "친구 만들기",
-  "기타",
+  "글로벌",
 ];
 
 export const timeOptions = [

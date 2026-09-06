@@ -37,6 +37,16 @@ import { PrivacyPolicyPage } from "./components/PrivacyPolicyPage";
 
 const ADMIN_LOGIN_IDS = ["pjwo12356", "djkim5882", "tjdgns02"];
 const PUBLIC_APP_URL = "https://dankook-crush-app.vercel.app";
+const TOASTER_PROPS = {
+  position: "top-center",
+  containerStyle: {
+    top: "calc(env(safe-area-inset-top, 0px) + 34px)",
+  },
+  toastOptions: {
+    duration: 3000,
+    style: { fontSize: "14px", maxWidth: "320px" },
+  },
+};
 import {
   getPlaceOptions,
   campusOptions,
@@ -187,6 +197,7 @@ const getKoreanWeekdayLabel = (dateString) => {
 };
 
 const togetherCloudCategoryMeta = {
+  글로벌: { icon: "🌏", tone: "sky" },
   "밥/카페": { icon: "☕", tone: "mint" },
   술: { icon: "🍻", tone: "peach" },
   운동: { icon: "🏃", tone: "blue" },
@@ -201,7 +212,7 @@ const togetherCloudCategoryMeta = {
 };
 
 const emptyTogetherCloudForm = {
-  category: "밥/카페",
+  category: "글로벌",
   title: "",
   body: "",
   event_date: "",
@@ -499,7 +510,7 @@ const [verificationFile, setVerificationFile] = useState(null);
   const [togetherLoading, setTogetherLoading] = useState(false);
   const [togetherSubmitting, setTogetherSubmitting] = useState(false);
   const [togetherActionSubmittingId, setTogetherActionSubmittingId] = useState(null);
-  const [selectedTogetherCategory, setSelectedTogetherCategory] = useState("밥/카페");
+  const [selectedTogetherCategory, setSelectedTogetherCategory] = useState("글로벌");
   const [selectedTogetherCloud, setSelectedTogetherCloud] = useState(null);
   const [togetherCloudForm, setTogetherCloudForm] = useState(emptyTogetherCloudForm);
 
@@ -5093,6 +5104,16 @@ useEffect(() => {
         onClick: openBoardsPage,
       },
       {
+        key: "notifications",
+        label: "알림",
+        icon: renderBellWithBadge(20),
+        active: page === "matching" && matchingMode === "notifications",
+        onClick: () => {
+          openNotificationsPage();
+          openMatchingPage();
+        },
+      },
+      {
         key: "matching",
         label: "내 구름",
         icon: <ListIcon size={20} />,
@@ -5124,7 +5145,7 @@ useEffect(() => {
   if (authLoading) {
     return (
       <div className="app">
-        <Toaster position="top-center" toastOptions={{ duration: 3000, style: { fontSize: "14px", maxWidth: "320px" } }} />
+        <Toaster {...TOASTER_PROPS} />
         <div className="card">
           <h1>단꿈</h1>
           <p className="subtitle">로그인 상태를 확인하고 있어요...</p>
@@ -5136,7 +5157,7 @@ useEffect(() => {
   if (sharedPostLoading && !currentUser) {
     return (
       <div className="app">
-        <Toaster position="top-center" toastOptions={{ duration: 3000, style: { fontSize: "14px", maxWidth: "320px" } }} />
+        <Toaster {...TOASTER_PROPS} />
         <div className="card">
           <h1>단꿈</h1>
           <p className="subtitle">공유된 구름을 불러오고 있어요...</p>
@@ -5148,7 +5169,7 @@ useEffect(() => {
   if (showPrivacyPolicy) {
     return (
       <div className="app">
-        <Toaster position="top-center" toastOptions={{ duration: 3000, style: { fontSize: "14px", maxWidth: "320px" } }} />
+        <Toaster {...TOASTER_PROPS} />
         <PrivacyPolicyPage onClose={() => setShowPrivacyPolicy(false)} />
       </div>
     );
@@ -5172,7 +5193,7 @@ useEffect(() => {
   if ((!session || !currentUser) && !(page === "sharedPost" && guestSharedPreview)) {
     return (
       <div className="app">
-        <Toaster position="top-center" toastOptions={{ duration: 3000, style: { fontSize: "14px", maxWidth: "320px" } }} />
+        <Toaster {...TOASTER_PROPS} />
         <div className="card">
           <h1>단꿈</h1>
 
@@ -5426,7 +5447,7 @@ useEffect(() => {
   if (showAdmin && isAdmin) {
     return (
       <div className="app">
-        <Toaster position="top-center" toastOptions={{ duration: 3000, style: { fontSize: "14px", maxWidth: "320px" } }} />
+        <Toaster {...TOASTER_PROPS} />
         <AdminPage onClose={() => setShowAdmin(false)} />
       </div>
     );
@@ -5434,13 +5455,7 @@ useEffect(() => {
 
   return (
     <div className="app">
-      <Toaster
-        position="top-center"
-        toastOptions={{
-          duration: 3000,
-          style: { fontSize: "14px", maxWidth: "320px" },
-        }}
-      />
+      <Toaster {...TOASTER_PROPS} />
       {page === "home" && (
         <div className="homeV2">
           <div className="homeV2Header">
@@ -7473,8 +7488,8 @@ useEffect(() => {
         <div className="card togetherCard">
           <div className="togetherHeader">
             <div>
-              <h2>같이할 구름</h2>
-              <p className="subtitle">함께하고 싶은 순간을 구름판에서 찾아봐요.</p>
+              <h2>구름 게시판</h2>
+              <p className="subtitle">다른 언어, 다른 문화의 친구들과 구름처럼 이어져요.</p>
               {myTogetherCloudRequests.length > 0 && (
                 <p className="togetherNoticePill">
                   나에게 온 함께 요청 {myTogetherCloudRequests.length}개
@@ -7505,7 +7520,7 @@ useEffect(() => {
                   <span className="togetherBoardIcon">{meta.icon}</span>
                   <span className="togetherBoardText">
                     <b>{category} 구름판</b>
-                    <small>지금 {openClouds.length}개의 구름이 떠 있어요</small>
+                    <small>지금 {openClouds.length}개의 글로벌 구름이 떠 있어요</small>
                     <em>{latestCloud ? `“${latestCloud.title}”` : "첫 같이할 구름을 기다려요"}</em>
                   </span>
                   <span className="togetherBoardArrow">
@@ -7524,9 +7539,12 @@ useEffect(() => {
             <button type="button" className="textBackButton" onClick={() => setPage("boards")}>
               ‹ 구름판으로
             </button>
-            <h2>{selectedTogetherCategory} 구름판</h2>
+            <h2 className="togetherBoardTitle">
+              <span aria-hidden="true">🌏</span>
+              {selectedTogetherCategory} 구름판
+            </h2>
             <p className="subtitle">
-              작성자가 확인한 뒤 함께할 수 있는 구름만 모았어요.
+              다른 언어, 다른 문화의 친구들과 구름처럼 이어져요.
             </p>
           </div>
 
@@ -7822,7 +7840,7 @@ useEffect(() => {
             </>
           ) : (
             <>
-              <h2>같이할 구름</h2>
+              <h2>구름 게시판</h2>
               <p className="subtitle">선택한 구름을 찾지 못했어요.</p>
               <button type="button" onClick={() => setPage("boards")} className="white">
                 구름판으로 돌아가기
