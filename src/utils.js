@@ -208,7 +208,7 @@ export const cleanTagText = (text) => {
 
 export const getPostTopText = (post) => {
   const clothesStyleText = post.clothes_style || "";
-  if (!clothesStyleText) return "";
+  if (!clothesStyleText.includes("상의:")) return "";
   const rawTopText = clothesStyleText.includes("하의:")
     ? clothesStyleText.split("하의:")[0].replace("상의:", "").trim()
     : clothesStyleText.replace("상의:", "").trim();
@@ -231,23 +231,33 @@ export const getAccessoryValue = (post, label) => {
 export const makeCloudTags = (post) => {
   const tags = [];
   const mainPlace = post.place ? post.place.split(" - ")[0] : "";
-  const hairParts = (post.hair_feature || "")
-    .split(" / ")
-    .map((item) => item.trim())
-    .filter((item) => item && item !== "잘 모르겠음");
-
-  const topText = getPostTopText(post);
-  const bottomText = getPostBottomText(post);
-  const bagText = getAccessoryValue(post, "가방");
-  const moodText = getAccessoryValue(post, "분위기");
 
   if (mainPlace) tags.push(mainPlace);
   if (post.time_period) tags.push(post.time_period);
-  hairParts.slice(0, 2).forEach((item) => tags.push(item));
-  if (topText && topText !== "-") tags.push(topText);
-  if (bottomText && bottomText !== "-") tags.push(bottomText);
-  if (bagText && bagText !== "잘 모르겠음") tags.push(bagText);
-  if (moodText && moodText !== "잘 모르겠음") tags.push(moodText);
+
+  // 항목별 선택형 입력(헤어/상의/하의/소지품)이 있는 예전 글만 "상의:" 마커를 갖고 있다.
+  // 자유 서술형 새 글은 hair_feature/clothes_style/accessory가 전부 같은 한 단락이라
+  // " / " 로 쪼개거나 라벨을 파싱해봐야 의미가 없어서, place/time만 태그로 쓴다 —
+  // 서술 전문은 message로 별도 표시된다.
+  const isLegacyDetailedPost = (post.clothes_style || "").includes("상의:");
+
+  if (isLegacyDetailedPost) {
+    const hairParts = (post.hair_feature || "")
+      .split(" / ")
+      .map((item) => item.trim())
+      .filter((item) => item && item !== "잘 모르겠음");
+
+    const topText = getPostTopText(post);
+    const bottomText = getPostBottomText(post);
+    const bagText = getAccessoryValue(post, "가방");
+    const moodText = getAccessoryValue(post, "분위기");
+
+    hairParts.slice(0, 2).forEach((item) => tags.push(item));
+    if (topText && topText !== "-") tags.push(topText);
+    if (bottomText && bottomText !== "-") tags.push(bottomText);
+    if (bagText && bagText !== "잘 모르겠음") tags.push(bagText);
+    if (moodText && moodText !== "잘 모르겠음") tags.push(moodText);
+  }
 
   return [...new Set(tags)].slice(0, 8);
 };

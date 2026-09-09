@@ -451,16 +451,53 @@ body {
   border: none;
   background: var(--v2-surface);
   box-shadow: var(--v2-shadow-sm);
-  border-radius: 999px;
+  border-radius: 20px;
   padding: 12px 18px;
   display: flex;
+  flex-direction: column;
   align-items: center;
   justify-content: center;
+  gap: 6px;
   color: var(--v2-ink-soft);
   font-size: 13.5px;
   font-weight: 600;
   margin-bottom: 16px;
   overflow: hidden;
+}
+
+.app .homeV2Banner .homeWeatherTickerTrack {
+  animation: homeBannerSlideFade 0.4s ease;
+}
+
+@keyframes homeBannerSlideFade {
+  from {
+    opacity: 0;
+    transform: translateY(3px);
+  }
+  to {
+    opacity: 1;
+    transform: translateY(0);
+  }
+}
+
+.app .homeV2Banner .homeV2BannerDots {
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  gap: 5px;
+}
+
+.app .homeV2Banner .homeV2BannerDot {
+  width: 5px;
+  height: 5px;
+  border-radius: 50%;
+  background: var(--v2-line);
+  transition: background 0.3s ease, transform 0.3s ease;
+}
+
+.app .homeV2Banner .homeV2BannerDot.active {
+  background: var(--v2-blue);
+  transform: scale(1.3);
 }
 
 .app .homeV2Banner .homeWeatherTickerTrack {

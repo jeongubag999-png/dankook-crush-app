@@ -89,13 +89,11 @@ const CLOUD_SEND_MAX_SECONDS = 180;
 const CLOUD_SEND_STEP_NAMES = {
   1: "누구를 찾고 있나요?",
   2: "언제, 어디에서 마주쳤나요?",
-  3: "헤어 정보",
-  4: "상의·아우터·하의·신발",
-  5: "소지품",
-  6: "짧은 메시지",
+  3: "인상착의 자유 서술",
 };
 const CLOUD_COUNT_MULTIPLIER = 2.5;
 const getDisplayedCloudCount = (count) => Math.ceil((Number(count) || 0) * CLOUD_COUNT_MULTIPLIER);
+const HOME_BANNER_SLIDE_COUNT = 5;
 const CLOUD_CHECK_STEP_NAMES = {
   1: "확인할 날짜",
   2: "헤어 정보",
@@ -217,51 +215,6 @@ function App() {
 
 const [verificationFile, setVerificationFile] = useState(null);
 
-  const getFinalHairFeature = () => {
-    if (crushPost.target_gender === "여자") {
-      return makeHairFeature(
-        crushPost.female_hair_style,
-        crushPost.female_hair_color,
-        crushPost.female_hat,
-        crushPost.female_bangs
-      );
-    }
-
-    if (crushPost.target_gender === "남자") {
-      return makeHairFeature(
-        crushPost.male_hair_style,
-        crushPost.male_hair_color,
-        crushPost.male_hat,
-        crushPost.male_bangs
-      );
-    }
-
-    return "";
-  };
-
-  const getSelectedHairDetails = () => {
-    if (crushPost.target_gender === "여자") {
-      return {
-        hair_color: crushPost.female_hair_color,
-        hat_status: crushPost.female_hat,
-        bangs_status: crushPost.female_bangs,
-      };
-    }
-
-    if (crushPost.target_gender === "남자") {
-      return {
-        hair_color: crushPost.male_hair_color,
-        hat_status: crushPost.male_hat,
-        bangs_status: crushPost.male_bangs,
-      };
-    }
-
-    return {
-      hair_color: "",
-      hat_status: "",
-      bangs_status: "",
-    };
-  };
 
   const getFinalSearchHairFeature = () => {
     if (profile.gender === "여자") {
@@ -427,6 +380,13 @@ const [verificationFile, setVerificationFile] = useState(null);
   const [findOwnerClouds, setFindOwnerClouds] = useState([]);
   const [homeTopWeatherPlace, setHomeTopWeatherPlace] = useState(null);
   const [homeTodayClouds, setHomeTodayClouds] = useState([]);
+  const [homeAppStats, setHomeAppStats] = useState({
+    totalUsers: 0,
+    totalClouds: 0,
+    totalChecks: 0,
+    todayChecks: 0,
+  });
+  const [homeBannerSlideIndex, setHomeBannerSlideIndex] = useState(0);
   const [authSubmitting, setAuthSubmitting] = useState(false);
   const [profileSubmitting, setProfileSubmitting] = useState(false);
   const [postSubmitting, setPostSubmitting] = useState(false);
@@ -576,6 +536,25 @@ const [verificationFile, setVerificationFile] = useState(null);
     setHomeTodayClouds(todayClouds);
   }, [profile.campus]);
 
+  const loadHomeAppStats = useCallback(async () => {
+    const { data, error } = await supabase.rpc("get_public_app_stats");
+
+    if (error) {
+      console.log(error);
+      return;
+    }
+
+    const row = Array.isArray(data) ? data[0] : data;
+    if (!row) return;
+
+    setHomeAppStats({
+      totalUsers: Number(row.total_users) || 0,
+      totalClouds: Number(row.total_clouds) || 0,
+      totalChecks: Number(row.total_checks) || 0,
+      todayChecks: Number(row.today_checks) || 0,
+    });
+  }, []);
+
   const getFinalPlace = () => {
     const mainPlace = crushPost.place;
     const detailPlace = crushPost.custom_place.trim();
@@ -593,20 +572,6 @@ const [verificationFile, setVerificationFile] = useState(null);
     return mainPlace;
   };
 
-
-  const getFinalBottomType = () => {
-    if (crushPost.bottom_type === "기타 하의" && crushPost.bottom_custom.trim()) {
-      return `기타 하의:${crushPost.bottom_custom.trim()}`;
-    }
-
-    return crushPost.bottom_type;
-  };
-
-  const getFinalOuter = () => {
-    if (!crushPost.outer_type) return "";
-    if (crushPost.outer_type === "아우터 없음") return "아우터 없음";
-    return `${crushPost.outer_type}${crushPost.outer_color ? ` ${crushPost.outer_color}` : ""}`;
-  };
 
   const resetProfile = () => {
     setProfile({
@@ -952,10 +917,19 @@ const [verificationFile, setVerificationFile] = useState(null);
   }, [page, crushStep]);
 
   useEffect(() => {
+    const timer = setInterval(() => {
+      setHomeBannerSlideIndex((index) => (index + 1) % HOME_BANNER_SLIDE_COUNT);
+    }, 2800);
+
+    return () => clearInterval(timer);
+  }, []);
+
+  useEffect(() => {
     if (!currentUser) return;
 
     Promise.resolve().then(loadHomeTopWeatherPlace);
-  }, [currentUser, loadHomeTopWeatherPlace]);
+    Promise.resolve().then(loadHomeAppStats);
+  }, [currentUser, loadHomeTopWeatherPlace, loadHomeAppStats]);
 
   const handlePickVerificationFile = async () => {
     try {
@@ -1396,9 +1370,11 @@ const handleLogin = async () => {
   };
 
 // 날짜·성별은 DB 쿼리에서 이미 정확히 일치하는 것만 가져오므로(or/not 필터),
-// 점수에는 관여하지 않음. 30%는 "머리만 입력하고 그게 전부 맞은 경우"의
-// 점수와 같아서, 이걸 최소 통과선으로 잡음.
-const MATCH_THRESHOLD = 30;
+// 점수에는 관여하지 않음.
+// 초기 저사용 단계라 "구름이 안 뜨는 것"이 "잘못 뜨는 것"보다 더 큰 문제라, 일단
+// 0으로 낮춰서 날짜·성별·캠퍼스만 맞으면 전부 후보로 보여준다(점수순 정렬은 유지).
+// 사용자/데이터가 쌓이면 다시 올려서 정확도를 조일 것.
+const MATCH_THRESHOLD = 0;
 
 const HAIR_WEIGHT = 30;
 
@@ -1628,6 +1604,8 @@ const hideSearchResult = (postId) => {
   });
 };
   const renderPostQuestionAnswer = (post) => {
+    // "상의:" 마커가 있으면 항목별 선택형으로 작성된 예전 글, 없으면 자유 서술형 새 글.
+    const isLegacyDetailedPost = (post.clothes_style || "").includes("상의:");
     const accessoryText = post.accessory || "";
     const topText = getPostTopText(post) || "-";
     const bottomText = getPostBottomText(post) || "-";
@@ -1652,27 +1630,33 @@ const hideSearchResult = (postId) => {
           <strong>장소:</strong> {post.place || "-"}
         </p>
 
-        <details className="qaDetails">
-          <summary className="qaToggleLabel" />
+        {isLegacyDetailedPost ? (
+          <details className="qaDetails">
+            <summary className="qaToggleLabel" />
 
-          <div className="qaBody">
-            <p>
-              <strong>헤어:</strong> {post.hair_feature || "-"}
-            </p>
+            <div className="qaBody">
+              <p>
+                <strong>헤어:</strong> {post.hair_feature || "-"}
+              </p>
 
-            <p>
-              <strong>상의:</strong> {topText || "-"}
-            </p>
+              <p>
+                <strong>상의:</strong> {topText || "-"}
+              </p>
 
-            <p>
-              <strong>하의:</strong> {bottomText || "-"}
-            </p>
+              <p>
+                <strong>하의:</strong> {bottomText || "-"}
+              </p>
 
-            <p>
-              <strong>소지품/상황:</strong> {accessoryText || "-"}
-            </p>
-          </div>
-        </details>
+              <p>
+                <strong>소지품/상황:</strong> {accessoryText || "-"}
+              </p>
+            </div>
+          </details>
+        ) : (
+          <p>
+            <strong>인상착의:</strong> {post.hair_feature || "-"}
+          </p>
+        )}
       </div>
     );
   };
@@ -2310,84 +2294,52 @@ const hideSearchResult = (postId) => {
       return;
     }
 
-    const finalHairFeature = getFinalHairFeature();
-    const selectedHairDetails = getSelectedHairDetails();
+    const impressionText = crushPost.message.trim();
 
-    if (!finalHairFeature || !crushPost.glasses_type) {
-      toast.error("헤어 색깔, 모자, 앞머리, 안경를 선택해주세요.");
+    if (!impressionText) {
+      toast.error("인상착의를 간단히라도 적어주세요.");
       await moveCloudSendStep(3, "validation_back");
       return;
     }
 
-    if (
-      !crushPost.top_type ||
-      !crushPost.top_color ||
-      !crushPost.outer_type ||
-      (crushPost.outer_type !== "아우터 없음" && !crushPost.outer_color) ||
-      !getFinalBottomType() ||
-      !crushPost.bottom_color ||
-      !crushPost.shoe_type
-    ) {
-      toast.error("상의, 아우터, 하의, 신발을 선택해주세요.");
-      await moveCloudSendStep(4, "validation_back");
-      return;
-    }
-
-    if (!crushPost.bag_type || !crushPost.earphone_type) {
-      toast.error("가방과 이어폰 정보를 선택해주세요.");
-      await moveCloudSendStep(5, "validation_back");
-      return;
-    }
-
-    const topDetailText = crushPost.top_detail.trim()
-      ? ` / 상의 설명:${crushPost.top_detail.trim()}`
-      : "";
-
-    const bottomDetailText = crushPost.bottom_detail.trim()
-      ? ` / 하의 설명:${crushPost.bottom_detail.trim()}`
-      : "";
-
-    const itemDetailText = crushPost.item_detail.trim()
-      ? ` / 소지품 설명:${crushPost.item_detail.trim()}`
-      : "";
-
-    const shoeDetailText = crushPost.shoe_detail.trim()
-      ? ` / 신발 설명:${crushPost.shoe_detail.trim()}`
-      : "";
-
-    const combinedStyle = `상의:${crushPost.top_type} ${crushPost.top_color}${topDetailText} / 아우터:${getFinalOuter()} / 하의:${getFinalBottomType()} ${crushPost.bottom_color}${bottomDetailText}`;
-    const combinedAccessory = `가방:${crushPost.bag_type} / 이어폰:${crushPost.earphone_type} / 안경:${crushPost.glasses_type || "잘 모르겠음"}${itemDetailText} / 신발:${crushPost.shoe_type}${shoeDetailText}`;
-
     setPostSubmitting(true);
 
     try {
+      // 헤어/상의/하의/신발/소지품을 항목별로 고르게 하던 예전 방식 대신, 색깔 칩 1개(선택)
+      // + 자유 서술 한 단락만 받는다. getCloudMatchScore가 항목별 값이 비어 있으면
+      // clothes_style/accessory/hair_feature를 대신 훑어서 부분 문자열로 맞춰보는
+      // fallback을 이미 갖고 있어서(containsMatch(fallbackSource, checkValue)), 서술
+      // 텍스트를 세 필드에 모두 넣어두면 "구름 확인하기"의 세부 선택형 입력과 자동으로
+      // 대조된다. 색깔 칩은 top_color에 직접 넣어서 확실한 고배점(가중치 9) 매칭 한 건을
+      // 보장한다. 매칭 로직이나 확인하기 폼은 건드릴 필요가 없다.
+      const pickedColor = crushPost.top_color;
       const postData = {
         seen_date: crushPost.seen_date,
         place: getFinalPlace(),
         main_place: crushPost.place,
         detail_place: crushPost.custom_place.trim(),
         time_period: crushPost.time_period,
-        hair_feature: finalHairFeature,
-        hair_color: selectedHairDetails.hair_color,
-        hat_status: selectedHairDetails.hat_status,
-        bangs_status: selectedHairDetails.bangs_status,
-        glasses_status: crushPost.glasses_type,
-        top_type: crushPost.top_type,
-        top_color: crushPost.top_color,
-        top_detail: crushPost.top_detail.trim(),
-        outer_type: crushPost.outer_type,
-        outer_color: crushPost.outer_type === "아우터 없음" ? "" : crushPost.outer_color,
-        bottom_type: getFinalBottomType(),
-        bottom_color: crushPost.bottom_color,
-        bottom_detail: crushPost.bottom_detail.trim(),
-        shoe_type: crushPost.shoe_type,
-        shoe_detail: crushPost.shoe_detail.trim(),
-        bag_type: crushPost.bag_type,
-        earphone_type: crushPost.earphone_type,
-        item_detail: crushPost.item_detail.trim(),
-        clothes_color: crushPost.top_color,
-        clothes_style: combinedStyle,
-        accessory: combinedAccessory,
+        hair_feature: impressionText,
+        hair_color: "",
+        hat_status: "",
+        bangs_status: "",
+        glasses_status: "",
+        top_type: "",
+        top_color: pickedColor,
+        top_detail: "",
+        outer_type: "",
+        outer_color: "",
+        bottom_type: "",
+        bottom_color: "",
+        bottom_detail: "",
+        shoe_type: "",
+        shoe_detail: "",
+        bag_type: "",
+        earphone_type: "",
+        item_detail: "",
+        clothes_color: pickedColor,
+        clothes_style: impressionText,
+        accessory: impressionText,
         message: crushPost.message,
         sender_nickname: profile.nickname,
         sender_instagram: cleanInstagram(profile.instagram_id),
@@ -4170,6 +4122,44 @@ useEffect(() => {
     (sum, item) => sum + item.displayCount,
     0
   );
+  const homeTotalCloudDisplayCount = getDisplayedCloudCount(homeAppStats.totalClouds);
+  const homeTotalUserDisplayCount = getDisplayedCloudCount(homeAppStats.totalUsers);
+  const homeTotalCheckDisplayCount = getDisplayedCloudCount(homeAppStats.totalChecks);
+  const homeTodayCheckDisplayCount = getDisplayedCloudCount(homeAppStats.todayChecks);
+  const homeBannerSlides = [
+    {
+      key: "totalUsers",
+      label: "누적 사용자",
+      value: homeTotalUserDisplayCount,
+      unit: "명",
+    },
+    {
+      key: "totalClouds",
+      label: "누적 구름",
+      value: homeTotalCloudDisplayCount,
+      unit: "개",
+    },
+    {
+      key: "totalChecks",
+      label: "누적 구름 확인",
+      value: homeTotalCheckDisplayCount,
+      unit: "개",
+    },
+    {
+      key: "todayClouds",
+      label: "오늘 뜬 구름",
+      value: homeWeatherCloudCount,
+      unit: "개",
+    },
+    {
+      key: "todayChecks",
+      label: "오늘 구름 확인",
+      value: homeTodayCheckDisplayCount,
+      unit: "개",
+    },
+  ];
+  const homeActiveBannerSlide =
+    homeBannerSlides[homeBannerSlideIndex % homeBannerSlides.length];
   const weatherPlaceCounts = getWeatherPlaceCounts();
   const weatherDisplayedCloudCount = weatherPlaceCounts.reduce(
     (sum, item) => sum + item.displayCount,
@@ -5179,12 +5169,24 @@ useEffect(() => {
           </div>
 
           <div className="homeV2Banner">
-            <span className="homeWeatherTickerTrack">
+            <span className="homeWeatherTickerTrack" key={homeActiveBannerSlide.key}>
               <span className="homeWeatherTickerCloud" aria-hidden="true">☁</span>
               <span className="homeWeatherTickerText">
-                오늘 구름 <b>{homeWeatherCloudCount}개</b>가 떴어요
+                {homeActiveBannerSlide.label}{" "}
+                <b>{homeActiveBannerSlide.value.toLocaleString()}{homeActiveBannerSlide.unit}</b>
               </span>
               <span className="homeWeatherTickerCloud" aria-hidden="true">☁</span>
+            </span>
+            <span className="homeV2BannerDots" aria-hidden="true">
+              {homeBannerSlides.map((slide, index) => (
+                <span
+                  key={slide.key}
+                  className={
+                    "homeV2BannerDot" +
+                    (index === homeBannerSlideIndex % homeBannerSlides.length ? " active" : "")
+                  }
+                />
+              ))}
             </span>
           </div>
 
@@ -5665,9 +5667,9 @@ useEffect(() => {
             </div>
           )}
 
-          <p className="stepText">{crushStep} / 6</p>
+          <p className="stepText">{crushStep} / 3</p>
 
-          <StepProgress total={6} current={crushStep} />
+          <StepProgress total={3} current={crushStep} />
 
           {crushStep === 1 && (
             <>
@@ -5773,423 +5775,8 @@ useEffect(() => {
                   : crushPost.target_gender === "남자"
                   ? "그"
                   : "상대"}
-                의 헤어가 기억나나요?
+                의 인상착의를 자유롭게 적어주세요
               </h3>
-              {crushPost.target_gender === "여자" ? (
-                <>
-                  <details className="hairGuideBox">
-                    <summary className="hairGuideSummary">
-                      <span>헤어 길이 참고 사진 보기</span>
-                      <span className="hairGuideArrow" aria-hidden="true">
-                        ›
-                      </span>
-                    </summary>
-                    <img
-                      src={femaleHairGuideImage}
-                      alt="여자 헤어스타일 예시"
-                      className="hairGuideImage"
-                    />
-                  </details>
-
-                  <div className="formGroup">
-                    <label className="formLabel">헤어스타일</label>
-                    <div className="optionGrid">
-                      {femaleHairStyleOptions.map((option) => (
-                        <OptionButton
-                          key={option}
-                          value={option}
-                          selected={crushPost.female_hair_style === option}
-                          onClick={() => updateCrushPost("female_hair_style", option)}
-                          full={option === "잘 모르겠음"}
-                        />
-                      ))}
-                    </div>
-                  </div>
-
-                  <div className="formGroup">
-                    <label className="formLabel">헤어 색깔</label>
-                    <div className="optionGrid">
-                      {hairColorOptions.map((option) => (
-                        <OptionButton
-                          key={option}
-                          value={option}
-                          selected={crushPost.female_hair_color === option}
-                          onClick={() => updateCrushPost("female_hair_color", option)}
-                          full={option === "잘 모르겠음"}
-                        />
-                      ))}
-                    </div>
-                  </div>
-
-                  <div className="formGroup">
-                    <label className="formLabel">모자</label>
-                    <div className="optionGrid">
-                      {hatOptions.map((option) => (
-                        <OptionButton
-                          key={option}
-                          value={option}
-                          selected={crushPost.female_hat === option}
-                          onClick={() => updateCrushPost("female_hat", option)}
-                          label={getOxLabel(option)}
-                          full={option === "잘 모르겠음"}
-                        />
-                      ))}
-                    </div>
-                  </div>
-
-                  <div className="formGroup">
-                    <label className="formLabel">앞머리</label>
-                    <div className="optionGrid">
-                      {bangsOptions.map((option) => (
-                        <OptionButton
-                          key={option}
-                          value={option}
-                          selected={crushPost.female_bangs === option}
-                          onClick={() => updateCrushPost("female_bangs", option)}
-                          label={getOxLabel(option)}
-                          full={option === "잘 모르겠음"}
-                        />
-                      ))}
-                    </div>
-                  </div>
-                </>
-              ) : (
-                <>
-                  <div className="formGroup">
-                    <label className="formLabel">헤어 색깔</label>
-                    <div className="optionGrid">
-                      {hairColorOptions.map((option) => (
-                        <OptionButton
-                          key={option}
-                          value={option}
-                          selected={crushPost.male_hair_color === option}
-                          onClick={() => updateCrushPost("male_hair_color", option)}
-                          full={option === "잘 모르겠음"}
-                        />
-                      ))}
-                    </div>
-                  </div>
-
-                  <div className="formGroup">
-                    <label className="formLabel">모자</label>
-                    <div className="optionGrid">
-                      {hatOptions.map((option) => (
-                        <OptionButton
-                          key={option}
-                          value={option}
-                          selected={crushPost.male_hat === option}
-                          onClick={() => updateCrushPost("male_hat", option)}
-                          label={getOxLabel(option)}
-                          full={option === "잘 모르겠음"}
-                        />
-                      ))}
-                    </div>
-                  </div>
-
-                  <div className="formGroup">
-                    <label className="formLabel">앞머리</label>
-                    <div className="optionGrid">
-                      {bangsOptions.map((option) => (
-                        <OptionButton
-                          key={option}
-                          value={option}
-                          selected={crushPost.male_bangs === option}
-                          onClick={() => updateCrushPost("male_bangs", option)}
-                          label={getOxLabel(option)}
-                          full={option === "잘 모르겠음"}
-                        />
-                      ))}
-                    </div>
-                  </div>
-                </>
-              )}
-
-              <div className="formGroup">
-                <label className="formLabel">안경</label>
-                <div className="optionGrid">
-                  {glassesOptions.map((option) => (
-                    <OptionButton
-                      key={option}
-                      value={option}
-                      selected={crushPost.glasses_type === option}
-                      onClick={() => updateCrushPost("glasses_type", option)}
-                      label={getOxLabel(option)}
-                      full={option === "잘 모르겠음"}
-                    />
-                  ))}
-                </div>
-              </div>
-
-              <div className="stepActions">
-                <button onClick={goBackStep} className="white">
-                  이전
-                </button>
-                <button
-                  onClick={async () => {
-                    if (!getFinalHairFeature() || !crushPost.glasses_type) {
-                      toast.error(
-                        "헤어 색깔, 모자, 앞머리, 안경를 선택해주세요."
-                      );
-                      return;
-                    }
-                    await moveCloudSendStep(4, "next");
-                  }}
-                >
-                  다음
-                </button>
-              </div>
-            </>
-          )}
-
-          {crushStep === 4 && (
-            <>
-              <h3 className="questionTitle">상의·아우터·하의가 기억나나요?</h3>
-              <div className="formGroup">
-                <label className="formLabel">상의 종류</label>
-                <select
-                  value={crushPost.top_type}
-                  onChange={(e) => updateCrushPost("top_type", e.target.value)}
-                >
-                  <option value="">상의 종류 선택</option>
-                  {(crushPost.target_gender === "여자"
-                    ? femaleTopTypeOptions
-                    : topTypeOptions
-                  ).map((option) => (
-                    <option key={option}>{option}</option>
-                  ))}
-                </select>
-              </div>
-
-              <div className="formGroup">
-                <label className="formLabel">상의 색상</label>
-                <select
-                  value={crushPost.top_color}
-                  onChange={(e) => updateCrushPost("top_color", e.target.value)}
-                >
-                  <option value="">상의 색상 선택</option>
-                  {topColorOptions.map((option) => (
-                    <option key={option}>{option}</option>
-                  ))}
-                </select>
-              </div>
-
-              <div className="formGroup">
-                <label className="formLabel">상의 추가 설명 선택사항</label>
-                <input
-                  placeholder="예: 흰 셔츠 안에 검정 반팔, 하늘색 스트라이프 셔츠, 로고 있는 후드티"
-                  value={crushPost.top_detail}
-                  onChange={(e) => updateCrushPost("top_detail", e.target.value)}
-                />
-                <p className="helperText">
-                  필수는 아니지만, 정확히 기억나는 특징이 있으면 적어주세요.
-                </p>
-              </div>
-
-              <div className="formGroup">
-                <label className="formLabel">아우터 종류</label>
-                <select
-                  value={crushPost.outer_type}
-                  onChange={(e) => updateCrushPost("outer_type", e.target.value)}
-                >
-                  <option value="">아우터 종류 선택</option>
-                  {outerTypeOptions.map((option) => (
-                    <option key={option}>{option}</option>
-                  ))}
-                </select>
-              </div>
-
-              {crushPost.outer_type && crushPost.outer_type !== "아우터 없음" && (
-                <div className="formGroup">
-                  <label className="formLabel">아우터 색상</label>
-                  <select
-                    value={crushPost.outer_color}
-                    onChange={(e) => updateCrushPost("outer_color", e.target.value)}
-                  >
-                    <option value="">아우터 색상 선택</option>
-                    {topColorOptions.map((option) => (
-                      <option key={option}>{option}</option>
-                    ))}
-                  </select>
-                </div>
-              )}
-
-              <div className="formGroup">
-                <label className="formLabel">하의 종류</label>
-                <select
-                  value={crushPost.bottom_type}
-                  onChange={(e) => updateCrushPost("bottom_type", e.target.value)}
-                >
-                  <option value="">하의 종류 선택</option>
-                  {(crushPost.target_gender === "여자"
-                    ? femaleBottomTypeOptions
-                    : bottomTypeOptions
-                  ).map((option) => (
-                    <option key={option}>{option}</option>
-                  ))}
-                </select>
-              </div>
-
-              {crushPost.bottom_type === "기타 하의" && (
-                <div className="formGroup">
-                  <label className="formLabel">하의 기타 설명</label>
-                  <input
-                    placeholder="예: 카고바지, 와이드 팬츠, 독특한 바지"
-                    value={crushPost.bottom_custom}
-                    onChange={(e) =>
-                      updateCrushPost("bottom_custom", e.target.value)
-                    }
-                  />
-                </div>
-              )}
-
-              <div className="formGroup">
-                <label className="formLabel">하의 색상</label>
-                <select
-                  value={crushPost.bottom_color}
-                  onChange={(e) => updateCrushPost("bottom_color", e.target.value)}
-                >
-                  <option value="">하의 색상 선택</option>
-                  {bottomColorOptions.map((option) => (
-                    <option key={option}>{option}</option>
-                  ))}
-                </select>
-              </div>
-
-              <div className="formGroup">
-                <label className="formLabel">하의 추가 설명 선택사항</label>
-                <input
-                  placeholder="예: 연청 와이드 청바지, 검정 카고바지, 무릎 위 반바지"
-                  value={crushPost.bottom_detail}
-                  onChange={(e) => updateCrushPost("bottom_detail", e.target.value)}
-                />
-                <p className="helperText">
-                  바지 핏, 길이, 무늬처럼 기억나는 특징이 있으면 적어주세요.
-                </p>
-              </div>
-
-              <div className="formGroup">
-                <label className="formLabel">신발</label>
-                <select
-                  value={crushPost.shoe_type}
-                  onChange={(e) => updateCrushPost("shoe_type", e.target.value)}
-                >
-                  <option value="">신발 선택</option>
-                  {shoeOptions.map((option) => (
-                    <option key={option}>{option}</option>
-                  ))}
-                </select>
-              </div>
-
-              <div className="formGroup">
-                <label className="formLabel">신발 추가 설명 선택사항</label>
-                <input
-                  placeholder="예: 흰색 나이키 운동화 느낌, 검정 컨버스, 크록스에 지비츠"
-                  value={crushPost.shoe_detail}
-                  onChange={(e) => updateCrushPost("shoe_detail", e.target.value)}
-                />
-                <p className="helperText">
-                  브랜드를 몰라도 색, 모양, 느낌만 적어도 괜찮아요.
-                </p>
-              </div>
-
-              <div className="stepActions">
-                <button onClick={goBackStep} className="white">
-                  이전
-                </button>
-                <button
-                  onClick={async () => {
-                    if (
-                      !crushPost.top_type ||
-                      !crushPost.top_color ||
-                      !crushPost.outer_type ||
-                      (crushPost.outer_type !== "아우터 없음" && !crushPost.outer_color) ||
-                      !getFinalBottomType() ||
-                      !crushPost.bottom_color ||
-                      !crushPost.shoe_type
-                    ) {
-                      toast.error("상의, 아우터, 하의, 신발을 선택해주세요.");
-                      return;
-                    }
-                    await moveCloudSendStep(5, "next");
-                  }}
-                >
-                  다음
-                </button>
-              </div>
-            </>
-          )}
-
-          {crushStep === 5 && (
-            <>
-              <h3 className="questionTitle">소지품이 기억나나요?</h3>
-              <div className="formGroup">
-                <label className="formLabel">가방</label>
-                <div className="optionGrid">
-                  {bagOptions.map((option) => (
-                    <OptionButton
-                      key={option}
-                      value={option}
-                      selected={crushPost.bag_type === option}
-                      onClick={() => updateCrushPost("bag_type", option)}
-                      label={getOxLabel(option)}
-                      full={option === "잘 모르겠음"}
-                    />
-                  ))}
-                </div>
-              </div>
-
-              <div className="formGroup">
-                <label className="formLabel">이어폰/헤드셋</label>
-                <select
-                  value={crushPost.earphone_type}
-                  onChange={(e) => updateCrushPost("earphone_type", e.target.value)}
-                >
-                  <option value="">이어폰 선택</option>
-                  {earphoneOptions.map((option) => (
-                    <option key={option}>{option}</option>
-                  ))}
-                </select>
-              </div>
-
-              <div className="formGroup">
-                <label className="formLabel">소지품 추가 설명 선택사항</label>
-                <input
-                  placeholder="예: 검정 백팩에 키링, 노트북 파우치, 에어팟 맥스 느낌"
-                  value={crushPost.item_detail}
-                  onChange={(e) => updateCrushPost("item_detail", e.target.value)}
-                />
-                <p className="helperText">
-                  가방 색, 키링, 들고 있던 물건처럼 기억나는 특징이 있으면 적어주세요.
-                </p>
-              </div>
-
-              <div className="stepActions">
-                <button onClick={goBackStep} className="white">
-                  이전
-                </button>
-                <button
-                  onClick={async () => {
-                    if (!crushPost.bag_type || !crushPost.earphone_type) {
-                      toast.error("가방과 이어폰 정보를 선택해주세요.");
-                      return;
-                    }
-                    await moveCloudSendStep(6, "next");
-                  }}
-                >
-                  다음
-                </button>
-              </div>
-            </>
-          )}
-
-          {crushStep === 6 && (
-            <>
-              <h3 className="questionTitle">마지막으로 확인해주세요</h3>
-              <textarea
-                placeholder="짧은 메시지 예: 분위기가 좋아 보여서 조심스럽게 구름 남겨요."
-                value={crushPost.message}
-                onChange={(e) => updateCrushPost("message", e.target.value)}
-              />
 
               <div className="summaryBox">
                 <p>
@@ -6215,59 +5802,54 @@ useEffect(() => {
                 <p>
                   <strong>장소:</strong> {getFinalPlace() || "-"}
                 </p>
-                <p>
-                  <strong>헤어:</strong> {getFinalHairFeature() || "-"}
-                </p>
-                <p>
-                  <strong>상의:</strong> {crushPost.top_color || "-"}{" "}
-                  {crushPost.top_type || "-"}
-                </p>
-                {crushPost.top_detail.trim() && (
-                  <p>
-                    <strong>상의 추가 설명:</strong> {crushPost.top_detail.trim()}
-                  </p>
-                )}
-                <p>
-                  <strong>아우터:</strong> {getFinalOuter() || "-"}
-                </p>
-                <p>
-                  <strong>하의:</strong> {crushPost.bottom_color || "-"}{" "}
-                  {getFinalBottomType() || "-"}
-                </p>
-                {crushPost.bottom_detail.trim() && (
-                  <p>
-                    <strong>하의 추가 설명:</strong> {crushPost.bottom_detail.trim()}
-                  </p>
-                )}
-                <p>
-                  <strong>신발:</strong> {crushPost.shoe_type || "-"}
-                </p>
-                {crushPost.shoe_detail.trim() && (
-                  <p>
-                    <strong>신발 추가 설명:</strong> {crushPost.shoe_detail.trim()}
-                  </p>
-                )}
-                <p>
-                  <strong>소지품:</strong> {crushPost.bag_type || "-"},{" "}
-                  {crushPost.earphone_type || "-"}
-                </p>
-                {crushPost.item_detail.trim() && (
-                  <p>
-                    <strong>소지품 추가 설명:</strong> {crushPost.item_detail.trim()}
-                  </p>
-                )}
               </div>
 
-              <p className="helperText">
-                다른 사람이 특정될 수 있는 내용을 담고 있어요. 사실과 다르거나 명예를 훼손하는
-                내용을 올리면 작성자 본인이 책임을 질 수 있으니 신중하게 작성해주세요.
-              </p>
+              <div className="formGroup">
+                <label className="formLabel">가장 눈에 띄었던 색깔 (선택)</label>
+                <div className="optionGrid">
+                  {topColorOptions
+                    .filter((option) => option !== "잘 모르겠음")
+                    .map((option) => (
+                      <OptionButton
+                        key={option}
+                        value={option}
+                        selected={crushPost.top_color === option}
+                        onClick={() =>
+                          updateCrushPost(
+                            "top_color",
+                            crushPost.top_color === option ? "" : option
+                          )
+                        }
+                      />
+                    ))}
+                </div>
+                <p className="helperText">
+                  상의든 하의든 신발이든, 제일 기억에 남는 색깔 하나만 골라주세요. 고르면
+                  매칭이 더 잘 돼요.
+                </p>
+              </div>
+
+              <div className="formGroup">
+                <textarea
+                  placeholder="예: 하늘색 후드티에 청바지 입고 안경 쓴 사람이었어요. 검은 단발머리에 크로스백 메고 있었어요."
+                  value={crushPost.message}
+                  onChange={(e) => updateCrushPost("message", e.target.value)}
+                  maxLength={300}
+                />
+                <p className="helperText">
+                  색깔, 옷 스타일, 안경, 가방처럼 기억나는 특징을 적어주세요. 구체적으로
+                  적을수록 상대가 자신을 더 잘 알아볼 수 있어요.
+                </p>
+              </div>
 
               <div className="stepActions">
                 <button onClick={goBackStep} className="white">
                   이전
                 </button>
-                <button onClick={saveCrushPost} disabled={postSubmitting}>
+                <button
+                  onClick={saveCrushPost}
+                  disabled={postSubmitting}
+                >
                   {postSubmitting ? "구름 띄우는 중..." : "구름 띄우기"}
                 </button>
               </div>
