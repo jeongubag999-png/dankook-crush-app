@@ -93,6 +93,8 @@ const CLOUD_SEND_STEP_NAMES = {
 };
 const CLOUD_COUNT_MULTIPLIER = 2.5;
 const getDisplayedCloudCount = (count) => Math.ceil((Number(count) || 0) * CLOUD_COUNT_MULTIPLIER);
+const USER_COUNT_MULTIPLIER = 1.5;
+const getDisplayedUserCount = (count) => Math.ceil((Number(count) || 0) * USER_COUNT_MULTIPLIER);
 const HOME_BANNER_SLIDE_COUNT = 5;
 const CLOUD_CHECK_STEP_NAMES = {
   1: "확인할 날짜",
@@ -4123,7 +4125,7 @@ useEffect(() => {
     0
   );
   const homeTotalCloudDisplayCount = getDisplayedCloudCount(homeAppStats.totalClouds);
-  const homeTotalUserDisplayCount = getDisplayedCloudCount(homeAppStats.totalUsers);
+  const homeTotalUserDisplayCount = getDisplayedUserCount(homeAppStats.totalUsers);
   const homeTotalCheckDisplayCount = getDisplayedCloudCount(homeAppStats.totalChecks);
   const homeTodayCheckDisplayCount = getDisplayedCloudCount(homeAppStats.todayChecks);
   const homeBannerSlides = [
