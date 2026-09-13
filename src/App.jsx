@@ -57,6 +57,9 @@ import {
   earphoneOptions,
   shoeOptions,
   matchOptions,
+  countryOptions,
+  languageOptions,
+  languageExchangeInterestOptions,
 } from "./constants";
 import {
   getKoreaDateString,
@@ -262,6 +265,11 @@ const [verificationFile, setVerificationFile] = useState(null);
 
 
   const emptyCrushPost = {
+    room: "",
+    lang_country: "",
+    lang_custom_country: "",
+    lang_spoken: [],
+    lang_interests: [],
     target_gender: "",
     seen_date: "",
     place: "",
@@ -297,6 +305,10 @@ const [verificationFile, setVerificationFile] = useState(null);
   const [crushPost, setCrushPost] = useState(emptyCrushPost);
 
   const [searchForm, setSearchForm] = useState({
+    room: "crush",
+    lang_country: "",
+    lang_wanted: [],
+    lang_interests: [],
     seen_date: "",
     hair_feature: "",
     female_hair_style: "",
@@ -495,6 +507,33 @@ const [verificationFile, setVerificationFile] = useState(null);
     }));
   };
 
+  const toggleCrushPostArrayValue = (key, value) => {
+    setCrushPost((prev) => {
+      const current = prev[key] || [];
+      const next = current.includes(value)
+        ? current.filter((v) => v !== value)
+        : [...current, value];
+      return { ...prev, [key]: next };
+    });
+  };
+
+  const toggleSearchFormArrayValue = (key, value) => {
+    setSearchForm((prev) => {
+      const current = prev[key] || [];
+      const next = current.includes(value)
+        ? current.filter((v) => v !== value)
+        : [...current, value];
+      return { ...prev, [key]: next };
+    });
+  };
+
+  const getFinalLangCountry = () => {
+    if (crushPost.lang_country === "기타/직접 입력") {
+      return crushPost.lang_custom_country.trim();
+    }
+    return crushPost.lang_country;
+  };
+
   const loadHomeTopWeatherPlace = useCallback(async () => {
     if (!profile.campus) return;
 
@@ -507,6 +546,7 @@ const [verificationFile, setVerificationFile] = useState(null);
       )
       .eq("seen_date", today)
       .eq("campus", profile.campus)
+      .eq("room", "crush")
       .order("created_at", { ascending: false });
 
     if (error) {
@@ -1599,13 +1639,70 @@ const getPostMatchScore = (post) => {
   };
 };
 
+const getLanguageMatchScore = (post, filters) => {
+  const overlap = (a, b) => (a || []).some((x) => (b || []).includes(x));
+  let score = 0;
+  const reasons = [];
+
+  if (filters.lang_wanted?.length && overlap(filters.lang_wanted, post.lang_spoken)) {
+    score += 70;
+    reasons.push("배우고 싶은 언어 일치");
+  }
+  if (
+    filters.lang_country &&
+    filters.lang_country !== "상관없음" &&
+    post.lang_country === filters.lang_country
+  ) {
+    score += 30;
+    reasons.push("국가 일치");
+  }
+
+  return {
+    score: Math.min(100, score),
+    reasons: [...new Set(reasons)],
+  };
+};
+
 const hideSearchResult = (postId) => {
   setHiddenResultIds((prev) => {
     if (prev.includes(postId)) return prev;
     return [...prev, postId];
   });
 };
+  const renderPostHeaderLine = (post) => {
+    if (post.room === "language") {
+      return `${post.lang_country || "-"} · ${(post.lang_spoken || []).join(", ") || "-"}`;
+    }
+    return `${post.seen_date}, ${post.time_period}, ${post.place}`;
+  };
+
+  const renderLanguagePostQA = (post) => (
+    <div className="qaBox">
+      <p className="qaTitle">상대가 남긴 정보</p>
+
+      <p>
+        <strong>국적:</strong> {post.lang_country || "-"}
+      </p>
+
+      <p>
+        <strong>구사 언어:</strong> {(post.lang_spoken || []).join(", ") || "-"}
+      </p>
+
+      {post.lang_interests?.length > 0 && (
+        <p>
+          <strong>관심사:</strong> {post.lang_interests.join(", ")}
+        </p>
+      )}
+
+      <p>
+        <strong>선호하는 상대 성별:</strong> {post.target_gender || "상관없음"}
+      </p>
+    </div>
+  );
+
   const renderPostQuestionAnswer = (post) => {
+    if (post.room === "language") return renderLanguagePostQA(post);
+
     // "상의:" 마커가 있으면 항목별 선택형으로 작성된 예전 글, 없으면 자유 서술형 새 글.
     const isLegacyDetailedPost = (post.clothes_style || "").includes("상의:");
     const accessoryText = post.accessory || "";
@@ -1677,10 +1774,11 @@ const hideSearchResult = (postId) => {
           setPage("claimForm");
         }}
       >
-        이거 나인 것 같아요
+        {post.room === "language" ? "언어교환 신청하기" : "이거 나인 것 같아요"}
       </button>
       )}
 
+      {post.room !== "language" && (
       <button
         type="button"
         className="findOwnerButton"
@@ -1722,6 +1820,7 @@ const hideSearchResult = (postId) => {
       >
         ✉️ 구름 찾아주기
       </button>
+      )}
     </>
   );
 
@@ -1747,8 +1846,12 @@ const hideSearchResult = (postId) => {
 
   const goBackStep = async () => {
     if (crushStep === 1) {
+      const isEditing = !!editingPost;
       setEditingPost(null);
-      await leaveCloudSendFlow("home_exit", "home");
+      await leaveCloudSendFlow(
+        "home_exit",
+        isEditing ? "home" : "sendRoomSelect"
+      );
       return;
     }
 
@@ -1791,7 +1894,7 @@ const hideSearchResult = (postId) => {
   const openSendPage = async () => {
     if (!checkProfileRequired()) return;
 
-    if (page === "send") return;
+    if (page === "send" || page === "sendRoomSelect") return;
 
     if (page === "search" && cloudCheckFlowIdRef.current) {
       await finishCloudCheckFlowLog({
@@ -1801,6 +1904,12 @@ const hideSearchResult = (postId) => {
     }
 
     resetCrushPost();
+    setPage("sendRoomSelect");
+  };
+
+  const chooseSendRoom = async (room) => {
+    setCrushPost((prev) => ({ ...prev, room }));
+    setCrushStep(1);
     await startCloudSendFlowLog({ targetGender: "" });
     setPage("send");
   };
@@ -1808,9 +1917,10 @@ const hideSearchResult = (postId) => {
   const openEditQuickCloud = async (post) => {
     if (!checkProfileRequired()) return;
 
-    // 기존 빠른 구름의 기본 정보를 crushPost에 미리 채워줌
+    // 기존 빠른 구름의 기본 정보를 crushPost에 미리 채워줌 (빠른 구름은 항상 연애룸)
     setCrushPost({
       ...emptyCrushPost,
+      room: "crush",
       target_gender: post.target_gender || "",
       seen_date: post.seen_date || "",
       place: post.place ? post.place.split(" - ")[0] : "",
@@ -1825,10 +1935,10 @@ const hideSearchResult = (postId) => {
     setPage("send");
   };
 
-  const openSearchPage = async () => {
+  const openSearchPage = async (room) => {
     if (!checkProfileRequired()) return;
 
-    if (page === "search") return;
+    if (page === "search" || page === "searchRoomSelect") return;
 
     if (page === "send" && cloudSendFlowIdRef.current) {
       await finishCloudSendFlowLog({
@@ -1837,6 +1947,19 @@ const hideSearchResult = (postId) => {
       });
     }
 
+    if (room) {
+      setSearchForm((prev) => ({ ...prev, room }));
+      setSearchStep(1);
+      await startCloudCheckFlowLog();
+      setPage("search");
+      return;
+    }
+
+    setPage("searchRoomSelect");
+  };
+
+  const chooseSearchRoom = async (room) => {
+    setSearchForm((prev) => ({ ...prev, room }));
     setSearchStep(1);
     await startCloudCheckFlowLog();
     setPage("search");
@@ -1846,8 +1969,7 @@ const hideSearchResult = (postId) => {
     if (!checkProfileRequired()) return;
 
     resetCrushPost();
-    await startCloudSendFlowLog({ targetGender: "" });
-    setPage("send");
+    setPage("sendRoomSelect");
   };
 
   const openProfilePage = async () => {
@@ -2120,7 +2242,7 @@ const hideSearchResult = (postId) => {
 
   const goBackSearchStep = async () => {
     if (searchStep === 1) {
-      await leaveCloudCheckFlow("home_exit", "home");
+      await leaveCloudCheckFlow("home_exit", "searchRoomSelect");
       return;
     }
 
@@ -2276,6 +2398,11 @@ const hideSearchResult = (postId) => {
   };
 
   const saveCrushPost = async () => {
+    if (crushPost.room === "language") {
+      await saveLanguagePost();
+      return;
+    }
+
     if (postSubmitting) return;
 
     if (!checkProfileRequired()) return;
@@ -2400,6 +2527,85 @@ const hideSearchResult = (postId) => {
     }
   };
 
+  const saveLanguagePost = async () => {
+    if (postSubmitting) return;
+
+    if (!checkProfileRequired()) return;
+
+    const finalCountry = getFinalLangCountry();
+
+    if (!finalCountry) {
+      toast.error("국적을 선택하거나 직접 입력해주세요.");
+      return;
+    }
+
+    if (crushPost.lang_spoken.length === 0) {
+      toast.error("구사 가능한 언어를 1개 이상 선택해주세요.");
+      return;
+    }
+
+    const introText = crushPost.message.trim();
+
+    if (!introText) {
+      toast.error("한마디를 간단히라도 적어주세요.");
+      return;
+    }
+
+    setPostSubmitting(true);
+
+    try {
+      // 목격담 전제인 레거시 컬럼(seen_date/place/hair_feature 등)은 이 방에서 쓰이지
+      // 않지만, 스키마의 실제 NOT NULL 제약을 다 확인할 수 없어 안전한 더미값으로 채운다.
+      // 화면 표시는 room==="language" 분기에서 lang_* 컬럼만 사용하므로 무해하다.
+      const postData = {
+        room: "language",
+        lang_country: finalCountry,
+        lang_spoken: crushPost.lang_spoken,
+        lang_interests: crushPost.lang_interests,
+        seen_date: getKoreaDateString(),
+        time_period: "상시",
+        place: "전체",
+        main_place: "전체",
+        detail_place: "",
+        hair_feature: introText,
+        clothes_style: introText,
+        accessory: introText,
+        message: crushPost.message,
+        sender_nickname: profile.nickname,
+        sender_instagram: cleanInstagram(profile.instagram_id),
+        sender_gender: profile.gender,
+        target_gender: crushPost.target_gender || "상관없음",
+        campus: profile.campus,
+      };
+
+      const { data: savedPost, error } = await supabase
+        .from("crush_posts")
+        .insert([{ ...postData, sender_user_id: currentUser.id }])
+        .select()
+        .maybeSingle();
+
+      if (error) {
+        toast.error("구름 띄우기에 실패했어요: " + error.message);
+        console.log(error);
+        return;
+      }
+
+      toast.success("글로벌 구름을 남겼어요!");
+      await finishCloudSendFlowLog({
+        exitType: "submit",
+        completed: true,
+        targetGender: postData.target_gender,
+      });
+      resetCrushPost();
+      setSentResultPost(savedPost);
+      setSentCheckResults([]);
+      setSentCheckResultMeta({ rawCount: 0, scoredCount: 0, blockedCount: 0 });
+      setPage("sentResult");
+    } finally {
+      setPostSubmitting(false);
+    }
+  };
+
   const saveCloudCalendarRecord = async (matchedCloudCount) => {
     if (!currentUser || !searchForm.seen_date) return;
 
@@ -2493,6 +2699,11 @@ const hideSearchResult = (postId) => {
   };
 
   const searchCrushPosts = async () => {
+  if (searchForm.room === "language") {
+    await searchLanguagePosts();
+    return;
+  }
+
   if (searchSubmitting) return;
 
   if (!checkProfileRequired()) return;
@@ -2616,6 +2827,53 @@ const hideSearchResult = (postId) => {
   }
 };
 
+  const searchLanguagePosts = async () => {
+    if (searchSubmitting) return;
+
+    if (!checkProfileRequired()) return;
+
+    setSearchSubmitting(true);
+
+    try {
+      const { data, error } = await supabase
+        .from("crush_posts")
+        .select("*")
+        .eq("room", "language")
+        .eq("campus", profile.campus)
+        .order("created_at", { ascending: false });
+
+      if (error) {
+        toast.error("검색에 실패했어요: " + error.message);
+        console.log(error);
+        return;
+      }
+
+      const finalResults = (data || [])
+        .filter((post) => post.sender_user_id !== currentUser.id)
+        .map((post) => {
+          const match = getLanguageMatchScore(post, searchForm);
+          return {
+            ...post,
+            match_score: match.score,
+            match_reasons: match.reasons,
+          };
+        })
+        .sort((a, b) => (b.match_score || 0) - (a.match_score || 0));
+
+      await finishCloudCheckFlowLog({
+        exitType: "submit",
+        completed: true,
+        resultCount: finalResults.length,
+      });
+
+      setSearchResults(finalResults);
+      setHiddenResultIds([]);
+      setPage("result");
+    } finally {
+      setSearchSubmitting(false);
+    }
+  };
+
   const saveClaim = async () => {
   if (claimSubmitting) return;
 
@@ -2631,12 +2889,15 @@ const hideSearchResult = (postId) => {
     return;
   }
 
-  if (!claimForm.match_level) {
+  if (selectedPost.room !== "language" && !claimForm.match_level) {
     toast.error("일치 정도를 선택해주세요.");
     return;
   }
 
-  const finalMessage = `[일치 정도: ${claimForm.match_level}] ${claimForm.claimer_message}`;
+  const finalMessage =
+    selectedPost.room === "language"
+      ? claimForm.claimer_message
+      : `[일치 정도: ${claimForm.match_level}] ${claimForm.claimer_message}`;
 
   setClaimSubmitting(true);
 
@@ -3159,7 +3420,7 @@ const hideSearchResult = (postId) => {
       seen_date: selectedCloudCalendarDate,
     }));
     setSearchStep(1);
-    await openSearchPage();
+    await openSearchPage("crush");
   };
   const openChatsPage = async () => {
     if (!checkProfileRequired()) return;
@@ -3182,6 +3443,7 @@ const hideSearchResult = (postId) => {
     .select("*")
     .eq("seen_date", targetDate)
     .eq("campus", profile.campus)
+    .eq("room", "crush")
     .order("created_at", { ascending: false });
 
   if (error) {
@@ -4713,7 +4975,7 @@ useEffect(() => {
 
         <p>
           <b>
-            {post.seen_date}, {post.time_period}, {post.place}
+            {renderPostHeaderLine(post)}
           </b>
         </p>
 
@@ -4767,7 +5029,7 @@ useEffect(() => {
         label: "확인",
         icon: <SearchIcon size={20} />,
         active: page === "search" || page === "result" || page === "reply",
-        onClick: openSearchPage,
+        onClick: () => openSearchPage(),
       },
       {
         key: "matching",
@@ -5203,7 +5465,7 @@ useEffect(() => {
             </span>
           </button>
 
-          <button type="button" onClick={openSearchPage} className="homeV2ActionCard">
+          <button type="button" onClick={() => openSearchPage()} className="homeV2ActionCard">
             <span className="homeV2ActionIcon amber">🔔</span>
             <span className="homeV2ActionText">
               <b>구름 확인하기</b>
@@ -5661,6 +5923,46 @@ useEffect(() => {
 	        </div>
 	      )}
 
+	      {page === "sendRoomSelect" && (
+        <div className="card">
+          <h3 className="questionTitle">어떤 방에 구름을 띄울까요?</h3>
+
+          <button
+            type="button"
+            onClick={() => chooseSendRoom("crush")}
+            className="homeV2ActionCard white roomCardCrush"
+          >
+            <span className="homeV2ActionIcon roomIconCrush">💕</span>
+            <span className="homeV2ActionText">
+              <b>시그널 구름</b>
+              <small>스쳐간 인연을 찾아요.</small>
+            </span>
+            <span className="homeV2ActionChevron">
+              <ChevronRightIcon />
+            </span>
+          </button>
+
+          <button
+            type="button"
+            onClick={() => chooseSendRoom("language")}
+            className="homeV2ActionCard white roomCardLanguage"
+          >
+            <span className="homeV2ActionIcon roomIconLanguage">🌍</span>
+            <span className="homeV2ActionText">
+              <b>글로벌 구름</b>
+              <small>외국인 친구와 언어교환, 문화교류를 해요.</small>
+            </span>
+            <span className="homeV2ActionChevron">
+              <ChevronRightIcon />
+            </span>
+          </button>
+
+          <button onClick={() => setPage("home")} className="white">
+            홈으로
+          </button>
+        </div>
+      )}
+
 	      {page === "send" && (
         <div className="card">
           {editingPost && (
@@ -5669,10 +5971,17 @@ useEffect(() => {
             </div>
           )}
 
-          <p className="stepText">{crushStep} / 3</p>
+          <p className="stepText">
+            {crushStep} / {crushPost.room === "language" ? 1 : 3}
+          </p>
 
-          <StepProgress total={3} current={crushStep} />
+          <StepProgress
+            total={crushPost.room === "language" ? 1 : 3}
+            current={crushStep}
+          />
 
+          {crushPost.room === "crush" && (
+          <>
           {crushStep === 1 && (
             <>
               <h3 className="questionTitle">누구를 찾고 있나요?</h3>
@@ -5857,6 +6166,106 @@ useEffect(() => {
               </div>
             </>
           )}
+          </>
+          )}
+
+          {crushPost.room === "language" && (
+          <>
+          {crushStep === 1 && (
+            <>
+              <h3 className="questionTitle">글로벌 구름을 띄워볼까요?</h3>
+
+              <div className="formGroup">
+                <label className="formLabel">국적</label>
+                <SearchableSelect
+                  options={countryOptions}
+                  value={crushPost.lang_country}
+                  placeholder="국가 검색 또는 선택"
+                  onChange={(option) =>
+                    setCrushPost({
+                      ...crushPost,
+                      lang_country: option,
+                      lang_custom_country: "",
+                    })
+                  }
+                />
+              </div>
+
+              {crushPost.lang_country === "기타/직접 입력" && (
+                <div className="formGroup">
+                  <label className="formLabel">국가 직접 입력</label>
+                  <input
+                    placeholder="예: 캐나다"
+                    value={crushPost.lang_custom_country}
+                    onChange={(e) => updateCrushPost("lang_custom_country", e.target.value)}
+                  />
+                </div>
+              )}
+
+              <div className="formGroup">
+                <label className="formLabel">구사 가능한 언어 (여러 개 선택 가능)</label>
+                <div className="optionGrid">
+                  {languageOptions.map((option) => (
+                    <OptionButton
+                      key={option}
+                      value={option}
+                      selected={crushPost.lang_spoken.includes(option)}
+                      onClick={() => toggleCrushPostArrayValue("lang_spoken", option)}
+                    />
+                  ))}
+                </div>
+              </div>
+
+              <div className="formGroup">
+                <label className="formLabel">관심사 (선택)</label>
+                <div className="optionGrid">
+                  {languageExchangeInterestOptions.map((option) => (
+                    <OptionButton
+                      key={option}
+                      value={option}
+                      selected={crushPost.lang_interests.includes(option)}
+                      onClick={() => toggleCrushPostArrayValue("lang_interests", option)}
+                    />
+                  ))}
+                </div>
+              </div>
+
+              <div className="formGroup">
+                <label className="formLabel">선호하는 상대 성별 (선택)</label>
+                <div className="optionGrid">
+                  {["여자", "남자", "상관없음"].map((option) => (
+                    <OptionButton
+                      key={option}
+                      value={option}
+                      selected={(crushPost.target_gender || "상관없음") === option}
+                      onClick={() => updateCrushPost("target_gender", option)}
+                    />
+                  ))}
+                </div>
+              </div>
+
+              <div className="formGroup">
+                <label className="formLabel">한마디</label>
+                <textarea
+                  placeholder="예: 안녕하세요! 저는 베트남에서 온 교환학생이에요. 한국어를 더 배우고 싶어요. 같이 카페 가서 얘기해요!"
+                  value={crushPost.message}
+                  onChange={(e) => updateCrushPost("message", e.target.value)}
+                  maxLength={300}
+                />
+              </div>
+
+              <div className="stepActions">
+                <button onClick={goBackStep} className="white">
+                  이전
+                </button>
+                <button onClick={saveCrushPost} disabled={postSubmitting}>
+                  {postSubmitting ? "구름 띄우는 중..." : "구름 띄우기"}
+                </button>
+              </div>
+            </>
+          )}
+          </>
+          )}
         </div>
       )}
 
@@ -5910,14 +6319,61 @@ useEffect(() => {
         </div>
       )}
 
+      {page === "searchRoomSelect" && (
+        <div className="card">
+          <h3 className="questionTitle">어떤 방에서 확인할까요?</h3>
+
+          <button
+            type="button"
+            onClick={() => chooseSearchRoom("crush")}
+            className="homeV2ActionCard white roomCardCrush"
+          >
+            <span className="homeV2ActionIcon roomIconCrush">💕</span>
+            <span className="homeV2ActionText">
+              <b>시그널 구름</b>
+              <small>나를 찾는 구름이 있는지 확인해요.</small>
+            </span>
+            <span className="homeV2ActionChevron">
+              <ChevronRightIcon />
+            </span>
+          </button>
+
+          <button
+            type="button"
+            onClick={() => chooseSearchRoom("language")}
+            className="homeV2ActionCard white roomCardLanguage"
+          >
+            <span className="homeV2ActionIcon roomIconLanguage">🌍</span>
+            <span className="homeV2ActionText">
+              <b>글로벌 구름</b>
+              <small>조건에 맞는 언어교환 상대를 찾아요.</small>
+            </span>
+            <span className="homeV2ActionChevron">
+              <ChevronRightIcon />
+            </span>
+          </button>
+
+          <button onClick={() => setPage("home")} className="white">
+            홈으로
+          </button>
+        </div>
+      )}
+
       {page === "search" && (
         <div className="card">
           <h2 className="sendStepTitle">구름 확인하기</h2>
 
-          <p className="stepText">{searchStep} / 5</p>
+          <p className="stepText">
+            {searchStep} / {searchForm.room === "language" ? 1 : 5}
+          </p>
 
-          <StepProgress total={5} current={searchStep} />
+          <StepProgress
+            total={searchForm.room === "language" ? 1 : 5}
+            current={searchStep}
+          />
 
+          {searchForm.room === "crush" && (
+          <>
           <div className="summaryBox">
             <p>
               <strong>내 성별:</strong> {profile.gender || "-"}
@@ -6394,6 +6850,67 @@ useEffect(() => {
               </div>
             </>
           )}
+          </>
+          )}
+
+          {searchForm.room === "language" && (
+          <>
+          {searchStep === 1 && (
+            <>
+              <h3 className="questionTitle">어떤 상대와 언어교환을 하고 싶나요?</h3>
+
+              <div className="formGroup">
+                <label className="formLabel">선호하는 상대 국가 (선택)</label>
+                <SearchableSelect
+                  options={["상관없음", ...countryOptions]}
+                  value={searchForm.lang_country}
+                  placeholder="국가 검색 또는 선택"
+                  onChange={(option) =>
+                    setSearchForm({ ...searchForm, lang_country: option })
+                  }
+                />
+              </div>
+
+              <div className="formGroup">
+                <label className="formLabel">배우고 싶은 언어 (여러 개 선택 가능)</label>
+                <div className="optionGrid">
+                  {languageOptions.map((option) => (
+                    <OptionButton
+                      key={option}
+                      value={option}
+                      selected={searchForm.lang_wanted.includes(option)}
+                      onClick={() => toggleSearchFormArrayValue("lang_wanted", option)}
+                    />
+                  ))}
+                </div>
+              </div>
+
+              <div className="formGroup">
+                <label className="formLabel">관심사 (선택)</label>
+                <div className="optionGrid">
+                  {languageExchangeInterestOptions.map((option) => (
+                    <OptionButton
+                      key={option}
+                      value={option}
+                      selected={searchForm.lang_interests.includes(option)}
+                      onClick={() => toggleSearchFormArrayValue("lang_interests", option)}
+                    />
+                  ))}
+                </div>
+              </div>
+
+              <div className="stepActions">
+                <button onClick={goBackSearchStep} className="white">
+                  이전
+                </button>
+                <button onClick={searchCrushPosts} disabled={searchSubmitting}>
+                  {searchSubmitting ? "확인 중..." : "구름 확인하기"}
+                </button>
+              </div>
+            </>
+          )}
+          </>
+          )}
         </div>
       )}
 
@@ -6445,7 +6962,7 @@ useEffect(() => {
 
           <p>
             <b>
-              {post.seen_date}, {post.time_period}, {post.place}
+              {renderPostHeaderLine(post)}
             </b>
           </p>
 
@@ -6502,7 +7019,40 @@ useEffect(() => {
   </div>
 )}
 
-      {page === "sentResult" && (
+      {page === "sentResult" && sentResultPost?.room === "language" && (
+        <div className="card">
+          <h2>글로벌 구름을 띄웠어요 🌍</h2>
+
+          <p className="subtitle">
+            조건에 맞는 상대가 나타나면 채팅방 요청이 올 수 있어요. 지금 바로 다른 사람의
+            글로벌 구름도 확인해보세요.
+          </p>
+
+          <div className="noticeBox">
+            <p>
+              <strong>국적:</strong> {sentResultPost.lang_country || "-"}
+            </p>
+            <p>
+              <strong>구사 언어:</strong>{" "}
+              {(sentResultPost.lang_spoken || []).join(", ") || "-"}
+            </p>
+          </div>
+
+          <button onClick={() => chooseSearchRoom("language")}>
+            지금 확인하러 가기
+          </button>
+
+          <button onClick={openMatchingPage} className="white">
+            내 구름 관리로 가기
+          </button>
+
+          <button onClick={() => setPage("home")} className="white">
+            홈으로
+          </button>
+        </div>
+      )}
+
+      {page === "sentResult" && sentResultPost?.room !== "language" && (
         <div className="card">
           <h2>구름 확인 내역 {sentCheckResults.length}개</h2>
 
@@ -6579,10 +7129,7 @@ useEffect(() => {
           {selectedPost && (
             <div className="post">
               <p>
-                <b>
-                  {selectedPost.seen_date}, {selectedPost.time_period},{" "}
-                  {selectedPost.place}
-                </b>
+                <b>{renderPostHeaderLine(selectedPost)}</b>
               </p>
 
               {renderPostQuestionAnswer(selectedPost)}
@@ -6591,6 +7138,7 @@ useEffect(() => {
             </div>
           )}
 
+          {selectedPost?.room !== "language" && (
           <select
             value={claimForm.match_level}
             onChange={(e) =>
@@ -6605,9 +7153,14 @@ useEffect(() => {
               <option key={option}>{option}</option>
             ))}
           </select>
+          )}
 
           <textarea
-            placeholder="상대에게 남길 말 예: 저 맞는 것 같아요!"
+            placeholder={
+              selectedPost?.room === "language"
+                ? "상대에게 남길 말 예: 같이 언어교환 해요!"
+                : "상대에게 남길 말 예: 저 맞는 것 같아요!"
+            }
             value={claimForm.claimer_message}
             onChange={(e) =>
               setClaimForm({
@@ -6969,7 +7522,7 @@ useEffect(() => {
 
             <p>
               <b>
-                {post.seen_date}, {post.time_period}, {post.place}
+                {renderPostHeaderLine(post)}
               </b>
             </p>
 

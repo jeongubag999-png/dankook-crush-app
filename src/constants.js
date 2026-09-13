@@ -247,6 +247,44 @@ export const shoeOptions = [
 
 export const matchOptions = ["거의 저 같아요", "조금 비슷해요", "잘 모르겠어요"];
 
+export const countryOptions = [
+  "중국",
+  "베트남",
+  "몽골",
+  "일본",
+  "우즈베키스탄",
+  "카자흐스탄",
+  "미국",
+  "러시아",
+  "프랑스",
+  "독일",
+  "인도네시아",
+  "태국",
+  "필리핀",
+  "대만",
+  "한국",
+  "기타/직접 입력",
+];
+
+export const languageOptions = [
+  "한국어",
+  "영어",
+  "중국어",
+  "일본어",
+  "베트남어",
+  "몽골어",
+  "러시아어",
+  "기타",
+];
+
+export const languageExchangeInterestOptions = [
+  "문화교류",
+  "스터디메이트",
+  "여행동행",
+  "취미공유",
+  "그냥 친구",
+];
+
 export const KOREA_TIME_ZONE = "Asia/Seoul";
 export const MAX_IMAGE_SIZE = 5 * 1024 * 1024;
 export const IMAGE_EXTENSIONS = {
