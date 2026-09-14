@@ -327,6 +327,11 @@ const [verificationFile, setVerificationFile] = useState(null);
 
   const [crushPost, setCrushPost] = useState(emptyCrushPost);
   const [showCrushAdditionalDetails, setShowCrushAdditionalDetails] = useState(false);
+  // 착장/추가 정보는 입력 중인 값(crushPost)과 `확인`으로 확정한 값을 분리해서 관리한다.
+  const [confirmedOutfit, setConfirmedOutfit] = useState({}); // { top: {type, color}, outer: {...}, bottom: {...} }
+  const [confirmedAdditional, setConfirmedAdditional] = useState({}); // { hair_color, hat, bangs, glasses, bag, earphone, shoe }
+  const [outfitConfirmErrors, setOutfitConfirmErrors] = useState({});
+  const [additionalConfirmErrors, setAdditionalConfirmErrors] = useState({});
 
   const [searchForm, setSearchForm] = useState({
     room: "crush",
@@ -561,6 +566,20 @@ const [verificationFile, setVerificationFile] = useState(null);
       }
       return next;
     });
+
+    // 착장 버튼을 다시 눌러 해제하는 경우, 확정값·오류 메시지도 함께 지운다.
+    setConfirmedOutfit((prev) => {
+      if (!(part in prev)) return prev;
+      const next = { ...prev };
+      delete next[part];
+      return next;
+    });
+    setOutfitConfirmErrors((prev) => {
+      if (!(part in prev)) return prev;
+      const next = { ...prev };
+      delete next[part];
+      return next;
+    });
   };
 
   const toggleCrushAdditionalField = (field) => {
@@ -589,6 +608,91 @@ const [verificationFile, setVerificationFile] = useState(null);
       }
       return next;
     });
+
+    // 추가 정보 버튼을 다시 눌러 해제하는 경우, 확정값·오류 메시지도 함께 지운다.
+    setConfirmedAdditional((prev) => {
+      if (!(field in prev)) return prev;
+      const next = { ...prev };
+      delete next[field];
+      return next;
+    });
+    setAdditionalConfirmErrors((prev) => {
+      if (!(field in prev)) return prev;
+      const next = { ...prev };
+      delete next[field];
+      return next;
+    });
+  };
+
+  const CRUSH_OUTFIT_PART_LABELS = { top: "상의", outer: "아우터", bottom: "하의" };
+  const CRUSH_ADDITIONAL_FIELD_LABELS = {
+    hair_color: "헤어 색깔",
+    hat: "모자",
+    bangs: "앞머리",
+    glasses: "안경",
+    bag: "가방",
+    earphone: "이어폰",
+    shoe: "신발",
+  };
+
+  const confirmCrushOutfitPart = (part) => {
+    const fieldMap = {
+      top: { type: "top_type", color: "top_color" },
+      outer: { type: "outer_type", color: "outer_color" },
+      bottom: { type: "bottom_type", color: "bottom_color" },
+    };
+    const fields = fieldMap[part];
+    const typeValue = crushPost[fields.type];
+    const colorValue = crushPost[fields.color];
+
+    if (!typeValue || !colorValue) {
+      setOutfitConfirmErrors((prev) => ({
+        ...prev,
+        [part]: "확인할 값을 먼저 선택해주세요.",
+      }));
+      return;
+    }
+
+    setOutfitConfirmErrors((prev) => {
+      if (!(part in prev)) return prev;
+      const next = { ...prev };
+      delete next[part];
+      return next;
+    });
+    setConfirmedOutfit((prev) => ({
+      ...prev,
+      [part]: { type: typeValue, color: colorValue },
+    }));
+  };
+
+  const confirmCrushAdditionalField = (field) => {
+    const valueMap = {
+      hair_color:
+        crushPost.target_gender === "여자" ? crushPost.female_hair_color : crushPost.male_hair_color,
+      hat: crushPost.target_gender === "여자" ? crushPost.female_hat : crushPost.male_hat,
+      bangs: crushPost.target_gender === "여자" ? crushPost.female_bangs : crushPost.male_bangs,
+      glasses: crushPost.glasses_type,
+      bag: crushPost.bag_type,
+      earphone: crushPost.earphone_type,
+      shoe: crushPost.shoe_type,
+    };
+    const value = valueMap[field];
+
+    if (!value) {
+      setAdditionalConfirmErrors((prev) => ({
+        ...prev,
+        [field]: "확인할 값을 먼저 선택해주세요.",
+      }));
+      return;
+    }
+
+    setAdditionalConfirmErrors((prev) => {
+      if (!(field in prev)) return prev;
+      const next = { ...prev };
+      delete next[field];
+      return next;
+    });
+    setConfirmedAdditional((prev) => ({ ...prev, [field]: value }));
   };
 
   const toggleSearchFormArrayValue = (key, value) => {
@@ -1890,6 +1994,9 @@ const hideSearchResult = (postId) => {
       additional_detail_fields: [],
     }));
     setShowCrushAdditionalDetails(false);
+    // 성별이 바뀌면 헤어 관련 입력이 초기화되는 기존 동작에 맞춰, 확정된 추가 정보 요약도 함께 지운다.
+    setConfirmedAdditional({});
+    setAdditionalConfirmErrors({});
 
     setTimeout(() => {
       moveCloudSendStep(2, "next", { targetGender: value });
@@ -1980,6 +2087,10 @@ const hideSearchResult = (postId) => {
       time_period: post.time_period || "",
       message: post.message || "",
     });
+    setConfirmedOutfit({});
+    setConfirmedAdditional({});
+    setOutfitConfirmErrors({});
+    setAdditionalConfirmErrors({});
 
     setEditingPost(post);
     setCrushStep(1);
@@ -2034,6 +2145,10 @@ const hideSearchResult = (postId) => {
   const resetCrushPost = () => {
     setCrushPost(emptyCrushPost);
     setShowCrushAdditionalDetails(false);
+    setConfirmedOutfit({});
+    setConfirmedAdditional({});
+    setOutfitConfirmErrors({});
+    setAdditionalConfirmErrors({});
     setCrushStep(1);
   };
 
@@ -2476,66 +2591,19 @@ const hideSearchResult = (postId) => {
       return;
     }
 
-    const selectedOutfitParts = crushPost.outfit_parts || [];
-    if (selectedOutfitParts.length === 0) {
-      toast.error("상의, 아우터, 하의 중 최소 1개를 선택해주세요.");
-      await moveCloudSendStep(3, "validation_back");
-      return;
-    }
-
-    const outfitFieldMap = {
-      top: { label: "상의", type: "top_type", color: "top_color" },
-      outer: { label: "아우터", type: "outer_type", color: "outer_color" },
-      bottom: { label: "하의", type: "bottom_type", color: "bottom_color" },
-    };
-    const incompletePart = selectedOutfitParts.find((part) => {
-      const fields = outfitFieldMap[part];
-      return !fields || !crushPost[fields.type] || !crushPost[fields.color];
-    });
-    if (incompletePart) {
-      toast.error(`${outfitFieldMap[incompletePart].label}의 옷 종류와 색상을 모두 선택해주세요.`);
+    // 최종 저장은 입력 중인 값이 아니라 `확인` 버튼으로 확정한 값만 사용한다.
+    const confirmedOutfitParts = ["top", "outer", "bottom"].filter((part) => confirmedOutfit[part]);
+    if (confirmedOutfitParts.length === 0) {
+      toast.error("최소 한 개의 착장을 확인해주세요.");
       await moveCloudSendStep(3, "validation_back");
       return;
     }
 
     const impressionText = crushPost.message.trim();
-    const selectedAdditionalFields = crushPost.additional_detail_fields || [];
-    const additionalValueMap = {
-      hair_color:
-        crushPost.target_gender === "여자"
-          ? crushPost.female_hair_color
-          : crushPost.male_hair_color,
-      hat: crushPost.target_gender === "여자" ? crushPost.female_hat : crushPost.male_hat,
-      bangs:
-        crushPost.target_gender === "여자" ? crushPost.female_bangs : crushPost.male_bangs,
-      glasses: crushPost.glasses_type,
-      bag: crushPost.bag_type,
-      earphone: crushPost.earphone_type,
-      shoe: crushPost.shoe_type,
-    };
-    const additionalLabelMap = {
-      hair_color: "헤어 색깔",
-      hat: "모자",
-      bangs: "앞머리",
-      glasses: "안경",
-      bag: "가방",
-      earphone: "이어폰",
-      shoe: "신발",
-    };
-    const incompleteAdditionalField = selectedAdditionalFields.find(
-      (field) => !additionalValueMap[field]
-    );
-    if (incompleteAdditionalField) {
-      toast.error(`${additionalLabelMap[incompleteAdditionalField]} 정보를 선택하거나 입력해주세요.`);
-      await moveCloudSendStep(3, "validation_back");
-      return;
-    }
+    const additionalValueMap = confirmedAdditional;
 
-    const structuredOutfitText = selectedOutfitParts
-      .map((part) => {
-        const fields = outfitFieldMap[part];
-        return `${fields.label}: ${crushPost[fields.color]} ${crushPost[fields.type]}`;
-      })
+    const structuredOutfitText = confirmedOutfitParts
+      .map((part) => `${CRUSH_OUTFIT_PART_LABELS[part]}: ${confirmedOutfit[part].color} ${confirmedOutfit[part].type}`)
       .join(" / ");
     const clothesStyleText = [structuredOutfitText, impressionText].filter(Boolean).join(" / 자세히: ");
     const hairColor = additionalValueMap.hair_color || "";
@@ -2557,9 +2625,8 @@ const hideSearchResult = (postId) => {
     setPostSubmitting(true);
 
     try {
-      const pickedColor = selectedOutfitParts
-        .map((part) => crushPost[outfitFieldMap[part].color])
-        .find(Boolean) || "";
+      const pickedColor =
+        confirmedOutfitParts.map((part) => confirmedOutfit[part].color).find(Boolean) || "";
       const postData = {
         seen_date: crushPost.seen_date,
         place: getFinalPlace(),
@@ -2571,13 +2638,13 @@ const hideSearchResult = (postId) => {
         hat_status: hatStatus,
         bangs_status: bangsStatus,
         glasses_status: additionalValueMap.glasses || "",
-        top_type: crushPost.top_type,
-        top_color: crushPost.top_color,
+        top_type: confirmedOutfit.top?.type || "",
+        top_color: confirmedOutfit.top?.color || "",
         top_detail: "",
-        outer_type: crushPost.outer_type,
-        outer_color: crushPost.outer_color,
-        bottom_type: crushPost.bottom_type,
-        bottom_color: crushPost.bottom_color,
+        outer_type: confirmedOutfit.outer?.type || "",
+        outer_color: confirmedOutfit.outer?.color || "",
+        bottom_type: confirmedOutfit.bottom?.type || "",
+        bottom_color: confirmedOutfit.bottom?.color || "",
         bottom_detail: "",
         shoe_type: additionalValueMap.shoe || "",
         shoe_detail: "",
@@ -6321,6 +6388,24 @@ useEffect(() => {
 
               <div className="formGroup signalOutfitPicker">
                 <label className="formLabel">기억나는 착장 선택</label>
+
+                {["top", "outer", "bottom"].some((part) => confirmedOutfit[part]) && (
+                  <div className="signalConfirmedSummary">
+                    <p className="signalConfirmedSummaryTitle">선택한 착장</p>
+                    <ul className="signalConfirmedSummaryList">
+                      {["top", "outer", "bottom"]
+                        .filter((part) => confirmedOutfit[part])
+                        .map((part) => (
+                          <li key={part}>
+                            <span className="signalConfirmedCheck" aria-hidden="true">✓</span>
+                            {CRUSH_OUTFIT_PART_LABELS[part]} · {confirmedOutfit[part].color}{" "}
+                            {confirmedOutfit[part].type}
+                          </li>
+                        ))}
+                    </ul>
+                  </div>
+                )}
+
                 <div className="optionGrid signalOutfitPartGrid">
                   {[
                     ["top", "상의"],
@@ -6361,7 +6446,12 @@ useEffect(() => {
                   }[part];
                   return (
                     <div className="signalOutfitCard" key={part}>
-                      <strong>{config.label}</strong>
+                      <div className="signalCardHeader">
+                        <strong>{config.label}</strong>
+                        {confirmedOutfit[part] && (
+                          <span className="signalConfirmedBadge">✓ 확인 완료</span>
+                        )}
+                      </div>
                       <div className="signalOutfitSelects">
                         <label>
                           <span>옷 종류</span>
@@ -6388,10 +6478,41 @@ useEffect(() => {
                           </select>
                         </label>
                       </div>
+                      {outfitConfirmErrors[part] && (
+                        <p className="signalInlineError">{outfitConfirmErrors[part]}</p>
+                      )}
+                      <button
+                        type="button"
+                        className="signalConfirmButton"
+                        onClick={() => confirmCrushOutfitPart(part)}
+                      >
+                        확인
+                      </button>
                     </div>
                   );
                   })}
               </div>
+
+              {Object.keys(confirmedAdditional).length > 0 && (
+                <div className="signalConfirmedSummary signalConfirmedAdditionalSummary">
+                  <p className="signalConfirmedSummaryTitle">추가 정보</p>
+                  <div className="signalConfirmedChipList">
+                    {["hair_color", "hat", "bangs", "glasses", "bag", "earphone", "shoe"]
+                      .filter((field) => confirmedAdditional[field])
+                      .map((field) => {
+                        const isOxField = ["hat", "bangs", "glasses"].includes(field);
+                        const displayValue = isOxField
+                          ? getOxLabel(confirmedAdditional[field])
+                          : confirmedAdditional[field];
+                        return (
+                          <span className="signalConfirmedChip" key={field}>
+                            {CRUSH_ADDITIONAL_FIELD_LABELS[field]} · {displayValue}
+                          </span>
+                        );
+                      })}
+                  </div>
+                </div>
+              )}
 
               <button
                 type="button"
@@ -6433,7 +6554,12 @@ useEffect(() => {
 
                   {(crushPost.additional_detail_fields || []).includes("hair_color") && (
                     <div className="signalAdditionalControl">
-                      <label className="formLabel">헤어 색깔</label>
+                      <div className="signalCardHeader">
+                        <label className="formLabel">헤어 색깔</label>
+                        {confirmedAdditional.hair_color && (
+                          <span className="signalConfirmedBadge">✓ 확인 완료</span>
+                        )}
+                      </div>
                       <select
                         value={
                           crushPost.target_gender === "여자"
@@ -6454,12 +6580,27 @@ useEffect(() => {
                           .filter((option) => option !== "잘 모르겠음")
                           .map((option) => <option key={option}>{option}</option>)}
                       </select>
+                      {additionalConfirmErrors.hair_color && (
+                        <p className="signalInlineError">{additionalConfirmErrors.hair_color}</p>
+                      )}
+                      <button
+                        type="button"
+                        className="signalConfirmButton"
+                        onClick={() => confirmCrushAdditionalField("hair_color")}
+                      >
+                        확인
+                      </button>
                     </div>
                   )}
 
                   {(crushPost.additional_detail_fields || []).includes("hat") && (
                     <div className="signalAdditionalControl">
-                      <label className="formLabel">모자</label>
+                      <div className="signalCardHeader">
+                        <label className="formLabel">모자</label>
+                        {confirmedAdditional.hat && (
+                          <span className="signalConfirmedBadge">✓ 확인 완료</span>
+                        )}
+                      </div>
                       <div className="optionGrid">
                         {hatOptions
                           .filter((option) => option !== "잘 모르겠음")
@@ -6482,12 +6623,27 @@ useEffect(() => {
                             />
                           ))}
                       </div>
+                      {additionalConfirmErrors.hat && (
+                        <p className="signalInlineError">{additionalConfirmErrors.hat}</p>
+                      )}
+                      <button
+                        type="button"
+                        className="signalConfirmButton"
+                        onClick={() => confirmCrushAdditionalField("hat")}
+                      >
+                        확인
+                      </button>
                     </div>
                   )}
 
                   {(crushPost.additional_detail_fields || []).includes("bangs") && (
                     <div className="signalAdditionalControl">
-                      <label className="formLabel">앞머리</label>
+                      <div className="signalCardHeader">
+                        <label className="formLabel">앞머리</label>
+                        {confirmedAdditional.bangs && (
+                          <span className="signalConfirmedBadge">✓ 확인 완료</span>
+                        )}
+                      </div>
                       <div className="optionGrid">
                         {bangsOptions
                           .filter((option) => option !== "잘 모르겠음")
@@ -6510,12 +6666,27 @@ useEffect(() => {
                             />
                           ))}
                       </div>
+                      {additionalConfirmErrors.bangs && (
+                        <p className="signalInlineError">{additionalConfirmErrors.bangs}</p>
+                      )}
+                      <button
+                        type="button"
+                        className="signalConfirmButton"
+                        onClick={() => confirmCrushAdditionalField("bangs")}
+                      >
+                        확인
+                      </button>
                     </div>
                   )}
 
                   {(crushPost.additional_detail_fields || []).includes("glasses") && (
                     <div className="signalAdditionalControl">
-                      <label className="formLabel">안경</label>
+                      <div className="signalCardHeader">
+                        <label className="formLabel">안경</label>
+                        {confirmedAdditional.glasses && (
+                          <span className="signalConfirmedBadge">✓ 확인 완료</span>
+                        )}
+                      </div>
                       <div className="optionGrid">
                         {glassesOptions
                           .filter((option) => option !== "잘 모르겠음")
@@ -6529,12 +6700,27 @@ useEffect(() => {
                             />
                           ))}
                       </div>
+                      {additionalConfirmErrors.glasses && (
+                        <p className="signalInlineError">{additionalConfirmErrors.glasses}</p>
+                      )}
+                      <button
+                        type="button"
+                        className="signalConfirmButton"
+                        onClick={() => confirmCrushAdditionalField("glasses")}
+                      >
+                        확인
+                      </button>
                     </div>
                   )}
 
                   {(crushPost.additional_detail_fields || []).includes("bag") && (
                     <div className="signalAdditionalControl">
-                      <label className="formLabel">가방</label>
+                      <div className="signalCardHeader">
+                        <label className="formLabel">가방</label>
+                        {confirmedAdditional.bag && (
+                          <span className="signalConfirmedBadge">✓ 확인 완료</span>
+                        )}
+                      </div>
                       <div className="optionGrid">
                         {bagOptions
                           .filter((option) => option !== "잘 모르겠음")
@@ -6548,12 +6734,27 @@ useEffect(() => {
                             />
                           ))}
                       </div>
+                      {additionalConfirmErrors.bag && (
+                        <p className="signalInlineError">{additionalConfirmErrors.bag}</p>
+                      )}
+                      <button
+                        type="button"
+                        className="signalConfirmButton"
+                        onClick={() => confirmCrushAdditionalField("bag")}
+                      >
+                        확인
+                      </button>
                     </div>
                   )}
 
                   {(crushPost.additional_detail_fields || []).includes("earphone") && (
                     <div className="signalAdditionalControl">
-                      <label className="formLabel">이어폰</label>
+                      <div className="signalCardHeader">
+                        <label className="formLabel">이어폰</label>
+                        {confirmedAdditional.earphone && (
+                          <span className="signalConfirmedBadge">✓ 확인 완료</span>
+                        )}
+                      </div>
                       <select
                         value={crushPost.earphone_type}
                         onChange={(e) => updateCrushPost("earphone_type", e.target.value)}
@@ -6563,12 +6764,27 @@ useEffect(() => {
                           .filter((option) => option !== "잘 모르겠음")
                           .map((option) => <option key={option}>{option}</option>)}
                       </select>
+                      {additionalConfirmErrors.earphone && (
+                        <p className="signalInlineError">{additionalConfirmErrors.earphone}</p>
+                      )}
+                      <button
+                        type="button"
+                        className="signalConfirmButton"
+                        onClick={() => confirmCrushAdditionalField("earphone")}
+                      >
+                        확인
+                      </button>
                     </div>
                   )}
 
                   {(crushPost.additional_detail_fields || []).includes("shoe") && (
                     <div className="signalAdditionalControl">
-                      <label className="formLabel">신발</label>
+                      <div className="signalCardHeader">
+                        <label className="formLabel">신발</label>
+                        {confirmedAdditional.shoe && (
+                          <span className="signalConfirmedBadge">✓ 확인 완료</span>
+                        )}
+                      </div>
                       <select
                         value={crushPost.shoe_type}
                         onChange={(e) => updateCrushPost("shoe_type", e.target.value)}
@@ -6578,6 +6794,16 @@ useEffect(() => {
                           .filter((option) => option !== "잘 모르겠음")
                           .map((option) => <option key={option}>{option}</option>)}
                       </select>
+                      {additionalConfirmErrors.shoe && (
+                        <p className="signalInlineError">{additionalConfirmErrors.shoe}</p>
+                      )}
+                      <button
+                        type="button"
+                        className="signalConfirmButton"
+                        onClick={() => confirmCrushAdditionalField("shoe")}
+                      >
+                        확인
+                      </button>
                     </div>
                   )}
 

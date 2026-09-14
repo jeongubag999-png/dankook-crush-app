@@ -209,6 +209,120 @@ body {
   font-size: 15px;
 }
 
+/* 착장 카드 / 추가 정보 카드 상단의 "확인 완료" 배지를 나란히 배치 */
+.signalCardHeader {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 10px;
+  margin-bottom: 11px;
+}
+
+.signalCardHeader > strong {
+  color: var(--v2-ink);
+  font-size: 15px;
+}
+
+.signalCardHeader > .formLabel {
+  margin-bottom: 0;
+}
+
+.signalConfirmedBadge {
+  flex-shrink: 0;
+  padding: 3px 10px;
+  border-radius: 999px;
+  background: var(--v2-blue-soft);
+  color: var(--v2-blue-dark);
+  font-size: 11.5px;
+  font-weight: 800;
+  white-space: nowrap;
+}
+
+.signalConfirmButton {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  height: 38px;
+  min-height: 38px;
+  margin-top: 12px;
+  padding: 0 22px;
+  border: none;
+  border-radius: 999px;
+  background: var(--v2-blue);
+  color: #fff;
+  font-size: 13.5px;
+  font-weight: 700;
+  box-shadow: none;
+}
+
+.signalConfirmButton:active {
+  opacity: 0.85;
+}
+
+.signalInlineError {
+  margin: 8px 0 0;
+  color: var(--v2-red);
+  font-size: 12px;
+  font-weight: 600;
+  line-height: 1.5;
+}
+
+/* 확정된 착장 / 추가 정보 요약 영역 */
+.signalConfirmedSummary {
+  margin-top: 12px;
+  padding: 14px 15px;
+  border-radius: var(--v2-radius-sm);
+  background: var(--v2-blue-soft);
+}
+
+.signalConfirmedSummaryTitle {
+  margin: 0 0 8px;
+  color: var(--v2-blue-dark);
+  font-size: 12.5px;
+  font-weight: 800;
+}
+
+.signalConfirmedSummaryList {
+  display: grid;
+  gap: 6px;
+  margin: 0;
+  padding: 0;
+  list-style: none;
+}
+
+.signalConfirmedSummaryList li {
+  color: var(--v2-ink);
+  font-size: 13.5px;
+  font-weight: 600;
+  line-height: 1.4;
+}
+
+.signalConfirmedCheck {
+  margin-right: 4px;
+  color: var(--v2-blue-dark);
+  font-weight: 800;
+}
+
+.signalConfirmedAdditionalSummary {
+  margin-top: 14px;
+}
+
+.signalConfirmedChipList {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 7px 8px;
+}
+
+.signalConfirmedChip {
+  padding: 5px 11px;
+  border-radius: 999px;
+  background: var(--v2-surface);
+  color: var(--v2-ink);
+  font-size: 12.5px;
+  font-weight: 700;
+  white-space: nowrap;
+}
+
 .signalOutfitSelects {
   display: grid;
   grid-template-columns: 1fr 1fr;
