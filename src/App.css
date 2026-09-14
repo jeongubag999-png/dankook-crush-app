@@ -1186,6 +1186,216 @@ textarea {
   color: #2f80ed;
 }
 
+.responseHeader {
+  align-items: flex-start;
+}
+
+.responseHeaderDescription {
+  margin: 8px 0 0;
+  color: #8291aa;
+  font-size: 13px;
+  font-weight: 750;
+  line-height: 1.45;
+  word-break: keep-all;
+}
+
+.responseDashboard {
+  padding: 26px 20px 30px;
+  border: 0;
+  background: transparent;
+  box-shadow: none;
+}
+
+.responseDashboard .manageHeaderRow {
+  margin-bottom: 20px;
+}
+
+.responseDashboard .manageTabs {
+  padding: 4px;
+  border: 1px solid #dbe8f7;
+  border-radius: 999px;
+  background: rgba(247, 250, 255, 0.92);
+}
+
+.responseDashboard .manageTabs .manageTab {
+  height: 54px;
+  min-height: 54px;
+  max-height: 54px;
+  border-radius: 999px;
+}
+
+.responseHeroCard {
+  position: relative;
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  min-height: 154px;
+  margin-top: 28px;
+  padding: 24px;
+  overflow: hidden;
+  border: 1px solid #d2e6ff;
+  border-radius: 28px;
+  background:
+    radial-gradient(circle at 80% 15%, rgba(255, 255, 255, 0.95), transparent 36%),
+    linear-gradient(135deg, #eef7ff, #dcecff);
+  box-shadow: 0 18px 36px rgba(67, 128, 211, 0.11);
+}
+
+.responseHeroCard.received {
+  background:
+    radial-gradient(circle at 80% 15%, rgba(255, 255, 255, 0.95), transparent 36%),
+    linear-gradient(135deg, #f2f4ff, #e3e9ff);
+}
+
+.responseHeroCard > img {
+  width: 116px;
+  max-width: 32%;
+  object-fit: contain;
+  filter: drop-shadow(0 12px 12px rgba(72, 118, 190, 0.16));
+}
+
+.responseHeroCopy {
+  position: relative;
+  z-index: 1;
+  display: flex;
+  align-items: flex-start;
+  gap: 12px;
+  min-width: 0;
+}
+
+.responseHeroMiniCloud {
+  font-size: 30px;
+  line-height: 1;
+}
+
+.responseHeroCopy div {
+  display: grid;
+  gap: 5px;
+}
+
+.responseHeroCopy span:not(.responseHeroMiniCloud) {
+  color: #19365f;
+  font-size: 17px;
+  font-weight: 900;
+}
+
+.responseHeroCopy b {
+  color: #287ff0;
+  font-size: 38px;
+  font-weight: 950;
+  line-height: 1.05;
+}
+
+.responseHeroCopy small {
+  color: #6881a7;
+  font-size: 13px;
+  font-weight: 750;
+}
+
+.responseHeroCopy i {
+  display: inline-block;
+  width: 8px;
+  height: 8px;
+  margin-left: 4px;
+  border-radius: 50%;
+  background: #4b95f7;
+  box-shadow: 0 0 0 5px rgba(75, 149, 247, 0.13);
+}
+
+.responseRecentSection {
+  margin-top: 30px;
+}
+
+.responseRecentHeader {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 12px;
+  margin-bottom: 12px;
+}
+
+.responseRecentHeader h3 {
+  margin: 0;
+  color: #071c42;
+  font-size: 21px;
+}
+
+.responseRecentHeader button {
+  display: inline-flex;
+  align-items: center;
+  width: auto;
+  min-height: 36px;
+  margin: 0;
+  padding: 5px 2px 5px 10px;
+  border: 0;
+  background: transparent;
+  color: #7486a3;
+  box-shadow: none;
+  font-size: 13px;
+}
+
+.responseRecentEmpty {
+  display: grid;
+  justify-items: center;
+  gap: 7px;
+  padding: 28px 18px;
+  border-radius: 24px;
+  background: linear-gradient(135deg, #f6faff, #eaf3ff);
+  color: #18345f;
+  text-align: center;
+}
+
+.responseRecentEmpty > span {
+  font-size: 36px;
+}
+
+.responseRecentEmpty p {
+  margin: 0;
+  color: #8595ad;
+  font-size: 13px;
+}
+
+.responseRecentList {
+  display: grid;
+  gap: 10px;
+}
+
+.responseRecentItem {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  width: 100%;
+  min-height: 86px;
+  margin: 0;
+  padding: 16px 18px;
+  border: 1px solid #dce8f7;
+  border-radius: 22px;
+  background: rgba(255, 255, 255, 0.9);
+  color: #102c58;
+  text-align: left;
+  box-shadow: none;
+}
+
+.responseRecentItem > span {
+  display: grid;
+  min-width: 0;
+  gap: 3px;
+}
+
+.responseRecentItem small,
+.responseRecentItem time {
+  color: #8192ac;
+  font-size: 11px;
+  font-weight: 750;
+}
+
+.responseRecentItem b {
+  overflow: hidden;
+  font-size: 14px;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+
 .activitySummaryBox {
   display: grid;
   grid-template-columns: 1fr 1fr;
@@ -2020,10 +2230,10 @@ textarea {
 }
 /* 버튼/탭/통계 박스 최종 정렬 보정 - 2026-05-26 */
 
-/* 내 구름 관리 탭 4개 균등 정렬 */
+/* 응답함의 두 방향을 같은 너비로 보여준다. */
 .manageTabs.fourTabs {
   display: grid;
-  grid-template-columns: repeat(4, minmax(0, 1fr));
+  grid-template-columns: repeat(2, minmax(0, 1fr));
   gap: 10px;
   align-items: stretch;
 }
@@ -2072,29 +2282,66 @@ textarea {
 
 .cloudFolderList {
   display: grid;
-  gap: 12px;
-  margin-top: 18px;
+  gap: 14px;
+  margin-top: 20px;
 }
 
 .cloudFolderButton {
   position: relative;
   display: grid;
-  grid-template-columns: 1fr auto 18px;
+  grid-template-columns: 58px minmax(0, 1fr) 72px;
   align-items: center;
-  column-gap: 10px;
+  column-gap: 14px;
   width: 100%;
-  min-height: 76px;
+  min-height: 112px;
   height: auto;
   margin-top: 0;
-  padding: 18px 18px;
-  border-radius: 22px;
-  border: 1px solid #d9ebff;
+  padding: 18px 16px;
+  border-radius: 24px;
+  border: 1px solid #cfe4ff;
   background:
-    linear-gradient(135deg, rgba(255, 255, 255, 0.96), rgba(239, 248, 255, 0.96)),
+    linear-gradient(135deg, rgba(255, 255, 255, 0.98), rgba(237, 247, 255, 0.96)),
     #f7fbff;
   color: #0f2a56;
-  box-shadow: 0 12px 26px rgba(47, 128, 237, 0.08);
+  box-shadow: 0 12px 30px rgba(47, 128, 237, 0.07);
   text-align: left;
+}
+
+.cloudFolderButton.purple {
+  border-color: #dddfff;
+  background: linear-gradient(135deg, #fff, #f5f3ff);
+}
+
+.cloudFolderButton.green {
+  border-color: #cceee7;
+  background: linear-gradient(135deg, #fff, #effbf8);
+}
+
+.cloudFolderIcon {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  width: 54px;
+  height: 54px;
+  border-radius: 50%;
+  background: #e7f2ff;
+  color: #4388e8;
+}
+
+.cloudFolderButton.purple .cloudFolderIcon {
+  background: #eeeaff;
+  color: #7165e8;
+}
+
+.cloudFolderButton.green .cloudFolderIcon {
+  background: #dcf6ef;
+  color: #149578;
+}
+
+.cloudFolderContent {
+  display: grid;
+  min-width: 0;
+  gap: 6px;
 }
 
 .cloudFolderButton:hover {
@@ -2104,15 +2351,43 @@ textarea {
 
 .cloudFolderTitle {
   min-width: 0;
-  font-size: 17px;
+  font-size: 18px;
   font-weight: 950;
   line-height: 1.25;
   word-break: keep-all;
 }
 
-.cloudFolderTitle b {
-  margin-left: 5px;
+.cloudFolderDescription {
+  color: #6f829f;
+  font-size: 13px;
+  font-weight: 750;
+  line-height: 1.45;
+  word-break: keep-all;
+}
+
+.cloudFolderAction {
+  display: grid;
+  grid-template-columns: 48px 18px;
+  align-items: center;
+  justify-content: end;
+  gap: 6px;
+  min-width: 72px;
+}
+
+.cloudFolderCount {
   color: #2f80ed;
+  font-size: 17px;
+  font-weight: 950;
+  text-align: right;
+  white-space: nowrap;
+}
+
+.cloudFolderButton.purple .cloudFolderCount {
+  color: #685be6;
+}
+
+.cloudFolderButton.green .cloudFolderCount {
+  color: #118a70;
 }
 
 .cloudFolderNewBadge {
@@ -2131,17 +2406,6 @@ textarea {
   font-weight: 950;
   line-height: 1;
   vertical-align: middle;
-}
-
-.cloudFolderHint {
-  padding: 7px 10px;
-  border-radius: 999px;
-  background: #e8f3ff;
-  color: #3973b8;
-  font-size: 12px;
-  font-weight: 900;
-  line-height: 1;
-  white-space: nowrap;
 }
 
 .cloudFolderArrow {
@@ -2280,6 +2544,61 @@ textarea {
 }
 
 @media (max-width: 480px) {
+  .responseDashboard {
+    padding: 22px 12px 28px;
+  }
+
+  .responseHeroCard {
+    min-height: 138px;
+    padding: 20px 16px;
+  }
+
+  .responseHeroCard > img {
+    width: 92px;
+  }
+
+  .responseHeroMiniCloud {
+    font-size: 25px;
+  }
+
+  .responseHeroCopy span:not(.responseHeroMiniCloud) {
+    font-size: 15px;
+  }
+
+  .responseHeroCopy b {
+    font-size: 32px;
+  }
+
+  .cloudFolderButton {
+    grid-template-columns: 46px minmax(0, 1fr) 64px;
+    column-gap: 10px;
+    min-height: 102px;
+    padding: 14px 12px;
+  }
+
+  .cloudFolderIcon {
+    width: 44px;
+    height: 44px;
+  }
+
+  .cloudFolderTitle {
+    font-size: 16px;
+  }
+
+  .cloudFolderDescription {
+    font-size: 12px;
+  }
+
+  .cloudFolderAction {
+    grid-template-columns: 42px 16px;
+    gap: 4px;
+    min-width: 62px;
+  }
+
+  .cloudFolderCount {
+    font-size: 15px;
+  }
+
   .manageTabs.fourTabs .manageTab {
     font-size: 12px;
     padding: 0 6px;

@@ -4470,6 +4470,8 @@ useEffect(() => {
 ].sort((a, b) => new Date(b.created_at || 0) - new Date(a.created_at || 0));
   const sentNotificationItems = notificationItems.filter((item) => item.group === "sent");
   const receivedNotificationItems = notificationItems.filter((item) => item.group === "received");
+  const sentRecentActivityItems = sentNotificationItems.slice(0, 3);
+  const receivedRecentActivityItems = receivedNotificationItems.slice(0, 3);
   const visibleNotificationItems =
     notificationFilter === "sent" ? sentNotificationItems : receivedNotificationItems;
   const getItemTime = (item) => new Date(item.created_at || 0).getTime();
@@ -4572,23 +4574,73 @@ useEffect(() => {
       post?.sender_nickname || "닉네임 없음",
     ].join(", ");
 
-  const renderCloudFolderButton = ({ title, count, newCount = 0, onClick }) => (
+  const renderCloudFolderButton = ({
+    title,
+    description,
+    count,
+    newCount = 0,
+    icon,
+    tone = "blue",
+    onClick,
+  }) => (
     <button
       type="button"
-      className="cloudFolderButton"
+      className={`cloudFolderButton ${tone}`}
       onClick={onClick}
     >
-      <span className="cloudFolderTitle">
-        {title} <b>{count}개</b>
-        {newCount > 0 && (
-          <span className="cloudFolderNewBadge">{Math.min(newCount, 99)}</span>
-        )}
+      <span className="cloudFolderIcon" aria-hidden="true">{icon}</span>
+      <span className="cloudFolderContent">
+        <span className="cloudFolderTitle">
+          {title}
+          {newCount > 0 && (
+            <span className="cloudFolderNewBadge">새 {Math.min(newCount, 99)}</span>
+          )}
+        </span>
+        {description && <span className="cloudFolderDescription">{description}</span>}
       </span>
-      <span className="cloudFolderHint">전체보기</span>
-      <span className="cloudFolderArrow" aria-hidden="true">
-        <ChevronRightIcon size={18} />
+      <span className="cloudFolderAction">
+        <b className="cloudFolderCount">{count}개</b>
+        <span className="cloudFolderArrow" aria-hidden="true">
+          <ChevronRightIcon size={18} />
+        </span>
       </span>
     </button>
+  );
+
+  const renderResponseRecentActivity = (items, emptyText) => (
+    <section className="responseRecentSection">
+      <div className="responseRecentHeader">
+        <h3>최근 활동</h3>
+        <button type="button" onClick={openNotificationsPage}>
+          전체보기 <ChevronRightIcon size={16} />
+        </button>
+      </div>
+      {items.length === 0 ? (
+        <div className="responseRecentEmpty">
+          <span aria-hidden="true">☁️</span>
+          <b>아직 최근 활동이 없어요</b>
+          <p>{emptyText}</p>
+        </div>
+      ) : (
+        <div className="responseRecentList">
+          {items.map((item) => (
+            <button
+              type="button"
+              className="responseRecentItem"
+              key={item.id}
+              onClick={item.onClick || openNotificationsPage}
+            >
+              <span>
+                <small>{item.type}</small>
+                <b>{item.title}</b>
+                <time>{formatShortDateTime(item.created_at)}</time>
+              </span>
+              <ChevronRightIcon size={17} />
+            </button>
+          ))}
+        </div>
+      )}
+    </section>
   );
 
   const renderReceivedCloudListItem = (item) => {
@@ -5018,23 +5070,9 @@ useEffect(() => {
         onClick: () => leaveActiveFlow("bottom_home", "home"),
       },
       {
-        key: "send",
-        label: "보내기",
-        icon: <PlusIcon size={20} />,
-        active: page === "send" || page === "sent",
-        onClick: openSendPage,
-      },
-      {
-        key: "search",
-        label: "확인",
-        icon: <SearchIcon size={20} />,
-        active: page === "search" || page === "result" || page === "reply",
-        onClick: () => openSearchPage(),
-      },
-      {
-        key: "matching",
-        label: "내 구름",
-        icon: <ListIcon size={20} />,
+        key: "responses",
+        label: "응답",
+        icon: renderBellWithBadge(20),
         active: page === "matching" || page === "claim",
         onClick: () => {
           setMatchingMode("sent");
@@ -5042,11 +5080,25 @@ useEffect(() => {
         },
       },
       {
+        key: "calendar",
+        label: "달력",
+        icon: <CalendarIcon size={20} />,
+        active: page === "cloudCalendar",
+        onClick: openCloudCalendarPage,
+      },
+      {
         key: "chats",
         label: "채팅",
         icon: <ChatIcon size={20} />,
         active: page === "chats" || page === "chatRoom" || page === "chatPreview",
         onClick: openChatsPage,
+      },
+      {
+        key: "profile",
+        label: "내 정보",
+        icon: <PersonIcon size={20} />,
+        active: page === "profile",
+        onClick: openProfilePage,
       },
     ];
 
@@ -5469,7 +5521,7 @@ useEffect(() => {
             <span className="homeV2ActionIcon amber">🔔</span>
             <span className="homeV2ActionText">
               <b>구름 확인하기</b>
-              <small>나를 찾는 구름이 있는지 확인해요.</small>
+              <small>그날의 모습으로 나를 찾는 구름을 찾아요.</small>
             </span>
             <span className="homeV2ActionChevron">
               <ChevronRightIcon />
@@ -5617,63 +5669,6 @@ useEffect(() => {
               <span>매칭</span>
               <b>{acceptedMatchCount}</b>
             </div>
-          </div>
-
-          <div className="mypageQuickMenu">
-            <button
-              type="button"
-              className="mypageMenuRow"
-              onClick={() => {
-                setMatchingMode("sent");
-                openMatchingPage();
-              }}
-            >
-              <span className="mypageMenuIcon blue">
-                <PaperPlaneIcon size={18} />
-              </span>
-              <span className="mypageMenuBody">
-                <b>내가 띄운 구름 관리</b>
-                <span>내가 남긴 구름과 응답 현황을 확인해요.</span>
-              </span>
-              <span className="mypageMenuChevron">
-                <ChevronRightIcon size={18} />
-              </span>
-            </button>
-            <button
-              type="button"
-              className="mypageMenuRow"
-              onClick={openCloudCalendarPage}
-            >
-              <span className="mypageMenuIcon calendarOutline">
-                <CalendarIcon size={18} />
-              </span>
-              <span className="mypageMenuBody">
-                <b>구름 달력</b>
-                <span>구름 개수는 나에게만 보여요!</span>
-              </span>
-              <span className="mypageMenuChevron">
-                <ChevronRightIcon size={18} />
-              </span>
-            </button>
-            <button
-              type="button"
-              className="mypageMenuRow"
-              onClick={() => {
-                openNotificationsPage();
-                openMatchingPage();
-              }}
-            >
-              <span className="mypageMenuIcon amber">
-                {renderBellWithBadge(18)}
-              </span>
-              <span className="mypageMenuBody">
-                <b>알림 보기</b>
-                <span>새로운 구름, 응답 등 알림을 확인해요.</span>
-              </span>
-              <span className="mypageMenuChevron">
-                <ChevronRightIcon size={18} />
-              </span>
-            </button>
           </div>
 
           <h3 className="manageSectionTitle" style={{ marginTop: 22, textAlign: "left" }}>
@@ -7262,7 +7257,7 @@ useEffect(() => {
       )}
       {page === "chats" && (
         <div className="card manageCard">
-          <div className="manageHeaderRow">
+          <div className="manageHeaderRow responseHeader">
             <div>
               <h2>채팅</h2>
               <p className="subtitle">
@@ -7544,7 +7539,13 @@ useEffect(() => {
   </div>
 )}
       {page === "matching" && (
-        <div className="card manageCard">
+        <div
+          className={
+            matchingMode === "sent" || matchingMode === "received"
+              ? "card manageCard responseDashboard"
+              : "card manageCard"
+          }
+        >
           <div className="manageHeaderRow">
             <div>
               <button
@@ -7553,17 +7554,16 @@ useEffect(() => {
                 onClick={loadMyActivityData}
                 disabled={matchingLoading}
               >
-                내 구름
+                응답
               </button>
+              <p className="responseHeaderDescription">
+                띄운 구름과 확인한 구름의 진행 상황을 확인해요.
+              </p>
             </div>
             <div className="manageHeaderIcons">
               <button
                 type="button"
-                className={
-                  matchingMode === "notifications"
-                    ? "manageHeaderIconBtn active"
-                    : "manageHeaderIconBtn"
-                }
+                className="manageHeaderIconBtn"
                 aria-label="알림"
                 onClick={openNotificationsPage}
               >
@@ -7571,13 +7571,9 @@ useEffect(() => {
               </button>
               <button
                 type="button"
-                className={
-                  matchingMode === "calendar"
-                    ? "manageHeaderIconBtn active"
-                    : "manageHeaderIconBtn"
-                }
-                aria-label="날짜별 기록"
-                onClick={() => setMatchingMode("calendar")}
+                className="manageHeaderIconBtn"
+                aria-label="구름 달력"
+                onClick={openCloudCalendarPage}
               >
                 <CalendarIcon size={21} />
               </button>
@@ -7596,15 +7592,11 @@ useEffect(() => {
                     : "manageTab"
               }
               onClick={() => {
-                if (matchingMode === "notifications") {
-                  markNotificationGroupSeen("sent");
-                  setNotificationFilter("sent");
-                } else {
-                  setMatchingMode("sent");
-                }
+                setNotificationFilter("sent");
+                setMatchingMode("sent");
               }}
             >
-              띄운 구름
+              내가 띄운 구름
             </button>
 
             <button
@@ -7618,42 +7610,64 @@ useEffect(() => {
                     : "manageTab"
               }
               onClick={() => {
-                if (matchingMode === "notifications") {
-                  markNotificationGroupSeen("received");
-                  setNotificationFilter("received");
-                } else {
-                  setMatchingMode("received");
-                }
+                setNotificationFilter("received");
+                setMatchingMode("received");
               }}
             >
-              받은 구름
+              내가 확인한 구름
             </button>
           </div>
 
           {matchingLoading && <p className="notice">불러오는 중이에요...</p>}
 
           {!matchingLoading && matchingMode === "sent" && (
-            <div className="cloudFolderList">
-              {renderCloudFolderButton({
-                title: "☁ 응답 도착",
-                count: mySentPostsWithResponses.length,
-                newCount: sentNotificationUnreadCount,
-                onClick: () => {
-                  markNotificationGroupSeen("sent");
-                  setMatchingMode("sentResponsesAll");
-                },
-              })}
-              {renderCloudFolderButton({
-                title: "☁ 요청 대기 중",
-                count: mySentPostsWithoutResponses.length,
-                onClick: () => setMatchingMode("sentWaitingAll"),
-              })}
-              {renderCloudFolderButton({
-                title: "☁ 응답 완료 구름",
-                count: mySentPostsWithCompletedResponses.length,
-                onClick: () => setMatchingMode("sentCompletedAll"),
-              })}
-            </div>
+            <>
+              <div className="responseHeroCard">
+                <div className="responseHeroCopy">
+                  <span className="responseHeroMiniCloud" aria-hidden="true">☁️</span>
+                  <div>
+                    <span>현재 띄운 구름</span>
+                    <b>{mySentPosts.length}개</b>
+                    <small>답변을 기다리고 있어요 <i aria-hidden="true" /></small>
+                  </div>
+                </div>
+                <img src="/home-cloud-mark.png" alt="" aria-hidden="true" />
+              </div>
+              <div className="cloudFolderList">
+                {renderCloudFolderButton({
+                  title: "답변 대기 중",
+                  description: "아직 답변을 기다리고 있어요.",
+                  count: mySentPostsWithoutResponses.length,
+                  icon: <ClockIcon size={24} />,
+                  tone: "blue",
+                  onClick: () => setMatchingMode("sentWaitingAll"),
+                })}
+                {renderCloudFolderButton({
+                  title: "새로 온 응답",
+                  description: "누군가 내 구름에 응답했어요.",
+                  count: mySentPostsWithResponses.length,
+                  newCount: sentNotificationUnreadCount,
+                  icon: <BellIcon size={24} />,
+                  tone: "purple",
+                  onClick: () => {
+                    markNotificationGroupSeen("sent");
+                    setMatchingMode("sentResponsesAll");
+                  },
+                })}
+                {renderCloudFolderButton({
+                  title: "답변한 구름",
+                  description: "내가 선택을 마친 응답이에요.",
+                  count: mySentPostsWithCompletedResponses.length,
+                  icon: <ShieldCheckIcon size={24} />,
+                  tone: "green",
+                  onClick: () => setMatchingMode("sentCompletedAll"),
+                })}
+              </div>
+              {renderResponseRecentActivity(
+                sentRecentActivityItems,
+                "지금 새로운 구름을 띄워보세요! ☁️"
+              )}
+            </>
           )}
 
           {!matchingLoading && matchingMode === "sentResponsesAll" && (
@@ -7663,10 +7677,10 @@ useEffect(() => {
                 className="white backListButton"
                 onClick={() => setMatchingMode("sent")}
               >
-                띄운 구름으로 돌아가기
+                내가 띄운 구름으로 돌아가기
               </button>
               <h3 className="manageSectionTitle">
-                ☁ 응답 도착 전체 {mySentPostsWithResponses.length}개
+                새로 온 응답 {mySentPostsWithResponses.length}개
               </h3>
               {mySentPostsWithResponses.length === 0 && (
                 <p className="noticeBox">아직 응답이 도착한 구름이 없어요.</p>
@@ -7684,10 +7698,10 @@ useEffect(() => {
                 className="white backListButton"
                 onClick={() => setMatchingMode("sent")}
               >
-                띄운 구름으로 돌아가기
+                내가 띄운 구름으로 돌아가기
               </button>
               <h3 className="manageSectionTitle">
-                ☁ 요청 대기 중 전체 {mySentPostsWithoutResponses.length}개
+                답변 대기 중 {mySentPostsWithoutResponses.length}개
               </h3>
               {mySentPostsWithoutResponses.length === 0 && (
                 <p className="noticeBox">요청을 기다리는 구름이 없어요.</p>
@@ -7705,10 +7719,10 @@ useEffect(() => {
                 className="white backListButton"
                 onClick={() => setMatchingMode("sent")}
               >
-                띄운 구름으로 돌아가기
+                내가 띄운 구름으로 돌아가기
               </button>
               <h3 className="manageSectionTitle">
-                ☁ 응답 완료 구름 전체 {mySentPostsWithCompletedResponses.length}개
+                답변한 구름 {mySentPostsWithCompletedResponses.length}개
               </h3>
               {mySentPostsWithCompletedResponses.length === 0 && (
                 <p className="noticeBox">아직 응답이 완료된 구름이 없어요.</p>
@@ -7720,22 +7734,45 @@ useEffect(() => {
           )}
 
           {!matchingLoading && matchingMode === "received" && (
-            <div className="cloudFolderList">
-              {renderCloudFolderButton({
-                title: "☁ 응답 대기 구름",
-                count: receivedPendingCloudItems.length,
-                newCount: receivedNotificationUnreadCount,
-                onClick: () => {
-                  markNotificationGroupSeen("received");
-                  setMatchingMode("receivedPendingAll");
-                },
-              })}
-              {renderCloudFolderButton({
-                title: "☁ 응답 완료 구름",
-                count: receivedCompletedCloudItems.length,
-                onClick: () => setMatchingMode("receivedCompletedAll"),
-              })}
-            </div>
+            <>
+              <div className="responseHeroCard received">
+                <div className="responseHeroCopy">
+                  <span className="responseHeroMiniCloud" aria-hidden="true">☁️</span>
+                  <div>
+                    <span>현재 확인한 구름</span>
+                    <b>{receivedPendingCloudItems.length + receivedCompletedCloudItems.length}개</b>
+                    <small>상대의 답변을 확인해보세요 <i aria-hidden="true" /></small>
+                  </div>
+                </div>
+                <img src="/home-cloud-mark.png" alt="" aria-hidden="true" />
+              </div>
+              <div className="cloudFolderList">
+                {renderCloudFolderButton({
+                  title: "답변을 기다리는 구름",
+                  description: "내 확인에 상대가 답하기를 기다리고 있어요.",
+                  count: receivedPendingCloudItems.length,
+                  newCount: receivedNotificationUnreadCount,
+                  icon: <ClockIcon size={24} />,
+                  tone: "blue",
+                  onClick: () => {
+                    markNotificationGroupSeen("received");
+                    setMatchingMode("receivedPendingAll");
+                  },
+                })}
+                {renderCloudFolderButton({
+                  title: "결과가 나온 구름",
+                  description: "상대의 답변이 도착한 구름이에요.",
+                  count: receivedCompletedCloudItems.length,
+                  icon: <ShieldCheckIcon size={24} />,
+                  tone: "green",
+                  onClick: () => setMatchingMode("receivedCompletedAll"),
+                })}
+              </div>
+              {renderResponseRecentActivity(
+                receivedRecentActivityItems,
+                "구름 확인하기에서 나를 찾는 구름을 찾아보세요."
+              )}
+            </>
           )}
 
           {!matchingLoading && matchingMode === "receivedPendingAll" && (
@@ -7745,10 +7782,10 @@ useEffect(() => {
                 className="white backListButton"
                 onClick={() => setMatchingMode("received")}
               >
-                받은 구름으로 돌아가기
+                내가 확인한 구름으로 돌아가기
               </button>
               <h3 className="manageSectionTitle">
-                ☁ 응답 대기 구름 전체 {receivedPendingCloudItems.length}개
+                답변을 기다리는 구름 {receivedPendingCloudItems.length}개
               </h3>
               {receivedPendingCloudItems.length === 0 && (
                 <p className="noticeBox">응답을 기다리는 받은 구름이 없어요.</p>
@@ -7764,10 +7801,10 @@ useEffect(() => {
                 className="white backListButton"
                 onClick={() => setMatchingMode("received")}
               >
-                받은 구름으로 돌아가기
+                내가 확인한 구름으로 돌아가기
               </button>
               <h3 className="manageSectionTitle">
-                ☁ 응답 완료 구름 전체 {receivedCompletedCloudItems.length}개
+                결과가 나온 구름 {receivedCompletedCloudItems.length}개
               </h3>
               {receivedCompletedCloudItems.length === 0 && (
                 <p className="noticeBox">응답이 완료된 받은 구름이 없어요.</p>

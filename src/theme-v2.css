@@ -359,7 +359,7 @@ body {
   height: 30px;
 }
 
-.app .bottomNavItem.active span:last-child {
+.app .bottomNavItem.active > span:last-child {
   color: var(--v2-navy-pill);
   font-weight: 800;
 }
