@@ -17,6 +17,7 @@ import {
   ListIcon,
   BellIcon,
   PersonIcon,
+  LanguageIcon,
   ChevronLeftIcon,
   ChevronRightIcon,
   ShieldCheckIcon,
@@ -36,6 +37,17 @@ import { AdminPage } from "./components/AdminPage";
 import { PrivacyPolicyPage } from "./components/PrivacyPolicyPage";
 
 const PUBLIC_APP_URL = "https://dankook-crush-app.vercel.app";
+
+function LocalizedDateInput({ language, value, onChange }) {
+  const showEnglishFormat = language === "en" && !value;
+  return (
+    <div className={`localizedDateInput${showEnglishFormat ? " showEnglishFormat" : ""}`}>
+      <input type="date" lang={language} value={value} onChange={onChange} />
+      {showEnglishFormat && <span className="localizedDateFormat" aria-hidden="true">YYYY-MM-DD</span>}
+    </div>
+  );
+}
+
 import {
   getPlaceOptions,
   campusOptions,
@@ -87,12 +99,13 @@ import {
   pickImageFromLibrary,
 } from "./utils";
 import { submitDkuVerification } from "./dkuVerification";
+import { getAppLanguage, LANGUAGE_OPTIONS, setAppLanguage } from "./i18n";
 
 const CLOUD_SEND_MAX_SECONDS = 180;
 const CLOUD_SEND_STEP_NAMES = {
   1: "누구를 찾고 있나요?",
   2: "언제, 어디에서 마주쳤나요?",
-  3: "인상착의 자유 서술",
+  3: "기억나는 착장과 추가 정보",
 };
 const CLOUD_COUNT_MULTIPLIER = 2.5;
 const getDisplayedCloudCount = (count) => Math.ceil((Number(count) || 0) * CLOUD_COUNT_MULTIPLIER);
@@ -184,8 +197,16 @@ const getKoreanWeekdayLabel = (dateString) => {
 
 function App() {
   const [page, setPage] = useState("home");
+  const [language, setLanguage] = useState(getAppLanguage);
+  const [languageMenuOpen, setLanguageMenuOpen] = useState(false);
   const [crushStep, setCrushStep] = useState(1);
   const [searchStep, setSearchStep] = useState(1);
+
+  const chooseLanguage = (nextLanguage) => {
+    setLanguage(nextLanguage);
+    setAppLanguage(nextLanguage);
+    setLanguageMenuOpen(false);
+  };
 
   const [session, setSession] = useState(null);
   const [currentUser, setCurrentUser] = useState(null);
@@ -284,6 +305,8 @@ const [verificationFile, setVerificationFile] = useState(null);
     male_hair_color: "",
     male_hat: "",
     male_bangs: "",
+    outfit_parts: [],
+    additional_detail_fields: [],
     top_type: "",
     top_color: "",
     top_detail: "",
@@ -303,6 +326,7 @@ const [verificationFile, setVerificationFile] = useState(null);
   };
 
   const [crushPost, setCrushPost] = useState(emptyCrushPost);
+  const [showCrushAdditionalDetails, setShowCrushAdditionalDetails] = useState(false);
 
   const [searchForm, setSearchForm] = useState({
     room: "crush",
@@ -514,6 +538,56 @@ const [verificationFile, setVerificationFile] = useState(null);
         ? current.filter((v) => v !== value)
         : [...current, value];
       return { ...prev, [key]: next };
+    });
+  };
+
+  const toggleCrushOutfitPart = (part) => {
+    const fieldMap = {
+      top: ["top_type", "top_color"],
+      outer: ["outer_type", "outer_color"],
+      bottom: ["bottom_type", "bottom_color"],
+    };
+    setCrushPost((prev) => {
+      const current = prev.outfit_parts || [];
+      const selected = current.includes(part);
+      const next = {
+        ...prev,
+        outfit_parts: selected ? current.filter((item) => item !== part) : [...current, part],
+      };
+      if (selected) {
+        fieldMap[part].forEach((field) => {
+          next[field] = "";
+        });
+      }
+      return next;
+    });
+  };
+
+  const toggleCrushAdditionalField = (field) => {
+    const fieldMap = {
+      hair_color: ["female_hair_color", "male_hair_color"],
+      hat: ["female_hat", "male_hat"],
+      bangs: ["female_bangs", "male_bangs"],
+      glasses: ["glasses_type"],
+      bag: ["bag_type"],
+      earphone: ["earphone_type"],
+      shoe: ["shoe_type"],
+    };
+    setCrushPost((prev) => {
+      const current = prev.additional_detail_fields || [];
+      const selected = current.includes(field);
+      const next = {
+        ...prev,
+        additional_detail_fields: selected
+          ? current.filter((item) => item !== field)
+          : [...current, field],
+      };
+      if (selected) {
+        fieldMap[field].forEach((key) => {
+          next[key] = "";
+        });
+      }
+      return next;
     });
   };
 
@@ -1411,20 +1485,19 @@ const handleLogin = async () => {
     toast.success("차단했어요.");
   };
 
-// 날짜·성별은 DB 쿼리에서 이미 정확히 일치하는 것만 가져오므로(or/not 필터),
-// 점수에는 관여하지 않음.
-// 초기 저사용 단계라 "구름이 안 뜨는 것"이 "잘못 뜨는 것"보다 더 큰 문제라, 일단
-// 0으로 낮춰서 날짜·성별·캠퍼스만 맞으면 전부 후보로 보여준다(점수순 정렬은 유지).
-// 사용자/데이터가 쌓이면 다시 올려서 정확도를 조일 것.
+// 날짜·성별은 후보 자격을 판단하는 고정 조건이고 점수에는 포함하지 않는다.
+// 상의·아우터·하의 중 종류나 색상 단서가 하나라도 실제로 맞아야 후보가 된다.
 const MATCH_THRESHOLD = 0;
-
-const HAIR_WEIGHT = 30;
 
 // "탈부착 난이도" 기준 배점: 하루 종일 잘 안 바뀌는 항목(상의/하의/신발)이 가장 높고,
 // 실내외 이동하며 벗었다 입었다 하는 항목(안경/아우터)은 중간, 두고 다니거나
-// 뺐다 꼈다 하는 항목(가방/이어폰)이 가장 낮음. 머리 30 + 나머지 70 = 100점 만점.
+// 뺐다 꼈다 하는 항목(가방/이어폰)이 가장 낮음. 머리색·앞머리·모자는 각각 10점이며
+// 전체 합계는 100점이다.
 // "잘 모르겠음"은 해당 항목 절반 점수(소수점 올림), "아우터 없음"은 12점으로 본다.
 const FIELD_WEIGHTS = {
+  hair_color: 10,
+  bangs_status: 10,
+  hat_status: 10,
   top_type: 9,
   top_color: 9,
   bottom_type: 9,
@@ -1460,11 +1533,32 @@ const containsMatch = (source, target) => {
   );
 };
 
+const getCheckHairValues = (checkInput) => {
+  const gender = checkInput.checker_gender || profile.gender;
+
+  if (gender === "여자") {
+    return {
+      color: checkInput.female_hair_color || "",
+      hat: checkInput.female_hat || "",
+      bangs: checkInput.female_bangs || "",
+    };
+  }
+
+  if (gender === "남자") {
+    return {
+      color: checkInput.male_hair_color || "",
+      hat: checkInput.male_hat || "",
+      bangs: checkInput.male_bangs || "",
+    };
+  }
+
+  return { color: "", hat: "", bangs: "" };
+};
+
 const getCheckHairFeature = (checkInput) => {
   if (checkInput.hair_feature) return checkInput.hair_feature;
 
   const gender = checkInput.checker_gender || profile.gender;
-
   if (gender === "여자") {
     return makeHairFeature(
       checkInput.female_hair_style,
@@ -1473,7 +1567,6 @@ const getCheckHairFeature = (checkInput) => {
       checkInput.female_bangs
     );
   }
-
   if (gender === "남자") {
     return makeHairFeature(
       checkInput.male_hair_style,
@@ -1482,44 +1575,49 @@ const getCheckHairFeature = (checkInput) => {
       checkInput.male_bangs
     );
   }
-
   return "";
+};
+
+const isCloudMatchCandidate = (post, checkInput) => {
+  const checkerGender = checkInput.checker_gender || profile.gender;
+
+  if (post.seen_date && checkInput.seen_date && post.seen_date !== checkInput.seen_date) {
+    return false;
+  }
+  if (post.target_gender && checkerGender && post.target_gender !== checkerGender) {
+    return false;
+  }
+
+  const structuredFields = [
+    post.top_type,
+    post.top_color,
+    post.outer_type,
+    post.outer_color,
+    post.bottom_type,
+    post.bottom_color,
+  ];
+  const hasStructuredOutfit = structuredFields.some(Boolean);
+  const legacyOutfitText = hasStructuredOutfit ? "" : post.clothes_style || "";
+
+  return [
+    [post.top_type, checkInput.top_type],
+    [post.top_color, checkInput.top_color],
+    [post.outer_type, checkInput.outer_type],
+    [post.outer_color, checkInput.outer_color],
+    [post.bottom_type, checkInput.bottom_type],
+    [post.bottom_color, checkInput.bottom_color],
+  ].some(([postValue, checkValue]) => {
+    if (!checkValue || isUnknownMatchValue(checkValue)) return false;
+    if (postValue && !isUnknownMatchValue(postValue) && containsMatch(postValue, checkValue)) {
+      return true;
+    }
+    return Boolean(legacyOutfitText && containsMatch(legacyOutfitText, checkValue));
+  });
 };
 
 const getCloudMatchScore = (post, checkInput) => {
   let score = 0;
   const reasons = [];
-
-  // 머리: 항목(스타일/색/모자/앞머리)별 부분 배점.
-  // "잘 모르겠음"은 해당 머리 항목의 절반 점수로 계산한다.
-  const checkHair = getCheckHairFeature(checkInput);
-  if (checkHair) {
-    const checkHairParts = checkHair
-      .split(" / ")
-      .filter(Boolean);
-    if (checkHairParts.length > 0) {
-      let matchedHairCount = 0;
-      let hairMatchUnits = 0;
-
-      checkHairParts.forEach((part) => {
-        if (isUnknownMatchValue(part)) {
-          hairMatchUnits += 0.5;
-        } else if (containsMatch(post.hair_feature, part)) {
-          matchedHairCount += 1;
-          hairMatchUnits += 1;
-        }
-      });
-
-      if (hairMatchUnits > 0) {
-        score += Math.ceil(HAIR_WEIGHT * (hairMatchUnits / checkHairParts.length));
-      }
-      if (matchedHairCount > 0) {
-        reasons.push(`헤어 ${matchedHairCount}개 항목 일치`);
-      } else if (hairMatchUnits > 0) {
-        reasons.push("헤어 일부 불확실");
-      }
-    }
-  }
 
   const checkField = (checkValue, weight, postValue, fallbackSource, label) => {
     if (!checkValue) return;
@@ -1534,8 +1632,31 @@ const getCloudMatchScore = (post, checkInput) => {
     }
   };
 
-  const postStyleSource = post.clothes_style || "";
-  const postAccessorySource = post.accessory || "";
+  const hasStructuredOutfit = [
+    post.top_type,
+    post.top_color,
+    post.outer_type,
+    post.outer_color,
+    post.bottom_type,
+    post.bottom_color,
+  ].some(Boolean);
+  const hasStructuredExtras = [
+    post.hair_color,
+    post.hat_status,
+    post.bangs_status,
+    post.glasses_status,
+    post.shoe_type,
+    post.bag_type,
+    post.earphone_type,
+  ].some(Boolean);
+  const postStyleSource = hasStructuredOutfit ? "" : post.clothes_style || "";
+  const postAccessorySource = hasStructuredExtras ? "" : post.accessory || "";
+  const postHairSource = hasStructuredExtras ? "" : post.hair_feature || "";
+  const checkHair = getCheckHairValues(checkInput);
+
+  checkField(checkHair.color, FIELD_WEIGHTS.hair_color, post.hair_color, postHairSource, "헤어 색상");
+  checkField(checkHair.bangs, FIELD_WEIGHTS.bangs_status, post.bangs_status, postHairSource, "앞머리");
+  checkField(checkHair.hat, FIELD_WEIGHTS.hat_status, post.hat_status, postHairSource, "모자");
 
   checkField(checkInput.glasses_type, FIELD_WEIGHTS.glasses_type, post.glasses_status, postAccessorySource, "안경");
   checkField(checkInput.top_type, FIELD_WEIGHTS.top_type, post.top_type, postStyleSource, "상의 종류");
@@ -1562,81 +1683,10 @@ const getCloudMatchScore = (post, checkInput) => {
 };
 
 const getPostMatchScore = (post) => {
-  const match = getCloudMatchScore(post, {
+  return getCloudMatchScore(post, {
     ...searchForm,
     checker_gender: profile.gender,
-    hair_feature: getFinalSearchHairFeature(),
   });
-
-  if (match.score > 0) return match;
-
-  let score = 0;
-  const reasons = [];
-
-  const checkField = (formValue, weight, matchSource, label) => {
-    if (!formValue) return;
-    if (isUnknownMatchValue(formValue)) {
-      score += getUnknownMatchScore(weight);
-      reasons.push(`${label} 불확실`);
-      return;
-    }
-    if (containsMatch(matchSource, formValue)) {
-      score += weight;
-      reasons.push(`${label} 일치`);
-    }
-  };
-
-  const searchHair = getFinalSearchHairFeature();
-  if (searchHair) {
-    const searchHairParts = searchHair
-      .split(" / ")
-      .filter(Boolean);
-    if (searchHairParts.length > 0) {
-      let matchedHairCount = 0;
-      let hairMatchUnits = 0;
-
-      searchHairParts.forEach((part) => {
-        if (isUnknownMatchValue(part)) {
-          hairMatchUnits += 0.5;
-        } else if (containsMatch(post.hair_feature, part)) {
-          matchedHairCount += 1;
-          hairMatchUnits += 1;
-        }
-      });
-
-      if (hairMatchUnits > 0) {
-        score += Math.ceil(HAIR_WEIGHT * (hairMatchUnits / searchHairParts.length));
-      }
-      if (matchedHairCount > 0) {
-        reasons.push(`헤어 ${matchedHairCount}개 항목 일치`);
-      } else if (hairMatchUnits > 0) {
-        reasons.push("헤어 일부 불확실");
-      }
-    }
-  }
-
-  checkField(searchForm.glasses_type, FIELD_WEIGHTS.glasses_type, post.accessory, "안경");
-  checkField(searchForm.top_type, FIELD_WEIGHTS.top_type, post.clothes_style, "상의 종류");
-  checkField(searchForm.top_color, FIELD_WEIGHTS.top_color, post.clothes_style, "상의 색상");
-  if (searchForm.outer_type === "아우터 없음") {
-    if (containsMatch(post.clothes_style, "아우터 없음")) {
-      score += FIELD_WEIGHTS.outer_type + FIELD_WEIGHTS.outer_color;
-      reasons.push("아우터 없음 일치");
-    }
-  } else {
-    checkField(searchForm.outer_type, FIELD_WEIGHTS.outer_type, post.clothes_style, "아우터");
-    checkField(searchForm.outer_color, FIELD_WEIGHTS.outer_color, post.clothes_style, "아우터 색상");
-  }
-  checkField(searchForm.bottom_type, FIELD_WEIGHTS.bottom_type, post.clothes_style, "하의 종류");
-  checkField(searchForm.bottom_color, FIELD_WEIGHTS.bottom_color, post.clothes_style, "하의 색상");
-  checkField(searchForm.shoe_type, FIELD_WEIGHTS.shoe_type, post.accessory, "신발");
-  checkField(searchForm.bag_type, FIELD_WEIGHTS.bag_type, post.accessory, "가방");
-  checkField(searchForm.earphone_type, FIELD_WEIGHTS.earphone_type, post.accessory, "이어폰");
-
-  return {
-    score: Math.round(Math.min(100, score)),
-    reasons: [...new Set(reasons)].slice(0, 4),
-  };
 };
 
 const getLanguageMatchScore = (post, filters) => {
@@ -1837,7 +1887,9 @@ const hideSearchResult = (postId) => {
       male_hair_color: "",
       male_hat: "",
       male_bangs: "",
+      additional_detail_fields: [],
     }));
+    setShowCrushAdditionalDetails(false);
 
     setTimeout(() => {
       moveCloudSendStep(2, "next", { targetGender: value });
@@ -1981,6 +2033,7 @@ const hideSearchResult = (postId) => {
 
   const resetCrushPost = () => {
     setCrushPost(emptyCrushPost);
+    setShowCrushAdditionalDetails(false);
     setCrushStep(1);
   };
 
@@ -2423,52 +2476,117 @@ const hideSearchResult = (postId) => {
       return;
     }
 
-    const impressionText = crushPost.message.trim();
-
-    if (!impressionText) {
-      toast.error("인상착의를 간단히라도 적어주세요.");
+    const selectedOutfitParts = crushPost.outfit_parts || [];
+    if (selectedOutfitParts.length === 0) {
+      toast.error("상의, 아우터, 하의 중 최소 1개를 선택해주세요.");
       await moveCloudSendStep(3, "validation_back");
       return;
     }
 
+    const outfitFieldMap = {
+      top: { label: "상의", type: "top_type", color: "top_color" },
+      outer: { label: "아우터", type: "outer_type", color: "outer_color" },
+      bottom: { label: "하의", type: "bottom_type", color: "bottom_color" },
+    };
+    const incompletePart = selectedOutfitParts.find((part) => {
+      const fields = outfitFieldMap[part];
+      return !fields || !crushPost[fields.type] || !crushPost[fields.color];
+    });
+    if (incompletePart) {
+      toast.error(`${outfitFieldMap[incompletePart].label}의 옷 종류와 색상을 모두 선택해주세요.`);
+      await moveCloudSendStep(3, "validation_back");
+      return;
+    }
+
+    const impressionText = crushPost.message.trim();
+    const selectedAdditionalFields = crushPost.additional_detail_fields || [];
+    const additionalValueMap = {
+      hair_color:
+        crushPost.target_gender === "여자"
+          ? crushPost.female_hair_color
+          : crushPost.male_hair_color,
+      hat: crushPost.target_gender === "여자" ? crushPost.female_hat : crushPost.male_hat,
+      bangs:
+        crushPost.target_gender === "여자" ? crushPost.female_bangs : crushPost.male_bangs,
+      glasses: crushPost.glasses_type,
+      bag: crushPost.bag_type,
+      earphone: crushPost.earphone_type,
+      shoe: crushPost.shoe_type,
+    };
+    const additionalLabelMap = {
+      hair_color: "헤어 색깔",
+      hat: "모자",
+      bangs: "앞머리",
+      glasses: "안경",
+      bag: "가방",
+      earphone: "이어폰",
+      shoe: "신발",
+    };
+    const incompleteAdditionalField = selectedAdditionalFields.find(
+      (field) => !additionalValueMap[field]
+    );
+    if (incompleteAdditionalField) {
+      toast.error(`${additionalLabelMap[incompleteAdditionalField]} 정보를 선택하거나 입력해주세요.`);
+      await moveCloudSendStep(3, "validation_back");
+      return;
+    }
+
+    const structuredOutfitText = selectedOutfitParts
+      .map((part) => {
+        const fields = outfitFieldMap[part];
+        return `${fields.label}: ${crushPost[fields.color]} ${crushPost[fields.type]}`;
+      })
+      .join(" / ");
+    const clothesStyleText = [structuredOutfitText, impressionText].filter(Boolean).join(" / 자세히: ");
+    const hairColor = additionalValueMap.hair_color || "";
+    const hatStatus = additionalValueMap.hat || "";
+    const bangsStatus = additionalValueMap.bangs || "";
+    const hairFeatureText = [hairColor, hatStatus, bangsStatus, impressionText]
+      .filter(Boolean)
+      .join(" / ");
+    const accessoryText = [
+      additionalValueMap.glasses,
+      additionalValueMap.bag,
+      additionalValueMap.earphone,
+      additionalValueMap.shoe,
+      impressionText,
+    ]
+      .filter(Boolean)
+      .join(" / ");
+
     setPostSubmitting(true);
 
     try {
-      // 헤어/상의/하의/신발/소지품을 항목별로 고르게 하던 예전 방식 대신, 색깔 칩 1개(선택)
-      // + 자유 서술 한 단락만 받는다. getCloudMatchScore가 항목별 값이 비어 있으면
-      // clothes_style/accessory/hair_feature를 대신 훑어서 부분 문자열로 맞춰보는
-      // fallback을 이미 갖고 있어서(containsMatch(fallbackSource, checkValue)), 서술
-      // 텍스트를 세 필드에 모두 넣어두면 "구름 확인하기"의 세부 선택형 입력과 자동으로
-      // 대조된다. 색깔 칩은 top_color에 직접 넣어서 확실한 고배점(가중치 9) 매칭 한 건을
-      // 보장한다. 매칭 로직이나 확인하기 폼은 건드릴 필요가 없다.
-      const pickedColor = crushPost.top_color;
+      const pickedColor = selectedOutfitParts
+        .map((part) => crushPost[outfitFieldMap[part].color])
+        .find(Boolean) || "";
       const postData = {
         seen_date: crushPost.seen_date,
         place: getFinalPlace(),
         main_place: crushPost.place,
         detail_place: crushPost.custom_place.trim(),
         time_period: crushPost.time_period,
-        hair_feature: impressionText,
-        hair_color: "",
-        hat_status: "",
-        bangs_status: "",
-        glasses_status: "",
-        top_type: "",
-        top_color: pickedColor,
+        hair_feature: hairFeatureText,
+        hair_color: hairColor,
+        hat_status: hatStatus,
+        bangs_status: bangsStatus,
+        glasses_status: additionalValueMap.glasses || "",
+        top_type: crushPost.top_type,
+        top_color: crushPost.top_color,
         top_detail: "",
-        outer_type: "",
-        outer_color: "",
-        bottom_type: "",
-        bottom_color: "",
+        outer_type: crushPost.outer_type,
+        outer_color: crushPost.outer_color,
+        bottom_type: crushPost.bottom_type,
+        bottom_color: crushPost.bottom_color,
         bottom_detail: "",
-        shoe_type: "",
+        shoe_type: additionalValueMap.shoe || "",
         shoe_detail: "",
-        bag_type: "",
-        earphone_type: "",
+        bag_type: additionalValueMap.bag || "",
+        earphone_type: additionalValueMap.earphone || "",
         item_detail: "",
         clothes_color: pickedColor,
-        clothes_style: impressionText,
-        accessory: impressionText,
+        clothes_style: clothesStyleText,
+        accessory: accessoryText,
         message: crushPost.message,
         sender_nickname: profile.nickname,
         sender_instagram: cleanInstagram(profile.instagram_id),
@@ -2672,7 +2790,9 @@ const hideSearchResult = (postId) => {
     const availableRows = checkRows
       .filter((check) => check.checker_user_id !== currentUser.id)
       .filter((check) => !blockedUserIds.includes(check.checker_user_id));
-    const scoredRows = availableRows.map((check) => {
+    const scoredRows = availableRows
+      .filter((check) => isCloudMatchCandidate(post, check))
+      .map((check) => {
         const match = getCloudMatchScore(post, check);
         return {
           ...check,
@@ -2734,6 +2854,12 @@ const hideSearchResult = (postId) => {
 
     const scoredResults = (data || [])
       .filter((post) => post.sender_user_id !== currentUser.id)
+      .filter((post) =>
+        isCloudMatchCandidate(post, {
+          ...searchForm,
+          checker_gender: profile.gender,
+        })
+      )
       .map((post) => {
         const match = getPostMatchScore(post);
         return {
@@ -3286,6 +3412,7 @@ const hideSearchResult = (postId) => {
         finalMyPosts
           .filter((post) => post.seen_date === check.seen_date)
           .filter((post) => post.target_gender === check.checker_gender)
+          .filter((post) => isCloudMatchCandidate(post, check))
           .filter((post) => !claimedCheckerKeys.has(`${post.id}:${check.checker_user_id}`))
           .map((post) => {
             const match = getCloudMatchScore(post, check);
@@ -3324,7 +3451,27 @@ const hideSearchResult = (postId) => {
         post: receivedPosts.find((item) => String(item.id) === String(view.crush_post_id)) || null,
       }))
       .filter((view) => view.post)
-      .filter((view) => !blockedUserIds.includes(view.post.sender_user_id));
+      .filter((view) => !blockedUserIds.includes(view.post.sender_user_id))
+      .map((view) => {
+        const bestMatch = (checksResult.data || [])
+          .filter((check) => check.seen_date === view.post.seen_date)
+          .filter((check) => check.checker_gender === view.post.target_gender)
+          .filter((check) => isCloudMatchCandidate(view.post, check))
+          .map((check) => ({ check, match: getCloudMatchScore(view.post, check) }))
+          .sort(
+            (a, b) =>
+              (b.match.score || 0) - (a.match.score || 0) ||
+              new Date(b.check.checked_at) - new Date(a.check.checked_at)
+          )[0];
+
+        if (!bestMatch) return null;
+        return {
+          ...view,
+          match_score: bestMatch.match.score,
+          match_reasons: bestMatch.match.reasons,
+        };
+      })
+      .filter(Boolean);
     const retroReceivedViews = (receivedCandidatePostsResult.error
       ? []
       : receivedCandidatePostsResult.data || []
@@ -3337,6 +3484,7 @@ const hideSearchResult = (postId) => {
         const bestMatch = (checksResult.data || [])
           .filter((check) => check.seen_date === post.seen_date)
           .filter((check) => check.checker_gender === post.target_gender)
+          .filter((check) => isCloudMatchCandidate(post, check))
           .map((check) => {
             const match = getCloudMatchScore(post, check);
             return { check, match };
@@ -5147,7 +5295,11 @@ useEffect(() => {
     return (
       <div className="app">
         <Toaster position="top-center" toastOptions={{ duration: 3000, style: { fontSize: "14px", maxWidth: "320px" } }} />
-        <PrivacyPolicyPage onClose={() => setShowPrivacyPolicy(false)} />
+        <PrivacyPolicyPage
+          language={language === "en" ? "en" : "ko"}
+          onLanguageChange={chooseLanguage}
+          onClose={() => setShowPrivacyPolicy(false)}
+        />
       </div>
     );
   }
@@ -5171,7 +5323,30 @@ useEffect(() => {
     return (
       <div className="app">
         <Toaster position="top-center" toastOptions={{ duration: 3000, style: { fontSize: "14px", maxWidth: "320px" } }} />
-        <div className="card">
+        <div className="card authCard">
+          <div
+            className="authLanguageSwitch"
+            role="group"
+            aria-label={language === "en" ? "Language" : "언어 선택"}
+            data-i18n-ignore
+          >
+            <button
+              type="button"
+              className={language === "ko" ? "active" : ""}
+              aria-pressed={language === "ko"}
+              onClick={() => chooseLanguage("ko")}
+            >
+              KO
+            </button>
+            <button
+              type="button"
+              className={language === "en" ? "active" : ""}
+              aria-pressed={language === "en"}
+              onClick={() => chooseLanguage("en")}
+            >
+              EN
+            </button>
+          </div>
           <h1>단꿈</h1>
 
 	          <p className="subtitle">
@@ -5320,15 +5495,21 @@ useEffect(() => {
 	      {verificationFile ? `📷 ${verificationFile.name}` : "📷 MY DKU 캡처 선택하기"}
 	    </button>
 	  ) : (
-	    <input
-	      type="file"
-	      accept="image/*"
-	      onChange={(e) => {
-	        const file = e.target.files[0];
-	        if (!file) {
-	          setVerificationFile(null);
-	          return;
-	        }
+            <>
+            <label className="authFilePickerButton" htmlFor="verification-file">
+              {verificationFile ? `📷 ${verificationFile.name}` : "📷 MY DKU 캡처 선택하기"}
+            </label>
+            <input
+              id="verification-file"
+              className="authFileInput"
+              type="file"
+              accept="image/*"
+              onChange={(e) => {
+                const file = e.target.files[0];
+                if (!file) {
+                  setVerificationFile(null);
+                  return;
+                }
 
 	        const fileError = validateImageFile(file, "학생 인증 이미지");
 
@@ -5342,6 +5523,7 @@ useEffect(() => {
 	        setVerificationFile(file);
 	      }}
 	    />
+            </>
 	  )}
 	  <p className="helperText">
 	    민감한 알림 내용은 가려도 괜찮아요. 단, 이름/학번/학과는 확인 가능해야 해요.
@@ -5473,14 +5655,45 @@ useEffect(() => {
               >
                 {renderBellWithBadge(19)}
               </button>
-              <button
-                type="button"
-                className="homeV2IconBtn"
-                aria-label="프로필"
-                onClick={openProfilePage}
-              >
-                <PersonIcon size={19} />
-              </button>
+              <div className="homeLanguagePicker">
+                <button
+                  type="button"
+                  className="homeV2IconBtn homeLanguageButton"
+                  aria-label="언어 선택"
+                  aria-haspopup="listbox"
+                  aria-expanded={languageMenuOpen}
+                  onClick={() => setLanguageMenuOpen((open) => !open)}
+                >
+                  <LanguageIcon size={17} />
+                  <span className="homeLanguageCode">{language.toUpperCase()}</span>
+                </button>
+                {languageMenuOpen && (
+                  <div
+                    className="homeLanguageMenu"
+                    role="listbox"
+                    aria-label={language === "ko" ? "언어 선택" : "Choose language"}
+                    data-i18n-ignore
+                  >
+                    {LANGUAGE_OPTIONS.map((option) => (
+                      <button
+                        type="button"
+                        role="option"
+                        aria-selected={language === option.code}
+                        className={language === option.code ? "active" : ""}
+                        key={option.code}
+                        onClick={() => chooseLanguage(option.code)}
+                      >
+                        <span className="languageFlag" aria-hidden="true">{option.flag}</span>
+                        <span className="languageNames">
+                          <b>{option.code.toUpperCase()} · {option.native}</b>
+                          <small>{option.english}</small>
+                        </span>
+                        {language === option.code && <span className="languageCheck">✓</span>}
+                      </button>
+                    ))}
+                  </div>
+                )}
+              </div>
             </div>
           </div>
 
@@ -5999,8 +6212,8 @@ useEffect(() => {
               <h3 className="questionTitle">언제, 어디에서 마주쳤나요?</h3>
               <div className="formGroup">
                 <label className="formLabel">날짜</label>
-                <input
-                  type="date"
+                <LocalizedDateInput
+                  language={language}
                   value={crushPost.seen_date}
                   onChange={(e) => updateCrushPost("seen_date", e.target.value)}
                 />
@@ -6075,14 +6288,10 @@ useEffect(() => {
 
           {crushStep === 3 && (
             <>
-              <h3 className="questionTitle">
-                {crushPost.target_gender === "여자"
-                  ? "그녀"
-                  : crushPost.target_gender === "남자"
-                  ? "그"
-                  : "상대"}
-                의 인상착의를 자유롭게 적어주세요
-              </h3>
+              <h3 className="questionTitle">가장 기억에 남는 착장은 무엇인가요?</h3>
+              <p className="outfitLeadText">
+                상의, 아우터, 하의 중 기억나는 만큼 선택해주세요. 최소 1개는 선택해야 해요.
+              </p>
 
               <div className="summaryBox">
                 <p>
@@ -6110,32 +6319,273 @@ useEffect(() => {
                 </p>
               </div>
 
-              <div className="formGroup">
-                <label className="formLabel">가장 눈에 띄었던 색깔 (선택)</label>
-                <div className="optionGrid">
-                  {topColorOptions
-                    .filter((option) => option !== "잘 모르겠음")
-                    .map((option) => (
-                      <OptionButton
-                        key={option}
-                        value={option}
-                        selected={crushPost.top_color === option}
-                        onClick={() =>
-                          updateCrushPost(
-                            "top_color",
-                            crushPost.top_color === option ? "" : option
-                          )
-                        }
-                      />
-                    ))}
+              <div className="formGroup signalOutfitPicker">
+                <label className="formLabel">기억나는 착장 선택</label>
+                <div className="optionGrid signalOutfitPartGrid">
+                  {[
+                    ["top", "상의"],
+                    ["outer", "아우터"],
+                    ["bottom", "하의"],
+                  ].map(([part, label]) => (
+                    <OptionButton
+                      key={part}
+                      value={label}
+                      selected={(crushPost.outfit_parts || []).includes(part)}
+                      onClick={() => toggleCrushOutfitPart(part)}
+                    />
+                  ))}
                 </div>
-                <p className="helperText">
-                  상의든 하의든 신발이든, 제일 기억에 남는 색깔 하나만 골라주세요. 고르면
-                  매칭이 더 잘 돼요.
-                </p>
+
+                {["top", "outer", "bottom"]
+                  .filter((part) => (crushPost.outfit_parts || []).includes(part))
+                  .map((part) => {
+                  const config = {
+                    top: {
+                      label: "상의",
+                      typeKey: "top_type",
+                      colorKey: "top_color",
+                      options: crushPost.target_gender === "여자" ? femaleTopTypeOptions : topTypeOptions,
+                    },
+                    outer: {
+                      label: "아우터",
+                      typeKey: "outer_type",
+                      colorKey: "outer_color",
+                      options: outerTypeOptions.filter((option) => option !== "아우터 없음"),
+                    },
+                    bottom: {
+                      label: "하의",
+                      typeKey: "bottom_type",
+                      colorKey: "bottom_color",
+                      options: crushPost.target_gender === "여자" ? femaleBottomTypeOptions : bottomTypeOptions,
+                    },
+                  }[part];
+                  return (
+                    <div className="signalOutfitCard" key={part}>
+                      <strong>{config.label}</strong>
+                      <div className="signalOutfitSelects">
+                        <label>
+                          <span>옷 종류</span>
+                          <select
+                            value={crushPost[config.typeKey]}
+                            onChange={(e) => updateCrushPost(config.typeKey, e.target.value)}
+                          >
+                            <option value="">옷 종류 선택</option>
+                            {config.options
+                              .filter((option) => option !== "잘 모르겠음")
+                              .map((option) => <option key={option}>{option}</option>)}
+                          </select>
+                        </label>
+                        <label>
+                          <span>색상</span>
+                          <select
+                            value={crushPost[config.colorKey]}
+                            onChange={(e) => updateCrushPost(config.colorKey, e.target.value)}
+                          >
+                            <option value="">색상 선택</option>
+                            {topColorOptions
+                              .filter((option) => option !== "잘 모르겠음")
+                              .map((option) => <option key={option}>{option}</option>)}
+                          </select>
+                        </label>
+                      </div>
+                    </div>
+                  );
+                  })}
               </div>
 
+              <button
+                type="button"
+                className="signalAdditionalToggle white"
+                aria-expanded={showCrushAdditionalDetails}
+                onClick={() => setShowCrushAdditionalDetails((open) => !open)}
+              >
+                <span className="signalAdditionalPlus" aria-hidden="true">＋</span>
+                <span>
+                  <b>추가 정보 입력하기</b>
+                  <small>기억나는 단서를 더 선택할 수 있어요.</small>
+                </span>
+                <span className="signalAdditionalArrow" aria-hidden="true">
+                  {showCrushAdditionalDetails ? "⌃" : "⌄"}
+                </span>
+              </button>
+
+              {showCrushAdditionalDetails && (
+                <div className="signalAdditionalPanel">
+                  <p className="helperText">기억나는 항목만 선택해 입력해주세요.</p>
+                  <div className="optionGrid signalAdditionalFieldGrid">
+                    {[
+                      ["hair_color", "헤어 색깔"],
+                      ["hat", "모자"],
+                      ["bangs", "앞머리"],
+                      ["glasses", "안경"],
+                      ["bag", "가방"],
+                      ["earphone", "이어폰"],
+                      ["shoe", "신발"],
+                    ].map(([field, label]) => (
+                      <OptionButton
+                        key={field}
+                        value={label}
+                        selected={(crushPost.additional_detail_fields || []).includes(field)}
+                        onClick={() => toggleCrushAdditionalField(field)}
+                      />
+                    ))}
+                  </div>
+
+                  {(crushPost.additional_detail_fields || []).includes("hair_color") && (
+                    <div className="signalAdditionalControl">
+                      <label className="formLabel">헤어 색깔</label>
+                      <select
+                        value={
+                          crushPost.target_gender === "여자"
+                            ? crushPost.female_hair_color
+                            : crushPost.male_hair_color
+                        }
+                        onChange={(e) =>
+                          updateCrushPost(
+                            crushPost.target_gender === "여자"
+                              ? "female_hair_color"
+                              : "male_hair_color",
+                            e.target.value
+                          )
+                        }
+                      >
+                        <option value="">헤어 색깔 선택</option>
+                        {hairColorOptions
+                          .filter((option) => option !== "잘 모르겠음")
+                          .map((option) => <option key={option}>{option}</option>)}
+                      </select>
+                    </div>
+                  )}
+
+                  {(crushPost.additional_detail_fields || []).includes("hat") && (
+                    <div className="signalAdditionalControl">
+                      <label className="formLabel">모자</label>
+                      <div className="optionGrid">
+                        {hatOptions
+                          .filter((option) => option !== "잘 모르겠음")
+                          .map((option) => (
+                            <OptionButton
+                              key={option}
+                              value={option}
+                              label={getOxLabel(option)}
+                              selected={
+                                (crushPost.target_gender === "여자"
+                                  ? crushPost.female_hat
+                                  : crushPost.male_hat) === option
+                              }
+                              onClick={() =>
+                                updateCrushPost(
+                                  crushPost.target_gender === "여자" ? "female_hat" : "male_hat",
+                                  option
+                                )
+                              }
+                            />
+                          ))}
+                      </div>
+                    </div>
+                  )}
+
+                  {(crushPost.additional_detail_fields || []).includes("bangs") && (
+                    <div className="signalAdditionalControl">
+                      <label className="formLabel">앞머리</label>
+                      <div className="optionGrid">
+                        {bangsOptions
+                          .filter((option) => option !== "잘 모르겠음")
+                          .map((option) => (
+                            <OptionButton
+                              key={option}
+                              value={option}
+                              label={getOxLabel(option)}
+                              selected={
+                                (crushPost.target_gender === "여자"
+                                  ? crushPost.female_bangs
+                                  : crushPost.male_bangs) === option
+                              }
+                              onClick={() =>
+                                updateCrushPost(
+                                  crushPost.target_gender === "여자" ? "female_bangs" : "male_bangs",
+                                  option
+                                )
+                              }
+                            />
+                          ))}
+                      </div>
+                    </div>
+                  )}
+
+                  {(crushPost.additional_detail_fields || []).includes("glasses") && (
+                    <div className="signalAdditionalControl">
+                      <label className="formLabel">안경</label>
+                      <div className="optionGrid">
+                        {glassesOptions
+                          .filter((option) => option !== "잘 모르겠음")
+                          .map((option) => (
+                            <OptionButton
+                              key={option}
+                              value={option}
+                              label={getOxLabel(option)}
+                              selected={crushPost.glasses_type === option}
+                              onClick={() => updateCrushPost("glasses_type", option)}
+                            />
+                          ))}
+                      </div>
+                    </div>
+                  )}
+
+                  {(crushPost.additional_detail_fields || []).includes("bag") && (
+                    <div className="signalAdditionalControl">
+                      <label className="formLabel">가방</label>
+                      <div className="optionGrid">
+                        {bagOptions
+                          .filter((option) => option !== "잘 모르겠음")
+                          .map((option) => (
+                            <OptionButton
+                              key={option}
+                              value={option}
+                              label={getOxLabel(option)}
+                              selected={crushPost.bag_type === option}
+                              onClick={() => updateCrushPost("bag_type", option)}
+                            />
+                          ))}
+                      </div>
+                    </div>
+                  )}
+
+                  {(crushPost.additional_detail_fields || []).includes("earphone") && (
+                    <div className="signalAdditionalControl">
+                      <label className="formLabel">이어폰</label>
+                      <select
+                        value={crushPost.earphone_type}
+                        onChange={(e) => updateCrushPost("earphone_type", e.target.value)}
+                      >
+                        <option value="">이어폰 선택</option>
+                        {earphoneOptions
+                          .filter((option) => option !== "잘 모르겠음")
+                          .map((option) => <option key={option}>{option}</option>)}
+                      </select>
+                    </div>
+                  )}
+
+                  {(crushPost.additional_detail_fields || []).includes("shoe") && (
+                    <div className="signalAdditionalControl">
+                      <label className="formLabel">신발</label>
+                      <select
+                        value={crushPost.shoe_type}
+                        onChange={(e) => updateCrushPost("shoe_type", e.target.value)}
+                      >
+                        <option value="">신발 선택</option>
+                        {shoeOptions
+                          .filter((option) => option !== "잘 모르겠음")
+                          .map((option) => <option key={option}>{option}</option>)}
+                      </select>
+                    </div>
+                  )}
+
+                </div>
+              )}
+
               <div className="formGroup">
+                <label className="formLabel">상세 정보 입력 (선택)</label>
                 <textarea
                   placeholder="예: 하늘색 후드티에 청바지 입고 안경 쓴 사람이었어요. 검은 단발머리에 크로스백 메고 있었어요."
                   value={crushPost.message}
@@ -6143,8 +6593,7 @@ useEffect(() => {
                   maxLength={300}
                 />
                 <p className="helperText">
-                  색깔, 옷 스타일, 안경, 가방처럼 기억나는 특징을 적어주세요. 구체적으로
-                  적을수록 상대가 자신을 더 잘 알아볼 수 있어요.
+                  추가로 기억나는 외모나 소지품을 자유롭게 적어주세요.
                 </p>
               </div>
 
@@ -6393,8 +6842,8 @@ useEffect(() => {
               </h3>
               <div className="formGroup">
                 <label className="formLabel">날짜</label>
-                <input
-                  type="date"
+                <LocalizedDateInput
+                  language={language}
                   value={searchForm.seen_date}
                   onChange={(e) =>
                     setSearchForm({ ...searchForm, seen_date: e.target.value })
@@ -7374,8 +7823,8 @@ useEffect(() => {
 
     <div className="formGroup">
       <label className="formLabel">확인할 날짜</label>
-      <input
-        type="date"
+      <LocalizedDateInput
+        language={language}
         value={weatherDate}
         onChange={(e) => setWeatherDate(e.target.value)}
       />
@@ -7461,8 +7910,8 @@ useEffect(() => {
 
     <div className="formGroup">
       <label className="formLabel">확인할 날짜</label>
-      <input
-        type="date"
+      <LocalizedDateInput
+        language={language}
         value={findOwnerDate}
         onChange={(e) => setFindOwnerDate(e.target.value)}
       />

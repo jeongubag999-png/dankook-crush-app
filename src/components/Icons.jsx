@@ -94,6 +94,13 @@ export const PersonIcon = ({ size = 22 }) => (
   </svg>
 );
 
+export const LanguageIcon = ({ size = 22 }) => (
+  <svg width={size} height={size} {...outlineIconProps}>
+    <circle cx="12" cy="12" r="9" />
+    <path d="M3 12h18M12 3c2.4 2.5 3.6 5.5 3.6 9S14.4 18.5 12 21M12 3C9.6 5.5 8.4 8.5 8.4 12s1.2 6.5 3.6 9" />
+  </svg>
+);
+
 export const BellIcon = ({ size = 22 }) => (
   <svg width={size} height={size} {...outlineIconProps}>
     <path d="M6 10.5a6 6 0 0 1 12 0c0 4 1.5 5.5 1.5 5.5H4.5S6 14.5 6 10.5z" />

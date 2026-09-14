@@ -1,6 +1,113 @@
-export function PrivacyPolicyPage({ onClose }) {
+function PolicyLanguageSwitch({ language, onLanguageChange }) {
   return (
-    <div className="card adminCard">
+    <div className="authLanguageSwitch" role="group" aria-label="Language" data-i18n-ignore>
+      <button type="button" className={language === "ko" ? "active" : ""} onClick={() => onLanguageChange("ko")}>KO</button>
+      <button type="button" className={language === "en" ? "active" : ""} onClick={() => onLanguageChange("en")}>EN</button>
+    </div>
+  );
+}
+
+export function PrivacyPolicyPage({ onClose, language = "ko", onLanguageChange = () => {} }) {
+  if (language === "en") {
+    return (
+      <div className="card adminCard privacyPolicyCard" data-i18n-ignore>
+        <PolicyLanguageSwitch language={language} onLanguageChange={onLanguageChange} />
+        <div className="adminHeader">
+          <h2>Privacy Policy</h2>
+          <button className="white" onClick={onClose}>Close</button>
+        </div>
+
+        <div className="privacyPolicyBody">
+          <p className="helperText">Effective date: August 30, 2026</p>
+          <p>
+            Dankkum (the “Service”) values your privacy and provides this policy to explain how
+            personal information is handled while offering a safer matching service primarily for
+            currently enrolled Dankook University students.
+          </p>
+
+          <h3>1. Personal information we collect</h3>
+          <ul>
+            <li>Sign-up: nickname or name, student ID, department, login ID, and password.</li>
+            <li>Student verification: MY DKU screenshot, student ID, department and enrollment status recognized by OCR, verification result, and processing time.</li>
+            <li>Profile: nickname, gender, Instagram ID, and bio.</li>
+            <li>Cloud posts: date, time, place, gender, appearance, belongings, and a short message.</li>
+            <li>Cloud checks: date, appearance details entered, viewed candidates, and response/accept/decline records.</li>
+            <li>My Clouds and Cloud Calendar: clouds sent, dates checked, daily cloud counts, and outfit records.</li>
+            <li>Service operation: reports, blocks, chat rooms and messages, activity, menu usage, errors, and exit-step logs.</li>
+            <li>User identifier and notification setting required to send push notifications.</li>
+          </ul>
+          <p>
+            Appearance information about another person in a cloud post is submitted by the user
+            under their own responsibility. The author may be responsible under applicable law if
+            the content identifies or defames someone. Reported inappropriate content may be removed
+            and access to the Service may be restricted.
+          </p>
+
+          <h3>2. Why we use personal information</h3>
+          <ul>
+            <li>Verify current Dankook University enrollment and identify members.</li>
+            <li>Provide cloud posting, checking, matching, personal records, and Cloud Calendar features.</li>
+            <li>Reveal Instagram IDs only when both people accept the match.</li>
+            <li>Process reports and blocks, prevent misuse, and improve service reliability and quality.</li>
+          </ul>
+
+          <h3>3. Retention period</h3>
+          <ul>
+            <li>Account, profile, cloud, matching, and chat records are retained until account deletion.</li>
+            <li>Verification name, student ID, and MY DKU screenshot may be retained after review to prevent fraudulent or duplicate sign-ups and handle appeals; they are deleted with the account.</li>
+            <li>Information required by law may be retained separately for the legally required period.</li>
+          </ul>
+
+          <h3>4. Sharing with third parties</h3>
+          <p>
+            We do not ordinarily share personal information with outside parties. An Instagram ID is
+            shown to the matched person only when the user chooses to accept the match.
+          </p>
+
+          <h3>5. Service providers</h3>
+          <ul>
+            <li>Supabase: account information, service database, verification image storage, and Edge Functions.</li>
+            <li>Google Cloud Vision API: automated recognition of student ID, department, and enrollment status in MY DKU images.</li>
+            <li>OneSignal: push-notification user identifiers and message previews of up to 60 characters.</li>
+          </ul>
+
+          <h3>6. Visibility of private records</h3>
+          <ul>
+            <li>Daily cloud counts and outfit records in Cloud Calendar are visible only to you.</li>
+            <li>Administrators access information only as needed for operations, reports, and verification.</li>
+            <li>Instagram IDs remain hidden until both people accept the match.</li>
+          </ul>
+
+          <h3>7. Your rights</h3>
+          <p>
+            You may delete your account at any time from My Page. Your cloud posts, cloud-check
+            records, and student-verification information will be deleted, and your profile will be
+            de-identified. Chat messages and report/block records may be retained to protect other
+            users and prevent misuse. Contact us below for other access or correction requests.
+          </p>
+
+          <h3>8. Security measures</h3>
+          <p>
+            The Service provides reporting and blocking tools and restricts access to verification
+            and report records to authorized administrators.
+          </p>
+
+          <h3>9. Changes to this policy</h3>
+          <p>
+            This policy may change when features, processing practices, or applicable laws change.
+            Important changes will be announced in the Service or through a separate notice.
+          </p>
+
+          <h3>10. Contact</h3>
+          <p>Privacy inquiries: jeongubag999@gmail.com</p>
+        </div>
+      </div>
+    );
+  }
+
+  return (
+    <div className="card adminCard privacyPolicyCard" data-i18n-ignore>
+      <PolicyLanguageSwitch language={language} onLanguageChange={onLanguageChange} />
       <div className="adminHeader">
         <h2>개인정보처리방침</h2>
         <button className="white" onClick={onClose}>닫기</button>

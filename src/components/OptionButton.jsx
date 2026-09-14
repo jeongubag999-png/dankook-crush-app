@@ -6,6 +6,7 @@ export const OptionButton = ({ value, label, selected, onClick, full, icon }) =>
   return (
     <button
       type="button"
+      aria-pressed={selected}
       className={`optionButton ${selected ? "selected" : ""} ${full ? "fullOption" : ""} ${icon ? "iconOption" : ""} ${oxClass}`}
       onClick={onClick}
     >
