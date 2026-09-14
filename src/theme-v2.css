@@ -2078,3 +2078,37 @@ body.chatRoomOpen {
   font-weight: 700;
   cursor: pointer;
 }
+
+/* ----- 구름 띄우기: 방 선택 화면 여백 다듬기 ----- */
+
+.app .roomSelectPage.card {
+  padding-top: 26px;
+  padding-bottom: 20px;
+}
+
+.app .roomSelectPage .questionTitle {
+  margin-top: 2px;
+  margin-bottom: 6px;
+}
+
+.app .roomSelectPage .homeV2ActionCard {
+  margin-bottom: 10px;
+}
+
+.app .roomSelectPage .roomSelectHomeButton {
+  margin-top: 18px;
+  height: auto;
+  min-height: auto;
+  padding: 8px;
+  background: transparent;
+  border: none;
+  box-shadow: none;
+  color: var(--v2-muted);
+  font-size: 13.5px;
+  font-weight: 700;
+}
+
+.app .roomSelectPage .roomSelectHomeButton:hover {
+  background: transparent;
+  color: var(--v2-ink-soft);
+}

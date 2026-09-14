@@ -6199,7 +6199,7 @@ useEffect(() => {
 	      )}
 
 	      {page === "sendRoomSelect" && (
-        <div className="card">
+        <div className="card roomSelectPage">
           <h3 className="questionTitle">어떤 방에 구름을 띄울까요?</h3>
 
           <button
@@ -6232,7 +6232,7 @@ useEffect(() => {
             </span>
           </button>
 
-          <button onClick={() => setPage("home")} className="white">
+          <button onClick={() => setPage("home")} className="white roomSelectHomeButton">
             홈으로
           </button>
         </div>
