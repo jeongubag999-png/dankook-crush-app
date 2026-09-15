@@ -95,6 +95,25 @@ export const timeOptions = [
 
 export const genderOptions = ["여자", "남자"];
 
+export const mbtiOptions = [
+  "INTJ",
+  "INTP",
+  "ENTJ",
+  "ENTP",
+  "INFJ",
+  "INFP",
+  "ENFJ",
+  "ENFP",
+  "ISTJ",
+  "ISFJ",
+  "ESTJ",
+  "ESFJ",
+  "ISTP",
+  "ISFP",
+  "ESTP",
+  "ESFP",
+];
+
 export const femaleHairStyleOptions = [
   "장발",
   "중단발",

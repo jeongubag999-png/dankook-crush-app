@@ -1764,6 +1764,48 @@ body {
   margin-top: 10px;
 }
 
+.app .senderIntroBox {
+  margin: 14px 0;
+  padding: 14px;
+  border-radius: var(--v2-radius-md);
+  background: var(--v2-blue-soft);
+  border: 1px solid #dceaff;
+  text-align: left;
+}
+
+.app .senderIntroBox .qaTitle {
+  color: var(--v2-blue-dark);
+}
+
+.app .senderIntroName {
+  font-weight: 700;
+  color: var(--v2-ink);
+  margin: 0 0 6px !important;
+}
+
+.app .senderIntroTags {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 6px;
+  margin-bottom: 6px;
+}
+
+.app .senderIntroTag {
+  font-size: 12px;
+  font-weight: 700;
+  color: var(--v2-blue-dark);
+  background: var(--v2-surface);
+  border: 1px solid #dceaff;
+  border-radius: 999px;
+  padding: 3px 10px;
+}
+
+.app .senderIntroBio {
+  color: var(--v2-ink-soft);
+  font-size: 13.5px;
+  margin: 0 !important;
+}
+
 /* ----- 대화하기/거절, 채팅 ----- */
 
 .app .claimActionRow {

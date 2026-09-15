@@ -53,6 +53,7 @@ import {
   campusOptions,
   timeOptions,
   genderOptions,
+  mbtiOptions,
   femaleHairStyleOptions,
   hairColorOptions,
   hatOptions,
@@ -273,6 +274,7 @@ const [verificationFile, setVerificationFile] = useState(null);
     student_year: "",
     instagram_id: "",
     bio: "",
+    mbti: "",
   });
   const [profileReady, setProfileReady] = useState(false);
   const [sharedPostId, setSharedPostId] = useState(() => {
@@ -802,6 +804,7 @@ const [verificationFile, setVerificationFile] = useState(null);
       student_year: "",
       instagram_id: "",
       bio: "",
+      mbti: "",
     });
     setProfileReady(false);
   };
@@ -854,7 +857,7 @@ const [verificationFile, setVerificationFile] = useState(null);
 
     const { data, error } = await supabase
       .from("profiles")
-      .select("nickname, gender, department, campus, student_year, instagram_id, bio")
+      .select("nickname, gender, department, campus, student_year, instagram_id, bio, mbti")
       .eq("user_id", user.id)
       .maybeSingle();
 
@@ -873,6 +876,7 @@ const [verificationFile, setVerificationFile] = useState(null);
         student_year: data.student_year || "",
         instagram_id: data.instagram_id || "",
         bio: data.bio || "",
+        mbti: data.mbti || "",
       });
     } else {
       setProfile((prev) => ({
@@ -1914,6 +1918,38 @@ const hideSearchResult = (postId) => {
     );
   };
 
+  const renderSenderIntro = (post) => {
+    if (!post) return null;
+
+    const tags = [post.sender_gender, post.sender_department, post.sender_mbti].filter(
+      Boolean
+    );
+
+    if (tags.length === 0 && !post.sender_bio) return null;
+
+    return (
+      <div className="senderIntroBox">
+        <p className="qaTitle">이 구름을 띄운 사람</p>
+
+        <p className="senderIntroName">{post.sender_nickname || "익명"}</p>
+
+        {tags.length > 0 && (
+          <div className="senderIntroTags">
+            {tags.map((tag, index) => (
+              <span className="senderIntroTag" key={index}>
+                {tag}
+              </span>
+            ))}
+          </div>
+        )}
+
+        {post.sender_bio && (
+          <p className="senderIntroBio">“{post.sender_bio}”</p>
+        )}
+      </div>
+    );
+  };
+
   const renderCloudActionButtons = (post) => (
     <>
       {(!currentUser || post.sender_user_id !== currentUser.id) && (
@@ -2050,6 +2086,7 @@ const hideSearchResult = (postId) => {
         {expanded && (
           <div className="cloudBoardDetail">
             {renderPostQuestionAnswer(post)}
+            {renderSenderIntro(post)}
             {renderCloudActionButtons(post)}
           </div>
         )}
@@ -2122,6 +2159,24 @@ const hideSearchResult = (postId) => {
 
     if (!profile.instagram_id) {
       toast.error("먼저 내 프로필에서 인스타 아이디를 입력해주세요.");
+      setPage("profile");
+      return false;
+    }
+
+    if (!profile.department?.trim()) {
+      toast.error("먼저 내 프로필에서 학과를 입력해주세요.");
+      setPage("profile");
+      return false;
+    }
+
+    if (!profile.mbti) {
+      toast.error("먼저 내 프로필에서 MBTI를 선택해주세요.");
+      setPage("profile");
+      return false;
+    }
+
+    if (!profile.bio?.trim()) {
+      toast.error("먼저 내 프로필에서 한 줄 소개를 입력해주세요.");
       setPage("profile");
       return false;
     }
@@ -2606,6 +2661,21 @@ const hideSearchResult = (postId) => {
       return;
     }
 
+    if (!profile.department.trim()) {
+      toast.error("학과를 입력해주세요.");
+      return;
+    }
+
+    if (!profile.mbti) {
+      toast.error("MBTI를 선택해주세요.");
+      return;
+    }
+
+    if (!profile.bio.trim()) {
+      toast.error("한 줄 소개를 입력해주세요.");
+      return;
+    }
+
     setProfileSubmitting(true);
 
     try {
@@ -2619,6 +2689,7 @@ const hideSearchResult = (postId) => {
             student_year: profile.student_year,
             instagram_id: cleanInstagram(profile.instagram_id),
             bio: profile.bio,
+            mbti: profile.mbti,
           },
         ],
         { onConflict: "user_id" }
@@ -2737,6 +2808,9 @@ const hideSearchResult = (postId) => {
         sender_nickname: profile.nickname,
         sender_instagram: cleanInstagram(profile.instagram_id),
         sender_gender: profile.gender,
+        sender_department: profile.department,
+        sender_mbti: profile.mbti,
+        sender_bio: profile.bio,
         target_gender: crushPost.target_gender,
         campus: profile.campus,
       };
@@ -2838,6 +2912,9 @@ const hideSearchResult = (postId) => {
         sender_nickname: profile.nickname,
         sender_instagram: cleanInstagram(profile.instagram_id),
         sender_gender: profile.gender,
+        sender_department: profile.department,
+        sender_mbti: profile.mbti,
+        sender_bio: profile.bio,
         target_gender: crushPost.target_gender || "상관없음",
         campus: profile.campus,
       };
@@ -5325,6 +5402,8 @@ useEffect(() => {
 
         {renderPostQuestionAnswer(post)}
 
+        {renderSenderIntro(post)}
+
         <p className="message">
           “{cleanMessage(post.message) || "남긴 메시지가 없어요."}”
         </p>
@@ -6068,7 +6147,7 @@ useEffect(() => {
           </div>
 
           <input
-            placeholder="학과 예: 글로벌경영학과"
+            placeholder="학과 예: 글로벌경영학과 (필수)"
             value={profile.department}
             onChange={(e) =>
               setProfile({ ...profile, department: e.target.value })
@@ -6091,8 +6170,23 @@ useEffect(() => {
             }
           />
 
+          <div className="formGroup">
+            <label className="formLabel">MBTI (필수)</label>
+            <select
+              value={profile.mbti}
+              onChange={(e) => setProfile({ ...profile, mbti: e.target.value })}
+            >
+              <option value="">선택해주세요</option>
+              {mbtiOptions.map((option) => (
+                <option value={option} key={option}>
+                  {option}
+                </option>
+              ))}
+            </select>
+          </div>
+
           <textarea
-            placeholder="한 줄 소개"
+            placeholder="한 줄 소개 (필수) - 다른 사람이 내 구름을 볼 때 함께 보여요"
             value={profile.bio}
             onChange={(e) => setProfile({ ...profile, bio: e.target.value })}
           />
@@ -7715,6 +7809,8 @@ useEffect(() => {
 
           {renderPostQuestionAnswer(post)}
 
+          {renderSenderIntro(post)}
+
           <p className="message">
             “{cleanMessage(post.message) || "남긴 메시지가 없어요."}”
           </p>
@@ -8082,6 +8178,8 @@ useEffect(() => {
               </p>
 
               {renderPostQuestionAnswer(sharedPost)}
+
+              {renderSenderIntro(sharedPost)}
 
               <p className="message">
                 “{cleanMessage(sharedPost.message) || "남긴 메시지가 없어요."}”
