@@ -418,9 +418,9 @@ const [verificationFile, setVerificationFile] = useState(null);
   const [weatherLoading, setWeatherLoading] = useState(false);
   const [weatherClouds, setWeatherClouds] = useState([]);
   const [findOwnerDate, setFindOwnerDate] = useState(() => getKoreaDateString());
-  const [findOwnerPlace, setFindOwnerPlace] = useState("");
   const [findOwnerLoading, setFindOwnerLoading] = useState(false);
   const [findOwnerClouds, setFindOwnerClouds] = useState([]);
+  const [findOwnerExpandedId, setFindOwnerExpandedId] = useState(null);
   const [homeTopWeatherPlace, setHomeTopWeatherPlace] = useState(null);
   const [homeTodayClouds, setHomeTodayClouds] = useState([]);
   const [homeAppStats, setHomeAppStats] = useState({
@@ -1977,6 +1977,85 @@ const hideSearchResult = (postId) => {
       )}
     </>
   );
+
+  const formatRelativeTimeKo = (isoString) => {
+    if (!isoString) return "";
+    const diffMin = Math.floor((Date.now() - new Date(isoString).getTime()) / 60000);
+    if (diffMin < 1) return "방금 전";
+    if (diffMin < 60) return `${diffMin}분 전`;
+    const diffHour = Math.floor(diffMin / 60);
+    if (diffHour < 24) return `${diffHour}시간 전`;
+    return `${Math.floor(diffHour / 24)}일 전`;
+  };
+
+  const getCloudBoardTitle = (post) => {
+    if (post.room === "language") {
+      return `${post.lang_country || "글로벌"} · 언어교환`;
+    }
+    return `${getMainPlaceFromPost(post)} · ${post.target_gender || "누군가"} 찾는 중`;
+  };
+
+  const getCloudBoardMeta = (post) => {
+    const when = formatRelativeTimeKo(post.created_at);
+    if (post.room === "language") {
+      const spoken = (post.lang_spoken || []).join(", ");
+      return [spoken, when].filter(Boolean).join(" · ");
+    }
+    return [post.time_period, post.place, when].filter(Boolean).join(" · ");
+  };
+
+  const renderCloudBoardItem = (post) => {
+    const isLanguage = post.room === "language";
+    const expanded = findOwnerExpandedId === post.id;
+
+    return (
+      <div className="cloudBoardItem" key={post.id}>
+        <button
+          type="button"
+          className="cloudBoardRow"
+          onClick={() =>
+            setFindOwnerExpandedId((prev) => (prev === post.id ? null : post.id))
+          }
+        >
+          <span
+            className={`cloudBoardIcon ${
+              isLanguage ? "roomIconLanguage" : "roomIconCrush"
+            }`}
+          >
+            {isLanguage ? "🌍" : "☁️"}
+          </span>
+
+          <span className="cloudBoardBody">
+            <span className="cloudBoardTitleRow">
+              <b className="cloudBoardTitle">{getCloudBoardTitle(post)}</b>
+              <span
+                className={`cloudBoardBadge ${isLanguage ? "language" : "crush"}`}
+              >
+                {isLanguage ? "글로벌" : "연애"}
+              </span>
+            </span>
+
+            <span className="cloudBoardMeta">{getCloudBoardMeta(post)}</span>
+
+            <span className="cloudBoardMessage">
+              “{cleanMessage(post.message) || "남긴 메시지가 없어요."}”
+            </span>
+          </span>
+
+          <span className={`cloudBoardChevron ${expanded ? "open" : ""}`}>
+            <ChevronRightIcon />
+          </span>
+        </button>
+
+        {expanded && (
+          <div className="cloudBoardDetail">
+            {renderPostQuestionAnswer(post)}
+            {renderCloudActionButtons(post)}
+          </div>
+        )}
+      </div>
+    );
+  };
 
   const selectTargetGenderAndNext = (value) => {
     setCrushPost((prev) => ({
@@ -3707,7 +3786,6 @@ const getWeatherPlaceCounts = () => {
 
 const loadFindOwnerClouds = async (
   targetDate = findOwnerDate,
-  targetPlace = findOwnerPlace,
   silent = false
 ) => {
   if (!checkProfileRequired()) return false;
@@ -3719,15 +3797,16 @@ const loadFindOwnerClouds = async (
 
   setFindOwnerLoading(true);
 
-  const { data, error } = await supabase.rpc("find_owner_unclaimed_clouds", {
-    p_seen_date: targetDate,
-    p_campus: profile.campus,
-    p_place: targetPlace || null,
-  });
+  const { data, error } = await supabase
+    .from("crush_posts")
+    .select("*")
+    .eq("seen_date", targetDate)
+    .eq("campus", profile.campus)
+    .order("created_at", { ascending: false });
 
   if (error) {
     if (!silent) {
-      toast.error("구름 찾아주기 목록을 불러오지 못했어요: " + error.message);
+      toast.error("구름 게시판을 불러오지 못했어요: " + error.message);
     }
     console.log(error);
     setFindOwnerClouds([]);
@@ -3745,20 +3824,20 @@ const openFindOwnerPage = async () => {
 
   const today = getKoreaDateString();
   setFindOwnerDate(today);
-  setFindOwnerPlace("");
+  setFindOwnerExpandedId(null);
   setPage("findOwner");
-  await loadFindOwnerClouds(today, "");
+  await loadFindOwnerClouds(today);
 };
 
 useEffect(() => {
   if (page !== "findOwner" || !findOwnerDate || !profile.campus) return undefined;
 
   const timer = setInterval(() => {
-    loadFindOwnerClouds(findOwnerDate, findOwnerPlace, true);
+    loadFindOwnerClouds(findOwnerDate, true);
   }, 30000);
 
   return () => clearInterval(timer);
-}, [page, findOwnerDate, findOwnerPlace, profile.campus]);
+}, [page, findOwnerDate, profile.campus]);
 
   const requestChat = async (claimId) => {
     if (claimActionSubmittingId) return;
@@ -4644,8 +4723,6 @@ useEffect(() => {
     (sum, item) => sum + item.displayCount,
     0
   );
-  const findOwnerPlaceOptions = getPlaceOptions(profile.campus);
-
   const notificationItems = [
   ...sentClaims.map((claim) => ({
     id: `sent-${claim.id}`,
@@ -5812,7 +5889,7 @@ useEffect(() => {
             <span className="homeV2ActionIcon blue">✉️</span>
             <span className="homeV2ActionText">
               <b>구름 찾아주기</b>
-              <small>응답 없는 구름을 친구에게 공유해요.</small>
+              <small>오늘 뜬 구름을 한눈에 둘러봐요.</small>
             </span>
             <span className="homeV2ActionChevron">
               <ChevronRightIcon />
@@ -8117,95 +8194,45 @@ useEffect(() => {
   </div>
 )}
       {page === "findOwner" && (
-  <div className="card weatherCard findOwnerCard">
-    <h2>구름 찾아주기</h2>
-
-    <p className="subtitle">
-      아직 아무 응답도 받지 못한 구름만 모아 보여줘요.
-    </p>
-
-    <div className="weatherHeroBox">
-      <div className="weatherIcon">✉️</div>
+  <div className="card cloudBoardCard">
+    <div className="cloudBoardHeader">
       <div>
-        <p className="weatherHeroTitle">응답 없는 구름</p>
-        <p className="weatherHeroDesc">
-          날짜와 장소를 골라 친구에게 공유할 구름을 찾아보세요.
+        <h2>구름 찾아주기</h2>
+        <p className="subtitle">
+          오늘 뜬 구름을 연애방/글로벌방 구분 없이 한눈에 모아 보여줘요.
         </p>
       </div>
-    </div>
 
-    <div className="formGroup">
-      <label className="formLabel">확인할 날짜</label>
       <LocalizedDateInput
         language={language}
         value={findOwnerDate}
-        onChange={(e) => setFindOwnerDate(e.target.value)}
+        onChange={(e) => {
+          setFindOwnerDate(e.target.value);
+          loadFindOwnerClouds(e.target.value);
+        }}
       />
     </div>
 
-    <div className="formGroup">
-      <label className="formLabel">장소 선택</label>
-      <select
-        value={findOwnerPlace}
-        onChange={(e) => setFindOwnerPlace(e.target.value)}
-      >
-        <option value="">전체 장소</option>
-        {findOwnerPlaceOptions.map((place) => (
-          <option value={place} key={place}>
-            {place}
-          </option>
-        ))}
-      </select>
-    </div>
-
-    <button
-      onClick={() => loadFindOwnerClouds(findOwnerDate, findOwnerPlace)}
-      disabled={findOwnerLoading}
-    >
-      {findOwnerLoading ? "구름 찾는 중..." : "이 조건으로 찾아보기"}
-    </button>
-
     {findOwnerLoading && (
-      <p className="notice">아직 주인을 기다리는 구름을 확인하는 중이에요...</p>
+      <p className="notice">오늘 뜬 구름을 불러오는 중이에요...</p>
     )}
 
     {!findOwnerLoading && findOwnerClouds.length === 0 && (
       <div className="noticeBox">
-        <p>이 조건에 맞는 응답 없는 구름이 없어요.</p>
-        <p>누군가 응답한 구름은 이 목록에서 자동으로 빠져요.</p>
+        <p>이 날짜에 뜬 구름이 아직 없어요.</p>
       </div>
     )}
 
     {!findOwnerLoading && findOwnerClouds.length > 0 && (
-      <div className="weatherDetailBox">
-        <h3 className="manageSectionTitle">
-          주인을 기다리는 구름 {findOwnerClouds.length}개
-        </h3>
+      <>
+        <p className="cloudBoardCount">
+          오늘 뜬 구름 <b>{findOwnerClouds.length}</b>개
+        </p>
 
-        {findOwnerClouds.map((post) => (
-          <div className="post resultPost" key={post.id}>
-            <div className="postTopLine">
-              <span className="statusPill active">
-                ☁ {getMainPlaceFromPost(post)} 구름
-              </span>
-            </div>
-
-            <p>
-              <b>
-                {renderPostHeaderLine(post)}
-              </b>
-            </p>
-
-            {renderPostQuestionAnswer(post)}
-
-            <p className="message">
-              “{cleanMessage(post.message) || "남긴 메시지가 없어요."}”
-            </p>
-
-            {renderCloudActionButtons(post)}
-          </div>
-        ))}
-      </div>
+        <div className="cloudBoardList">
+          {findOwnerClouds.map((post) => renderCloudBoardItem(post))}
+        </div>
+      </>
     )}
 
     <button onClick={() => setPage("home")} className="white">

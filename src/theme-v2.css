@@ -1600,6 +1600,170 @@ body {
   text-align: left;
 }
 
+/* ----- 구름 찾아주기 (구름 게시판) ----- */
+
+.app .cloudBoardHeader {
+  display: flex;
+  align-items: flex-start;
+  justify-content: space-between;
+  gap: 10px;
+}
+
+.app .cloudBoardHeader .subtitle {
+  margin-top: 4px;
+}
+
+.app .cloudBoardHeader {
+  flex-wrap: wrap;
+}
+
+.app .cloudBoardHeader .localizedDateInput {
+  flex-shrink: 0;
+}
+
+.app .cloudBoardHeader .localizedDateInput input {
+  width: 152px;
+  padding: 8px 10px;
+  font-size: 13px;
+}
+
+.app .cloudBoardCount {
+  margin: 16px 0 4px;
+  color: var(--v2-muted);
+  font-size: 13px;
+}
+
+.app .cloudBoardCount b {
+  color: var(--v2-ink);
+}
+
+.app .cloudBoardList {
+  display: flex;
+  flex-direction: column;
+  margin: 0 -22px;
+}
+
+.app .cloudBoardItem {
+  border-bottom: 1px solid var(--v2-line);
+}
+
+.app .cloudBoardRow {
+  width: 100%;
+  display: flex;
+  align-items: center;
+  gap: 12px;
+  padding: 12px 22px;
+  background: transparent;
+  border: none;
+  border-radius: 0;
+  text-align: left;
+  box-shadow: none;
+  margin: 0;
+  font-weight: 400;
+}
+
+.app .cloudBoardRow:active {
+  background: var(--v2-surface-soft);
+}
+
+.app .cloudBoardIcon {
+  flex-shrink: 0;
+  width: 44px;
+  height: 44px;
+  border-radius: 50%;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  font-size: 19px;
+}
+
+.app .cloudBoardIcon.roomIconCrush {
+  background: #ffdce8;
+}
+
+.app .cloudBoardIcon.roomIconLanguage {
+  background: #d7f5e3;
+}
+
+.app .cloudBoardBody {
+  flex: 1;
+  min-width: 0;
+  display: flex;
+  flex-direction: column;
+  gap: 2px;
+}
+
+.app .cloudBoardTitleRow {
+  display: flex;
+  align-items: center;
+  gap: 6px;
+}
+
+.app .cloudBoardTitle {
+  flex: 1;
+  min-width: 0;
+  font-size: 14.5px;
+  color: var(--v2-ink);
+  white-space: nowrap;
+  overflow: hidden;
+  text-overflow: ellipsis;
+}
+
+.app .cloudBoardBadge {
+  flex-shrink: 0;
+  font-size: 10.5px;
+  font-weight: 700;
+  padding: 2px 7px;
+  border-radius: 999px;
+}
+
+.app .cloudBoardBadge.crush {
+  background: #fff5f8;
+  color: var(--v2-pink);
+}
+
+.app .cloudBoardBadge.language {
+  background: #f2fbf6;
+  color: #2fa860;
+}
+
+.app .cloudBoardMeta {
+  font-size: 12px;
+  color: var(--v2-muted);
+  white-space: nowrap;
+  overflow: hidden;
+  text-overflow: ellipsis;
+}
+
+.app .cloudBoardMessage {
+  font-size: 12.5px;
+  color: var(--v2-ink-soft);
+  white-space: nowrap;
+  overflow: hidden;
+  text-overflow: ellipsis;
+}
+
+.app .cloudBoardChevron {
+  flex-shrink: 0;
+  color: var(--v2-muted);
+  display: flex;
+  transform: rotate(90deg);
+  transition: transform 0.15s ease;
+}
+
+.app .cloudBoardChevron.open {
+  transform: rotate(-90deg);
+}
+
+.app .cloudBoardDetail {
+  padding: 0 22px 16px;
+}
+
+.app .cloudBoardDetail .claimActionRow,
+.app .cloudBoardDetail button {
+  margin-top: 10px;
+}
+
 /* ----- 대화하기/거절, 채팅 ----- */
 
 .app .claimActionRow {
