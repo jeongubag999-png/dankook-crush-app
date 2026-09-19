@@ -1888,7 +1888,7 @@ const hideSearchResult = (postId) => {
     if (post.room === "language") {
       return `${post.lang_country || "-"} · ${(post.lang_spoken || []).join(", ") || "-"}`;
     }
-    if (post.room === "memory") return post.memory_title || "기억 구름";
+    if (post.room === "memory") return post.memory_title || "게시판 구름";
     if (post.room === "past_connection") {
       return `${post.past_kind || "과거 인연"} · ${getPastConnectionDetail(post)}`;
     }
@@ -1936,7 +1936,7 @@ const hideSearchResult = (postId) => {
     if (post.room === "memory") {
       return (
         <div className="qaBox">
-          <p className="qaTitle">기억 구름 게시글</p>
+          <p className="qaTitle">게시판 구름 게시글</p>
           <p className="communityPostBody">{post.memory_story || post.message || "-"}</p>
         </div>
       );
@@ -1944,7 +1944,7 @@ const hideSearchResult = (postId) => {
     if (post.room === "past_connection") {
       return (
         <div className="qaBox">
-          <p className="qaTitle">과거 인연 구름</p>
+          <p className="qaTitle">고향 구름</p>
           <p><strong>구분:</strong> {post.past_kind || "-"}</p>
           <p><strong>{post.past_kind === "같은 고향 출신" ? "고향:" : "학교:"}</strong> {getPastConnectionDetail(post)}</p>
         </div>
@@ -2996,7 +2996,7 @@ const hideSearchResult = (postId) => {
     const isMemory = crushPost.room === "memory";
     if (isMemory) {
       if (!crushPost.memory_title.trim() || !crushPost.memory_story.trim()) {
-        toast.error("기억 구름 게시글의 제목과 내용을 작성해주세요.");
+        toast.error("게시판 구름 게시글의 제목과 내용을 작성해주세요.");
         setCrushStep(1);
         return;
       }
@@ -3036,7 +3036,7 @@ const hideSearchResult = (postId) => {
         crushPost.past_high_school.trim() && `고등학교 · ${crushPost.past_high_school.trim()}`,
       ].filter(Boolean).join(" | ");
       const place = isMemory
-        ? "기억 구름방"
+        ? "게시판 구름방"
         : crushPost.past_kind === "같은 고향 출신"
           ? `${crushPost.past_region} ${crushPost.past_subregion}`
           : `${crushPost.past_school_region} · ${schoolSummary}`;
@@ -3054,7 +3054,7 @@ const hideSearchResult = (postId) => {
           ? "기억 게시물"
           : "상시",
         place,
-        main_place: isMemory ? "기억 구름방" : crushPost.past_kind,
+        main_place: isMemory ? "게시판 구름방" : crushPost.past_kind,
         detail_place: isMemory ? "" : place,
         hair_feature: message,
         clothes_style: message,
@@ -3098,7 +3098,7 @@ const hideSearchResult = (postId) => {
         return;
       }
 
-      toast.success(isMemory ? "기억 구름을 띄웠어요!" : "과거 인연 구름을 띄웠어요!");
+      toast.success(isMemory ? "게시판 구름을 띄웠어요!" : "고향 구름을 띄웠어요!");
       await finishCloudSendFlowLog({ exitType: "submit", completed: true, targetGender: "상관없음" });
       resetCrushPost();
       setSentResultPost(savedPost);
@@ -5193,10 +5193,10 @@ useEffect(() => {
 
   const formatCloudListSummary = (post) => {
     if (post?.room === "memory") {
-      return `📖 ${post.memory_title || "기억 구름"}`;
+      return `📖 ${post.memory_title || "게시판 구름"}`;
     }
     if (post?.room === "past_connection") {
-      return `🏡 ${post.past_kind || "과거 인연 구름"} · ${getPastConnectionDetail(post)}`;
+      return `🏡 ${post.past_kind || "고향 구름"} · ${getPastConnectionDetail(post)}`;
     }
     return [
       `☁ ${formatCloudSummaryDate(post?.seen_date)}`,
@@ -6651,7 +6651,7 @@ useEffect(() => {
           >
             <span className="homeV2ActionIcon roomIconMemory">📖</span>
             <span className="homeV2ActionText">
-              <b>기억 구름</b>
+              <b>게시판 구름</b>
               <small>기억은 남았지만 연락처는 남지 않은 사람을 찾아요.</small>
             </span>
             <span className="homeV2ActionChevron">
@@ -6666,7 +6666,7 @@ useEffect(() => {
           >
             <span className="homeV2ActionIcon roomIconPastConnection">🏡</span>
             <span className="homeV2ActionText">
-              <b>과거 인연 구름</b>
+              <b>고향 구름</b>
               <small>단국대에서 같은 고향·초중고 인연을 찾아요.</small>
             </span>
             <span className="homeV2ActionChevron">
@@ -7298,7 +7298,7 @@ useEffect(() => {
 
           {crushPost.room === "memory" && (
             <>
-              <h3 className="questionTitle">기억 구름 글쓰기</h3>
+              <h3 className="questionTitle">게시판 구름 글쓰기</h3>
               <p className="subtitle communityWriteGuide">
                 기억 속 사람을 찾을 수 있도록 언제, 어디에서, 어떤 일이 있었는지 자유롭게 적어주세요.
               </p>
@@ -7608,7 +7608,7 @@ useEffect(() => {
           >
             <span className="homeV2ActionIcon roomIconMemory">📖</span>
             <span className="homeV2ActionText">
-              <b>기억 구름</b>
+              <b>게시판 구름</b>
               <small>단국대 학생이 남긴 기억 속 인연을 확인해요.</small>
             </span>
             <span className="homeV2ActionChevron"><ChevronRightIcon /></span>
@@ -7621,7 +7621,7 @@ useEffect(() => {
           >
             <span className="homeV2ActionIcon roomIconPastConnection">🏡</span>
             <span className="homeV2ActionText">
-              <b>과거 인연 구름</b>
+              <b>고향 구름</b>
               <small>같은 지역이나 학교 출신 단국대 학생을 만나보세요.</small>
             </span>
             <span className="homeV2ActionChevron"><ChevronRightIcon /></span>
@@ -7650,7 +7650,7 @@ useEffect(() => {
 
       {page === "communityClouds" && (
         <div className="card communityCloudListPage">
-          <h2>{communityCloudRoom === "memory" ? "기억 구름" : "과거 인연 구름"}</h2>
+          <h2>{communityCloudRoom === "memory" ? "게시판 구름" : "고향 구름"}</h2>
           <p className="subtitle">
             {communityCloudRoom === "memory"
               ? "단국대 학생이 남긴 기억 속 인연의 이야기를 확인해보세요."
@@ -7684,7 +7684,7 @@ useEffect(() => {
                 <div className="communityCloudCardTop">
                   <span>{post.room === "memory" ? "📖" : "🏡"}</span>
                   <div>
-                    <b>{post.room === "memory" ? post.memory_title || "기억 구름" : post.past_kind}</b>
+                    <b>{post.room === "memory" ? post.memory_title || "게시판 구름" : post.past_kind}</b>
                     <small>{post.sender_nickname || "단꿈 사용자"} · {post.campus || "단국대"}</small>
                   </div>
                 </div>
@@ -8433,10 +8433,10 @@ useEffect(() => {
 
       {page === "sentResult" && ["memory", "past_connection"].includes(sentResultPost?.room) && (
         <div className="card">
-          <h2>{sentResultPost.room === "memory" ? "기억 구름을 띄웠어요 📖" : "과거 인연 구름을 띄웠어요 🏡"}</h2>
+          <h2>{sentResultPost.room === "memory" ? "게시판 구름을 띄웠어요 📖" : "고향 구름을 띄웠어요 🏡"}</h2>
           <p className="subtitle">구름 확인하기에서 이 방의 구름을 모두 확인할 수 있어요.</p>
           <div className="noticeBox">
-            <p><b>{sentResultPost.room === "memory" ? sentResultPost.memory_title || "기억 구름" : sentResultPost.past_kind}</b></p>
+            <p><b>{sentResultPost.room === "memory" ? sentResultPost.memory_title || "게시판 구름" : sentResultPost.past_kind}</b></p>
             <p>{sentResultPost.room === "memory" ? sentResultPost.memory_story : getPastConnectionDetail(sentResultPost)}</p>
           </div>
           <button onClick={() => openCommunityCloudRoom(sentResultPost.room)}>지금 확인하러 가기</button>
