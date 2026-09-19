@@ -121,6 +121,40 @@ const CLOUD_CHECK_STEP_NAMES = {
   5: "최종 확인",
 };
 
+const PAST_CONNECTION_KIND_OPTIONS = ["같은 고향 출신", "같은 학교 출신"];
+const KOREA_REGION_OPTIONS = [
+  "서울특별시", "부산광역시", "대구광역시", "인천광역시", "대전광역시", "울산광역시",
+  "세종특별자치시", "경기도", "강원특별자치도", "충청북도", "충청남도", "전북특별자치도",
+  "전남광주통합특별시", "경상북도", "경상남도", "제주특별자치도",
+];
+const KOREA_DISTRICT_OPTIONS = {
+  "서울특별시": ["종로구", "중구", "용산구", "성동구", "광진구", "동대문구", "중랑구", "성북구", "강북구", "도봉구", "노원구", "은평구", "서대문구", "마포구", "양천구", "강서구", "구로구", "금천구", "영등포구", "동작구", "관악구", "서초구", "강남구", "송파구", "강동구"],
+  "부산광역시": ["중구", "서구", "동구", "영도구", "부산진구", "동래구", "남구", "북구", "해운대구", "사하구", "금정구", "강서구", "연제구", "수영구", "사상구", "기장군"],
+  "대구광역시": ["중구", "동구", "서구", "남구", "북구", "수성구", "달서구", "달성군", "군위군"],
+  "인천광역시": ["제물포구", "영종구", "미추홀구", "연수구", "남동구", "부평구", "계양구", "서해구", "검단구", "강화군", "옹진군"],
+  "대전광역시": ["동구", "중구", "서구", "유성구", "대덕구"],
+  "울산광역시": ["중구", "남구", "동구", "북구", "울주군"],
+  "세종특별자치시": ["세종특별자치시"],
+  "경기도": [
+    "수원시 장안구", "수원시 권선구", "수원시 팔달구", "수원시 영통구",
+    "성남시 수정구", "성남시 중원구", "성남시 분당구", "의정부시",
+    "안양시 만안구", "안양시 동안구", "부천시 원미구", "부천시 소사구", "부천시 오정구",
+    "광명시", "평택시", "동두천시", "안산시 상록구", "안산시 단원구", "고양시 덕양구",
+    "고양시 일산동구", "고양시 일산서구", "과천시", "구리시", "남양주시", "오산시", "시흥시",
+    "군포시", "의왕시", "하남시", "용인시 처인구", "용인시 기흥구", "용인시 수지구", "파주시",
+    "이천시", "안성시", "김포시", "화성시 만세구", "화성시 효행구", "화성시 병점구", "화성시 동탄구",
+    "광주시", "양주시", "포천시", "여주시", "연천군", "가평군", "양평군",
+  ],
+  "강원특별자치도": ["춘천시", "원주시", "강릉시", "동해시", "태백시", "속초시", "삼척시", "홍천군", "횡성군", "영월군", "평창군", "정선군", "철원군", "화천군", "양구군", "인제군", "고성군", "양양군"],
+  "충청북도": ["청주시 상당구", "청주시 서원구", "청주시 흥덕구", "청주시 청원구", "충주시", "제천시", "보은군", "옥천군", "영동군", "증평군", "진천군", "괴산군", "음성군", "단양군"],
+  "충청남도": ["천안시 동남구", "천안시 서북구", "공주시", "보령시", "아산시", "서산시", "논산시", "계룡시", "당진시", "금산군", "부여군", "서천군", "청양군", "홍성군", "예산군", "태안군"],
+  "전북특별자치도": ["전주시 완산구", "전주시 덕진구", "군산시", "익산시", "정읍시", "남원시", "김제시", "완주군", "진안군", "무주군", "장수군", "임실군", "순창군", "고창군", "부안군"],
+  "전남광주통합특별시": ["광주 동구", "광주 서구", "광주 남구", "광주 북구", "광주 광산구", "목포시", "여수시", "순천시", "나주시", "광양시", "담양군", "곡성군", "구례군", "고흥군", "보성군", "화순군", "장흥군", "강진군", "해남군", "영암군", "무안군", "함평군", "영광군", "장성군", "완도군", "진도군", "신안군"],
+  "경상북도": ["포항시 남구", "포항시 북구", "경주시", "김천시", "안동시", "구미시", "영주시", "영천시", "상주시", "문경시", "경산시", "의성군", "청송군", "영양군", "영덕군", "청도군", "고령군", "성주군", "칠곡군", "예천군", "봉화군", "울진군", "울릉군"],
+  "경상남도": ["창원시 의창구", "창원시 성산구", "창원시 마산합포구", "창원시 마산회원구", "창원시 진해구", "진주시", "통영시", "사천시", "김해시", "밀양시", "거제시", "양산시", "의령군", "함안군", "창녕군", "고성군", "남해군", "하동군", "산청군", "함양군", "거창군", "합천군"],
+  "제주특별자치도": ["제주시", "서귀포시"],
+};
+
 const createCloudSendFlowId = () => {
   if (typeof crypto !== "undefined" && crypto.randomUUID) {
     return crypto.randomUUID();
@@ -325,6 +359,25 @@ const [verificationFile, setVerificationFile] = useState(null);
     shoe_type: "",
     shoe_detail: "",
     message: "",
+    memory_title: "",
+    memory_purpose: "",
+    memory_subpurpose: "",
+    memory_year: "",
+    memory_semester: "",
+    memory_story: "",
+    memory_message: "",
+    past_kind: "",
+    past_school_level: "",
+    past_region: "",
+    past_subregion: "",
+    past_school_region: "",
+    past_school: "",
+    past_elementary_school: "",
+    past_middle_school: "",
+    past_high_school: "",
+    past_start_year: "",
+    past_end_year: "",
+    past_story: "",
   };
 
   const [crushPost, setCrushPost] = useState(emptyCrushPost);
@@ -373,6 +426,10 @@ const [verificationFile, setVerificationFile] = useState(null);
     blockedCount: 0,
   });
   const [maybeReactionIds, setMaybeReactionIds] = useState([]);
+  const [communityCloudRoom, setCommunityCloudRoom] = useState("");
+  const [communityClouds, setCommunityClouds] = useState([]);
+  const [communityCloudLoading, setCommunityCloudLoading] = useState(false);
+  const [communityRegionFilter, setCommunityRegionFilter] = useState("");
 
   const [claimForm, setClaimForm] = useState({
     claimer_nickname: "",
@@ -1831,8 +1888,24 @@ const hideSearchResult = (postId) => {
     if (post.room === "language") {
       return `${post.lang_country || "-"} · ${(post.lang_spoken || []).join(", ") || "-"}`;
     }
+    if (post.room === "memory") return post.memory_title || "기억 구름";
+    if (post.room === "past_connection") {
+      return `${post.past_kind || "과거 인연"} · ${getPastConnectionDetail(post)}`;
+    }
     return `${post.seen_date}, ${post.time_period}, ${post.place}`;
   };
+
+  const getPastSchoolSummary = (post) => [
+    post.past_elementary_school && `초등학교 · ${post.past_elementary_school}`,
+    post.past_middle_school && `중학교 · ${post.past_middle_school}`,
+    post.past_high_school && `고등학교 · ${post.past_high_school}`,
+  ].filter(Boolean).join(" | ");
+
+  const getPastConnectionDetail = (post) => (
+    post.past_kind === "같은 고향 출신"
+      ? [post.past_region, post.past_subregion].filter(Boolean).join(" ") || "-"
+      : [post.past_school_region, getPastSchoolSummary(post) || post.past_school].filter(Boolean).join(" · ") || "-"
+  );
 
   const renderLanguagePostQA = (post) => (
     <div className="qaBox">
@@ -1860,6 +1933,23 @@ const hideSearchResult = (postId) => {
 
   const renderPostQuestionAnswer = (post) => {
     if (post.room === "language") return renderLanguagePostQA(post);
+    if (post.room === "memory") {
+      return (
+        <div className="qaBox">
+          <p className="qaTitle">기억 구름 게시글</p>
+          <p className="communityPostBody">{post.memory_story || post.message || "-"}</p>
+        </div>
+      );
+    }
+    if (post.room === "past_connection") {
+      return (
+        <div className="qaBox">
+          <p className="qaTitle">과거 인연 구름</p>
+          <p><strong>구분:</strong> {post.past_kind || "-"}</p>
+          <p><strong>{post.past_kind === "같은 고향 출신" ? "고향:" : "학교:"}</strong> {getPastConnectionDetail(post)}</p>
+        </div>
+      );
+    }
 
     // "상의:" 마커가 있으면 항목별 선택형으로 작성된 예전 글, 없으면 자유 서술형 새 글.
     const isLegacyDetailedPost = (post.clothes_style || "").includes("상의:");
@@ -2256,10 +2346,41 @@ const hideSearchResult = (postId) => {
   };
 
   const chooseSearchRoom = async (room) => {
+    if (room === "memory" || room === "past_connection") {
+      await openCommunityCloudRoom(room);
+      return;
+    }
     setSearchForm((prev) => ({ ...prev, room }));
     setSearchStep(1);
     await startCloudCheckFlowLog();
     setPage("search");
+  };
+
+  const openCommunityCloudRoom = async (room) => {
+    if (!checkProfileRequired()) return;
+
+    setCommunityCloudRoom(room);
+    setCommunityClouds([]);
+    setCommunityRegionFilter("");
+    setCommunityCloudLoading(true);
+    setPage("communityClouds");
+
+    try {
+      const { data, error } = await supabase
+        .from("crush_posts")
+        .select("*")
+        .eq("room", room)
+        .order("created_at", { ascending: false });
+
+      if (error) {
+        toast.error("구름을 불러오지 못했어요: " + error.message);
+        console.log(error);
+        return;
+      }
+      setCommunityClouds(data || []);
+    } finally {
+      setCommunityCloudLoading(false);
+    }
   };
 
   const openNewCloudPage = async () => {
@@ -2720,6 +2841,10 @@ const hideSearchResult = (postId) => {
       await saveLanguagePost();
       return;
     }
+    if (crushPost.room === "memory" || crushPost.room === "past_connection") {
+      await saveCommunityCloudPost();
+      return;
+    }
 
     if (postSubmitting) return;
 
@@ -2859,6 +2984,125 @@ const hideSearchResult = (postId) => {
       if (savedPost) {
         await loadSentCheckResultsForPost(savedPost);
       }
+      setPage("sentResult");
+    } finally {
+      setPostSubmitting(false);
+    }
+  };
+
+  const saveCommunityCloudPost = async () => {
+    if (postSubmitting || !checkProfileRequired()) return;
+
+    const isMemory = crushPost.room === "memory";
+    if (isMemory) {
+      if (!crushPost.memory_title.trim() || !crushPost.memory_story.trim()) {
+        toast.error("기억 구름 게시글의 제목과 내용을 작성해주세요.");
+        setCrushStep(1);
+        return;
+      }
+    } else {
+      if (!crushPost.past_kind) {
+        toast.error("찾고 싶은 과거 인연을 선택해주세요.");
+        setCrushStep(1);
+        return;
+      }
+      if (crushPost.past_kind === "같은 고향 출신" && (!crushPost.past_region || !crushPost.past_subregion)) {
+        toast.error("고향의 시·도와 시·군·구를 모두 선택해주세요.");
+        setCrushStep(2);
+        return;
+      }
+      const hasSchool = [
+        crushPost.past_elementary_school,
+        crushPost.past_middle_school,
+        crushPost.past_high_school,
+      ].some((school) => school.trim());
+      if (crushPost.past_kind === "같은 학교 출신" && !hasSchool) {
+        toast.error("초등학교, 중학교, 고등학교 중 하나 이상을 작성해주세요.");
+        setCrushStep(2);
+        return;
+      }
+      if (crushPost.past_kind === "같은 학교 출신" && !crushPost.past_school_region) {
+        toast.error("학교가 있는 시·도를 선택해주세요.");
+        setCrushStep(2);
+        return;
+      }
+    }
+
+    setPostSubmitting(true);
+    try {
+      const schoolSummary = [
+        crushPost.past_elementary_school.trim() && `초등학교 · ${crushPost.past_elementary_school.trim()}`,
+        crushPost.past_middle_school.trim() && `중학교 · ${crushPost.past_middle_school.trim()}`,
+        crushPost.past_high_school.trim() && `고등학교 · ${crushPost.past_high_school.trim()}`,
+      ].filter(Boolean).join(" | ");
+      const place = isMemory
+        ? "기억 구름방"
+        : crushPost.past_kind === "같은 고향 출신"
+          ? `${crushPost.past_region} ${crushPost.past_subregion}`
+          : `${crushPost.past_school_region} · ${schoolSummary}`;
+      const message = isMemory
+        ? crushPost.memory_story.trim()
+        : crushPost.past_kind === "같은 고향 출신"
+          ? `${crushPost.past_region} ${crushPost.past_subregion} 출신 단국대 사람을 찾고 있어요.`
+          : `${crushPost.past_school_region} ${schoolSummary} 출신 단국대 사람을 찾고 있어요.`;
+      const postData = {
+        room: crushPost.room,
+        seen_date: isMemory
+          ? getKoreaDateString()
+          : getKoreaDateString(),
+        time_period: isMemory
+          ? "기억 게시물"
+          : "상시",
+        place,
+        main_place: isMemory ? "기억 구름방" : crushPost.past_kind,
+        detail_place: isMemory ? "" : place,
+        hair_feature: message,
+        clothes_style: message,
+        accessory: "",
+        message,
+        sender_nickname: profile.nickname,
+        sender_instagram: cleanInstagram(profile.instagram_id),
+        sender_gender: profile.gender,
+        target_gender: "상관없음",
+        campus: profile.campus,
+        memory_title: isMemory ? crushPost.memory_title.trim() : null,
+        memory_purpose: null,
+        memory_subpurpose: null,
+        memory_year: null,
+        memory_semester: null,
+        memory_story: isMemory ? crushPost.memory_story.trim() : null,
+        memory_message: null,
+        past_kind: isMemory ? null : crushPost.past_kind,
+        past_school_level: isMemory ? null : crushPost.past_school_level || null,
+        past_region: isMemory ? null : crushPost.past_region || null,
+        past_subregion: isMemory ? null : crushPost.past_subregion || null,
+        past_school_region: isMemory ? null : crushPost.past_school_region || null,
+        past_school: isMemory ? null : schoolSummary || null,
+        past_elementary_school: isMemory ? null : crushPost.past_elementary_school.trim() || null,
+        past_middle_school: isMemory ? null : crushPost.past_middle_school.trim() || null,
+        past_high_school: isMemory ? null : crushPost.past_high_school.trim() || null,
+        past_start_year: null,
+        past_end_year: null,
+        past_story: null,
+      };
+
+      const { data: savedPost, error } = await supabase
+        .from("crush_posts")
+        .insert([{ ...postData, sender_user_id: currentUser.id }])
+        .select()
+        .maybeSingle();
+
+      if (error) {
+        toast.error("구름 띄우기에 실패했어요: " + error.message);
+        console.log(error);
+        return;
+      }
+
+      toast.success(isMemory ? "기억 구름을 띄웠어요!" : "과거 인연 구름을 띄웠어요!");
+      await finishCloudSendFlowLog({ exitType: "submit", completed: true, targetGender: "상관없음" });
+      resetCrushPost();
+      setSentResultPost(savedPost);
+      setSentCheckResults([]);
       setPage("sentResult");
     } finally {
       setPostSubmitting(false);
@@ -3238,15 +3482,19 @@ const hideSearchResult = (postId) => {
     return;
   }
 
-  if (selectedPost.room !== "language" && !claimForm.match_level) {
+  if (selectedPost.room === "crush" && !claimForm.match_level) {
     toast.error("일치 정도를 선택해주세요.");
     return;
   }
 
-  const finalMessage =
-    selectedPost.room === "language"
-      ? claimForm.claimer_message
-      : `[일치 정도: ${claimForm.match_level}] ${claimForm.claimer_message}`;
+  if (["memory", "past_connection"].includes(selectedPost.room) && !claimForm.claimer_message.trim()) {
+    toast.error("글쓴이에게 남길 말을 작성해주세요.");
+    return;
+  }
+
+  const finalMessage = selectedPost.room === "crush"
+    ? `[일치 정도: ${claimForm.match_level}] ${claimForm.claimer_message}`
+    : claimForm.claimer_message;
 
   setClaimSubmitting(true);
 
@@ -4730,6 +4978,13 @@ useEffect(() => {
     !hiddenResultIds.includes(post.id) &&
     !blockedUserIds.includes(post.sender_user_id)
 );
+  const filteredCommunityClouds = communityCloudRoom === "past_connection" && communityRegionFilter
+    ? communityClouds.filter((post) => (
+        post.past_kind === "같은 고향 출신"
+          ? post.past_region === communityRegionFilter
+          : post.past_school_region === communityRegionFilter
+      ))
+    : communityClouds;
   const todayPlaceCounts = homeTodayClouds.reduce((acc, post) => {
     const place = getMainPlaceFromPost(post);
 
@@ -4936,12 +5191,19 @@ useEffect(() => {
     return `${parts[1]}/${parts[2]}`;
   };
 
-  const formatCloudListSummary = (post) =>
-    [
+  const formatCloudListSummary = (post) => {
+    if (post?.room === "memory") {
+      return `📖 ${post.memory_title || "기억 구름"}`;
+    }
+    if (post?.room === "past_connection") {
+      return `🏡 ${post.past_kind || "과거 인연 구름"} · ${getPastConnectionDetail(post)}`;
+    }
+    return [
       `☁ ${formatCloudSummaryDate(post?.seen_date)}`,
       post?.place || "장소 없음",
       post?.sender_nickname || "닉네임 없음",
     ].join(", ");
+  };
 
   const renderCloudFolderButton = ({
     title,
@@ -5024,15 +5286,13 @@ useEffect(() => {
     return (
       <div className="noticeBox chatRequestDetailBox">
         <p className="qaTitle">{title}</p>
-        <p>
-          <b>
-            {post.seen_date || "-"}, {post.time_period || "-"}, {post.place || "-"}
-          </b>
-        </p>
+        <p><b>{renderPostHeaderLine(post)}</b></p>
         {renderPostQuestionAnswer(post)}
-        <p className="message">
-          “{cleanMessage(post.message) || "남긴 메시지가 없어요."}”
-        </p>
+        {!["memory", "past_connection"].includes(post.room) && (
+          <p className="message">
+            “{cleanMessage(post.message) || "남긴 메시지가 없어요."}”
+          </p>
+        )}
       </div>
     );
   };
@@ -5157,9 +5417,11 @@ useEffect(() => {
         <div className="postBody">
           {renderPostQuestionAnswer(post)}
 
-          <p className="message">
-            “{cleanMessage(post.message) || "남긴 메시지가 없어요."}”
-          </p>
+          {!["memory", "past_connection"].includes(post.room) && (
+            <p className="message">
+              “{cleanMessage(post.message) || "남긴 메시지가 없어요."}”
+            </p>
+          )}
 
           {mode === "empty" && (
     <div className="noticeBox">
@@ -5170,6 +5432,7 @@ useEffect(() => {
 
           {mode === "answered" && claims.map((claim) => renderSentClaimCard(claim))}
 
+          {post.room === "crush" && (
           <div className="senderCheckSection">
             <h3 className="manageSectionTitle">구름 확인 내역 {checkCandidates.length}개</h3>
             {checkCandidates.length === 0 ? (
@@ -5188,6 +5451,7 @@ useEffect(() => {
               </>
             )}
           </div>
+          )}
 
           {post.clothes_style === "빠른 구름" && (
             <div className="upgradeCloudBox">
@@ -6226,7 +6490,7 @@ useEffect(() => {
             <div>
               <h2>구름 달력</h2>
               <p className="subtitle">
-                구름 개수는 나에게만 보여요!
+                날짜별로 내가 확인한 구름 기록을 살펴보세요.
               </p>
             </div>
           </div>
@@ -6353,19 +6617,11 @@ useEffect(() => {
             </>
           )}
 
-          {selectedCloudCalendarRecord ? (
-            <button onClick={loadCloudCalendarRecords} className="white">
-              새로고침
-            </button>
-          ) : (
+          {!selectedCloudCalendarRecord && (
             <button onClick={openCloudCheckFromCalendar}>
-              구름 확인하기
+              이 날의 구름 확인하기
             </button>
           )}
-
-          <button onClick={() => setPage("profile")} className="white">
-            마이페이지로
-          </button>
 	        </div>
 	      )}
 
@@ -6382,6 +6638,36 @@ useEffect(() => {
             <span className="homeV2ActionText">
               <b>시그널 구름</b>
               <small>스쳐간 인연을 찾아요.</small>
+            </span>
+            <span className="homeV2ActionChevron">
+              <ChevronRightIcon />
+            </span>
+          </button>
+
+          <button
+            type="button"
+            onClick={() => chooseSendRoom("memory")}
+            className="homeV2ActionCard white roomCardMemory"
+          >
+            <span className="homeV2ActionIcon roomIconMemory">📖</span>
+            <span className="homeV2ActionText">
+              <b>기억 구름</b>
+              <small>기억은 남았지만 연락처는 남지 않은 사람을 찾아요.</small>
+            </span>
+            <span className="homeV2ActionChevron">
+              <ChevronRightIcon />
+            </span>
+          </button>
+
+          <button
+            type="button"
+            onClick={() => chooseSendRoom("past_connection")}
+            className="homeV2ActionCard white roomCardPastConnection"
+          >
+            <span className="homeV2ActionIcon roomIconPastConnection">🏡</span>
+            <span className="homeV2ActionText">
+              <b>과거 인연 구름</b>
+              <small>단국대에서 같은 고향·초중고 인연을 찾아요.</small>
             </span>
             <span className="homeV2ActionChevron">
               <ChevronRightIcon />
@@ -6418,11 +6704,11 @@ useEffect(() => {
           )}
 
           <p className="stepText">
-            {crushStep} / {crushPost.room === "language" ? 1 : 3}
+            {crushStep} / {["language", "memory"].includes(crushPost.room) ? 1 : crushPost.room === "past_connection" ? 2 : 3}
           </p>
 
           <StepProgress
-            total={crushPost.room === "language" ? 1 : 3}
+            total={["language", "memory"].includes(crushPost.room) ? 1 : crushPost.room === "past_connection" ? 2 : 3}
             current={crushStep}
           />
 
@@ -7010,6 +7296,142 @@ useEffect(() => {
           </>
           )}
 
+          {crushPost.room === "memory" && (
+            <>
+              <h3 className="questionTitle">기억 구름 글쓰기</h3>
+              <p className="subtitle communityWriteGuide">
+                기억 속 사람을 찾을 수 있도록 언제, 어디에서, 어떤 일이 있었는지 자유롭게 적어주세요.
+              </p>
+              <div className="communityPostEditor">
+                <div className="formGroup">
+                  <label className="formLabel">제목</label>
+                  <input
+                    value={crushPost.memory_title}
+                    maxLength={60}
+                    placeholder="제목을 입력해주세요."
+                    onChange={(e) => updateCrushPost("memory_title", e.target.value)}
+                  />
+                  <small className="fieldCounter">{crushPost.memory_title.length}/60</small>
+                </div>
+                <div className="formGroup">
+                  <label className="formLabel">내용</label>
+                  <textarea
+                    className="communityPostTextarea"
+                    value={crushPost.memory_story}
+                    maxLength={1000}
+                    placeholder="기억나는 이야기를 자유롭게 작성해주세요."
+                    onChange={(e) => updateCrushPost("memory_story", e.target.value)}
+                  />
+                  <small className="fieldCounter">{crushPost.memory_story.length}/1000</small>
+                </div>
+              </div>
+              <div className="stepActions">
+                <button onClick={goBackStep} className="white">이전</button>
+                <button onClick={saveCrushPost} disabled={postSubmitting}>
+                  {postSubmitting ? "글 올리는 중..." : "글 올리기"}
+                </button>
+              </div>
+            </>
+          )}
+
+          {crushPost.room === "past_connection" && (
+          <>
+            {crushStep === 1 && (
+              <>
+                <h3 className="questionTitle">어떤 과거를 공유한 사람을 찾나요?</h3>
+                <div className="optionGrid">
+                  {PAST_CONNECTION_KIND_OPTIONS.map((option) => (
+                    <OptionButton key={option} value={option} selected={crushPost.past_kind === option} onClick={() => setCrushPost((prev) => ({
+                      ...prev,
+                      past_kind: option,
+                      past_region: "",
+                      past_subregion: "",
+                      past_school_region: "",
+                      past_elementary_school: "",
+                      past_middle_school: "",
+                      past_high_school: "",
+                    }))} />
+                  ))}
+                </div>
+                <div className="stepActions">
+                  <button onClick={goBackStep} className="white">이전</button>
+                  <button onClick={async () => {
+                    if (!crushPost.past_kind) {
+                      toast.error("찾고 싶은 과거 인연을 선택해주세요.");
+                      return;
+                    }
+                    await moveCloudSendStep(2, "next");
+                  }}>다음</button>
+                </div>
+              </>
+            )}
+
+            {crushStep === 2 && (
+              <>
+                {crushPost.past_kind === "같은 학교 출신" ? (
+                  <>
+                    <h3 className="questionTitle">같은 학교 출신을 찾아보세요.</h3>
+                    <p className="subtitle communityWriteGuide">학교가 있는 시·도와 기억나는 학교를 작성해주세요. 최소 한 곳은 입력해야 해요.</p>
+                    <div className="communityPostEditor pastSchoolFields">
+                      <div className="formGroup">
+                        <label className="formLabel">학교 지역</label>
+                        <select value={crushPost.past_school_region} onChange={(e) => updateCrushPost("past_school_region", e.target.value)}>
+                          <option value="">시·도 선택</option>
+                          {KOREA_REGION_OPTIONS.map((region) => <option key={region}>{region}</option>)}
+                        </select>
+                      </div>
+                      <div className="formGroup">
+                        <label className="formLabel">초등학교</label>
+                        <input value={crushPost.past_elementary_school} placeholder="초등학교 이름" onChange={(e) => updateCrushPost("past_elementary_school", e.target.value)} />
+                      </div>
+                      <div className="formGroup">
+                        <label className="formLabel">중학교</label>
+                        <input value={crushPost.past_middle_school} placeholder="중학교 이름" onChange={(e) => updateCrushPost("past_middle_school", e.target.value)} />
+                      </div>
+                      <div className="formGroup">
+                        <label className="formLabel">고등학교</label>
+                        <input value={crushPost.past_high_school} placeholder="고등학교 이름" onChange={(e) => updateCrushPost("past_high_school", e.target.value)} />
+                      </div>
+                    </div>
+                  </>
+                ) : (
+                  <>
+                    <h3 className="questionTitle">어느 지역 출신을 찾나요?</h3>
+                    <p className="subtitle communityWriteGuide">특정한 한 사람이 아니라, 같은 고향 출신 단국대 사람들의 응답을 받아요.</p>
+                    <div className="communityPostEditor communityRegionFields">
+                      <div className="formGroup">
+                        <label className="formLabel">시·도</label>
+                        <select
+                          value={crushPost.past_region}
+                          onChange={(e) => setCrushPost((prev) => ({ ...prev, past_region: e.target.value, past_subregion: "" }))}
+                        >
+                          <option value="">시·도 선택</option>
+                          {KOREA_REGION_OPTIONS.map((region) => <option key={region}>{region}</option>)}
+                        </select>
+                      </div>
+                      <div className="formGroup">
+                        <label className="formLabel">시·군·구</label>
+                        <select
+                          value={crushPost.past_subregion}
+                          disabled={!crushPost.past_region}
+                          onChange={(e) => updateCrushPost("past_subregion", e.target.value)}
+                        >
+                          <option value="">시·군·구 선택</option>
+                          {(KOREA_DISTRICT_OPTIONS[crushPost.past_region] || []).map((district) => <option key={district}>{district}</option>)}
+                        </select>
+                      </div>
+                    </div>
+                  </>
+                )}
+                <div className="stepActions">
+                  <button onClick={goBackStep} className="white">이전</button>
+                  <button onClick={saveCrushPost} disabled={postSubmitting}>{postSubmitting ? "구름 띄우는 중..." : "구름 띄우기"}</button>
+                </div>
+              </>
+            )}
+          </>
+          )}
+
           {crushPost.room === "language" && (
           <>
           {crushStep === 1 && (
@@ -7181,6 +7603,32 @@ useEffect(() => {
 
           <button
             type="button"
+            onClick={() => chooseSearchRoom("memory")}
+            className="homeV2ActionCard white roomCardMemory"
+          >
+            <span className="homeV2ActionIcon roomIconMemory">📖</span>
+            <span className="homeV2ActionText">
+              <b>기억 구름</b>
+              <small>단국대 학생이 남긴 기억 속 인연을 확인해요.</small>
+            </span>
+            <span className="homeV2ActionChevron"><ChevronRightIcon /></span>
+          </button>
+
+          <button
+            type="button"
+            onClick={() => chooseSearchRoom("past_connection")}
+            className="homeV2ActionCard white roomCardPastConnection"
+          >
+            <span className="homeV2ActionIcon roomIconPastConnection">🏡</span>
+            <span className="homeV2ActionText">
+              <b>과거 인연 구름</b>
+              <small>같은 지역이나 학교 출신 단국대 학생을 만나보세요.</small>
+            </span>
+            <span className="homeV2ActionChevron"><ChevronRightIcon /></span>
+          </button>
+
+          <button
+            type="button"
             onClick={() => chooseSearchRoom("language")}
             className="homeV2ActionCard white roomCardLanguage"
           >
@@ -7197,6 +7645,90 @@ useEffect(() => {
           <button onClick={() => setPage("home")} className="white">
             홈으로
           </button>
+        </div>
+      )}
+
+      {page === "communityClouds" && (
+        <div className="card communityCloudListPage">
+          <h2>{communityCloudRoom === "memory" ? "기억 구름" : "과거 인연 구름"}</h2>
+          <p className="subtitle">
+            {communityCloudRoom === "memory"
+              ? "단국대 학생이 남긴 기억 속 인연의 이야기를 확인해보세요."
+              : "같은 지역이나 학교를 나온 단국대 학생과 다시 연결되어 보세요."}
+          </p>
+
+          {communityCloudRoom === "past_connection" && (
+            <div className="communityRegionFilter">
+              <label className="formLabel" htmlFor="community-region-filter">지역 필터</label>
+              <select
+                id="community-region-filter"
+                value={communityRegionFilter}
+                onChange={(e) => setCommunityRegionFilter(e.target.value)}
+              >
+                <option value="">전체 지역</option>
+                {KOREA_REGION_OPTIONS.map((region) => <option key={region}>{region}</option>)}
+              </select>
+            </div>
+          )}
+
+          {communityCloudLoading && <p className="noticeBox">구름을 불러오는 중이에요...</p>}
+          {!communityCloudLoading && filteredCommunityClouds.length === 0 && (
+            <p className="noticeBox">
+              {communityRegionFilter ? "선택한 지역에 띄워진 구름이 아직 없어요." : "아직 이 방에 띄워진 구름이 없어요."}
+            </p>
+          )}
+
+          <div className="communityCloudList">
+            {filteredCommunityClouds.map((post) => (
+              <article className="communityCloudCard" key={post.id}>
+                <div className="communityCloudCardTop">
+                  <span>{post.room === "memory" ? "📖" : "🏡"}</span>
+                  <div>
+                    <b>{post.room === "memory" ? post.memory_title || "기억 구름" : post.past_kind}</b>
+                    <small>{post.sender_nickname || "단꿈 사용자"} · {post.campus || "단국대"}</small>
+                  </div>
+                </div>
+
+                {post.room === "memory" ? (
+                  <>
+                    <p className="communityPostBody">{post.memory_story || post.message}</p>
+                    {post.sender_user_id !== currentUser?.id && (
+                      <button
+                        className="communityResponseButton"
+                        onClick={() => {
+                          setSelectedPost(post);
+                          setPage("claimForm");
+                        }}
+                      >
+                        혹시 저를 찾는 글인가요?
+                      </button>
+                    )}
+                  </>
+                ) : (
+                  <>
+                    <div className="communityCloudMeta">
+                      <span>{post.past_kind}</span>
+                      <span>{getPastConnectionDetail(post)}</span>
+                    </div>
+                    {post.sender_user_id !== currentUser?.id && (
+                      <button
+                        className="communityResponseButton"
+                        onClick={() => {
+                          setSelectedPost(post);
+                          setPage("claimForm");
+                        }}
+                      >
+                        {post.past_kind === "같은 고향 출신" ? "같은 고향 출신이에요" : "같은 학교 출신이에요"}
+                      </button>
+                    )}
+                  </>
+                )}
+              </article>
+            ))}
+          </div>
+
+          <button onClick={() => setPage("searchRoomSelect")} className="white">다른 방 보기</button>
+          <button onClick={() => setPage("home")} className="white">홈으로</button>
         </div>
       )}
 
@@ -7856,6 +8388,10 @@ useEffect(() => {
       다시 찾아보기
     </button>
 
+    <button onClick={() => setPage("searchRoomSelect")} className="white">
+      다른 방 보기
+    </button>
+
     <button onClick={() => setPage("home")} className="white">
       홈으로
     </button>
@@ -7895,7 +8431,20 @@ useEffect(() => {
         </div>
       )}
 
-      {page === "sentResult" && sentResultPost?.room !== "language" && (
+      {page === "sentResult" && ["memory", "past_connection"].includes(sentResultPost?.room) && (
+        <div className="card">
+          <h2>{sentResultPost.room === "memory" ? "기억 구름을 띄웠어요 📖" : "과거 인연 구름을 띄웠어요 🏡"}</h2>
+          <p className="subtitle">구름 확인하기에서 이 방의 구름을 모두 확인할 수 있어요.</p>
+          <div className="noticeBox">
+            <p><b>{sentResultPost.room === "memory" ? sentResultPost.memory_title || "기억 구름" : sentResultPost.past_kind}</b></p>
+            <p>{sentResultPost.room === "memory" ? sentResultPost.memory_story : getPastConnectionDetail(sentResultPost)}</p>
+          </div>
+          <button onClick={() => openCommunityCloudRoom(sentResultPost.room)}>지금 확인하러 가기</button>
+          <button onClick={() => setPage("home")} className="white">홈으로</button>
+        </div>
+      )}
+
+      {page === "sentResult" && sentResultPost?.room === "crush" && (
         <div className="card">
           <h2>구름 확인 내역 {sentCheckResults.length}개</h2>
 
@@ -7977,11 +8526,13 @@ useEffect(() => {
 
               {renderPostQuestionAnswer(selectedPost)}
 
-              <p className="message">“{cleanMessage(selectedPost.message)}”</p>
+              {!["memory", "past_connection"].includes(selectedPost.room) && (
+                <p className="message">“{cleanMessage(selectedPost.message)}”</p>
+              )}
             </div>
           )}
 
-          {selectedPost?.room !== "language" && (
+          {selectedPost?.room === "crush" && (
           <select
             value={claimForm.match_level}
             onChange={(e) =>
@@ -8002,6 +8553,12 @@ useEffect(() => {
             placeholder={
               selectedPost?.room === "language"
                 ? "상대에게 남길 말 예: 같이 언어교환 해요!"
+                : selectedPost?.room === "memory"
+                  ? "글쓴이에게 자신이 찾는 사람일 수 있는 이유를 남겨주세요."
+                : selectedPost?.room === "past_connection"
+                  ? selectedPost.past_kind === "같은 고향 출신"
+                    ? "같은 고향 출신이라는 것을 글쓴이에게 알려주세요."
+                    : "같은 학교 출신이라는 것을 글쓴이에게 알려주세요."
                 : "상대에게 남길 말 예: 저 맞는 것 같아요!"
             }
             value={claimForm.claimer_message}
@@ -8017,7 +8574,10 @@ useEffect(() => {
 	            {claimSubmitting ? "요청 보내는 중..." : "구름 채팅방 요청하기"}
 	          </button>
 
-          <button onClick={() => setPage("result")} className="white">
+          <button
+            onClick={() => ["memory", "past_connection"].includes(selectedPost?.room) ? openCommunityCloudRoom(selectedPost.room) : setPage("result")}
+            className="white"
+          >
             뒤로가기
           </button>
 

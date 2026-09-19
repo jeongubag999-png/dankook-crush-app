@@ -1033,12 +1033,183 @@ body {
   border-color: #b0e8c8;
 }
 
+.app button.white.roomCardMemory {
+  background: #f6f4ff;
+  border: 1px solid #ded8ff;
+}
+
+.app button.white.roomCardMemory:hover {
+  background: #eeebff;
+  border-color: #cec5ff;
+}
+
+.app button.white.roomCardPastConnection {
+  background: #fff9ed;
+  border: 1px solid #f3dfb5;
+}
+
+.app button.white.roomCardPastConnection:hover {
+  background: #fff4dc;
+  border-color: #eecf91;
+}
+
 .app .homeV2ActionIcon.roomIconCrush {
   background: #ffdce8;
 }
 
 .app .homeV2ActionIcon.roomIconLanguage {
   background: #d7f5e3;
+}
+
+.app .homeV2ActionIcon.roomIconMemory {
+  background: #e6e0ff;
+}
+
+.app .homeV2ActionIcon.roomIconPastConnection {
+  background: #ffedc8;
+}
+
+.app .communityNestedQuestion {
+  margin-top: 18px;
+  padding-top: 18px;
+  border-top: 1px solid #e5edf8;
+}
+
+.app .communityInlineFields {
+  display: grid;
+  grid-template-columns: repeat(2, minmax(0, 1fr));
+  gap: 12px;
+}
+
+.app .communityInlineFields label {
+  min-width: 0;
+}
+
+.app .communityInlineFields select {
+  width: 100%;
+}
+
+.app .communityCloudList {
+  display: grid;
+  gap: 14px;
+  margin: 20px 0;
+}
+
+.app .communityRegionFilter {
+  margin: 20px 0 6px;
+  padding: 16px;
+  border: 1px solid #e2eaf5;
+  border-radius: 18px;
+  background: #f7faff;
+}
+
+.app .communityRegionFilter select {
+  width: 100%;
+  margin-top: 8px;
+}
+
+.app .communityCloudCard {
+  padding: 18px;
+  border: 1px solid #dce8f7;
+  border-radius: 20px;
+  background: #f8fbff;
+}
+
+.app .communityCloudCardTop {
+  display: flex;
+  align-items: center;
+  gap: 12px;
+  margin-bottom: 12px;
+}
+
+.app .communityCloudCardTop > span {
+  display: grid;
+  width: 42px;
+  height: 42px;
+  place-items: center;
+  flex: 0 0 auto;
+  border-radius: 14px;
+  background: #e8f1ff;
+  font-size: 22px;
+}
+
+.app .communityCloudCardTop div {
+  display: grid;
+  gap: 3px;
+}
+
+.app .communityCloudCardTop small,
+.app .communityCloudMeta {
+  color: #6e83a3;
+}
+
+.app .communityCloudMeta {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 6px;
+  margin-bottom: 12px;
+  font-size: 13px;
+}
+
+.app .communityCloudMeta span {
+  padding: 6px 9px;
+  border-radius: 999px;
+  background: #edf4fd;
+}
+
+.app .communityCloudCard p {
+  margin: 0;
+  white-space: pre-wrap;
+  line-height: 1.65;
+}
+
+.app .communityCloudMessage {
+  display: grid;
+  gap: 6px;
+  margin-top: 14px;
+  padding: 13px;
+  border-radius: 14px;
+  background: #eef4ff;
+}
+
+.app .communityWriteGuide {
+  margin-bottom: 20px;
+  text-align: left;
+}
+
+.app .communityPostEditor {
+  padding: 18px;
+  border: 1px solid #dce8f7;
+  border-radius: 20px;
+  background: #f8fbff;
+}
+
+.app .communityPostTextarea {
+  min-height: 260px;
+  resize: vertical;
+}
+
+.app .fieldCounter {
+  display: block;
+  margin-top: 6px;
+  color: #8293ae;
+  text-align: right;
+}
+
+.app .communityPostBody {
+  overflow-wrap: anywhere;
+  white-space: pre-wrap;
+}
+
+.app .communityResponseButton {
+  width: 100%;
+  margin-top: 16px;
+}
+
+@media (max-width: 480px) {
+  .app .communityInlineFields {
+    grid-template-columns: 1fr;
+  }
 }
 
 .app .homeV2TodayCard {
