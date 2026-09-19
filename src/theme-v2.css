@@ -442,7 +442,7 @@ body {
   font-family: inherit;
 }
 
-.app .card > button:not(.white):not(.dangerButton):not(.smallButton):not(.iconOnlyButton),
+.app .card > button:not(.white):not(.dangerButton):not(.smallButton):not(.iconOnlyButton):not(.logoutTextButton),
 .app button[type="submit"] {
   background: linear-gradient(135deg, var(--v2-blue) 0%, var(--v2-blue-dark) 100%);
   box-shadow: 0 10px 22px rgba(47, 111, 224, 0.28);
@@ -1356,12 +1356,14 @@ body {
   font-size: 11px;
   line-height: 1.3;
   color: var(--v2-ink);
+  word-break: keep-all;
 }
 
 .app .homeV2TrustItem span {
   font-size: 10px;
   line-height: 1.3;
   color: var(--v2-muted);
+  word-break: keep-all;
 }
 
 .app .homeV2 {
@@ -2461,6 +2463,7 @@ body.chatRoomOpen {
 .app .roomSelectPage.card {
   padding-top: 26px;
   padding-bottom: 20px;
+  align-self: center;
 }
 
 .app .roomSelectPage .questionTitle {

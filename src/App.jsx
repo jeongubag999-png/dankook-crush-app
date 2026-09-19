@@ -7583,7 +7583,7 @@ useEffect(() => {
       )}
 
       {page === "searchRoomSelect" && (
-        <div className="card">
+        <div className="card roomSelectPage">
           <h3 className="questionTitle">어떤 방에서 확인할까요?</h3>
 
           <button
