@@ -7700,7 +7700,7 @@ useEffect(() => {
                           setPage("claimForm");
                         }}
                       >
-                        혹시 저를 찾는 글인가요?
+                        이거 저예요!
                       </button>
                     )}
                   </>
@@ -7728,7 +7728,7 @@ useEffect(() => {
           </div>
 
           <button onClick={() => setPage("searchRoomSelect")} className="white">다른 방 보기</button>
-          <button onClick={() => setPage("home")} className="white">홈으로</button>
+          <button onClick={() => setPage("home")} className="white roomSelectHomeButton">🏠 홈으로</button>
         </div>
       )}
 
@@ -8554,7 +8554,7 @@ useEffect(() => {
               selectedPost?.room === "language"
                 ? "상대에게 남길 말 예: 같이 언어교환 해요!"
                 : selectedPost?.room === "memory"
-                  ? "글쓴이에게 자신이 찾는 사람일 수 있는 이유를 남겨주세요."
+                  ? "예: 그때 그 이야기, 저인 것 같아요!"
                 : selectedPost?.room === "past_connection"
                   ? selectedPost.past_kind === "같은 고향 출신"
                     ? "같은 고향 출신이라는 것을 글쓴이에게 알려주세요."

@@ -2475,7 +2475,8 @@ body.chatRoomOpen {
   margin-bottom: 10px;
 }
 
-.app .roomSelectPage .roomSelectHomeButton {
+.app .roomSelectPage .roomSelectHomeButton,
+.app .communityCloudListPage .roomSelectHomeButton {
   margin-top: 18px;
   height: auto;
   min-height: auto;
@@ -2489,7 +2490,8 @@ body.chatRoomOpen {
   font-weight: 700;
 }
 
-.app .roomSelectPage .roomSelectHomeButton:hover {
+.app .roomSelectPage .roomSelectHomeButton:hover,
+.app .communityCloudListPage .roomSelectHomeButton:hover {
   background: var(--v2-blue-soft);
   color: var(--v2-blue-dark);
   border-color: var(--v2-blue-dark);
