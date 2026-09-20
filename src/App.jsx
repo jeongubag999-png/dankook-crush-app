@@ -3068,14 +3068,21 @@ const hideSearchResult = (postId) => {
 
     setPostSubmitting(true);
     try {
-      const pastSchool = crushPost.past_school.trim();
+      const pastElementarySchool = crushPost.past_elementary_school.trim();
+      const pastMiddleSchool = crushPost.past_middle_school.trim();
+      const pastHighSchool = crushPost.past_high_school.trim();
+      const schoolSummary = getPastSchoolSummary({
+        past_elementary_school: pastElementarySchool,
+        past_middle_school: pastMiddleSchool,
+        past_high_school: pastHighSchool,
+      });
       const place = isMemory
         ? "게시판 구름방"
         : `${crushPost.past_region} ${crushPost.past_subregion}`;
       const message = isMemory
         ? crushPost.memory_story.trim()
         : `${crushPost.past_region} ${crushPost.past_subregion} 출신 단국대 사람을 찾고 있어요.`
-          + (pastSchool ? ` (${pastSchool} 출신도 반가워요!)` : "");
+          + (schoolSummary ? ` (${schoolSummary} 출신도 반가워요!)` : "");
       const postData = {
         room: crushPost.room,
         seen_date: isMemory
@@ -3108,10 +3115,10 @@ const hideSearchResult = (postId) => {
         past_region: isMemory ? null : crushPost.past_region || null,
         past_subregion: isMemory ? null : crushPost.past_subregion || null,
         past_school_region: null,
-        past_school: isMemory ? null : pastSchool || null,
-        past_elementary_school: null,
-        past_middle_school: null,
-        past_high_school: null,
+        past_school: isMemory ? null : schoolSummary || null,
+        past_elementary_school: isMemory ? null : pastElementarySchool || null,
+        past_middle_school: isMemory ? null : pastMiddleSchool || null,
+        past_high_school: isMemory ? null : pastHighSchool || null,
         past_start_year: null,
         past_end_year: null,
         past_story: null,
@@ -7399,11 +7406,27 @@ useEffect(() => {
                     </select>
                   </div>
                   <div className="formGroup">
-                    <label className="formLabel">다닌 학교 (선택)</label>
+                    <label className="formLabel">초등학교 (선택)</label>
                     <input
-                      value={crushPost.past_school}
-                      placeholder="같은 학교 출신도 함께 찾고 싶다면 적어주세요."
-                      onChange={(e) => updateCrushPost("past_school", e.target.value)}
+                      value={crushPost.past_elementary_school}
+                      placeholder="초등학교 이름"
+                      onChange={(e) => updateCrushPost("past_elementary_school", e.target.value)}
+                    />
+                  </div>
+                  <div className="formGroup">
+                    <label className="formLabel">중학교 (선택)</label>
+                    <input
+                      value={crushPost.past_middle_school}
+                      placeholder="중학교 이름"
+                      onChange={(e) => updateCrushPost("past_middle_school", e.target.value)}
+                    />
+                  </div>
+                  <div className="formGroup">
+                    <label className="formLabel">고등학교 (선택)</label>
+                    <input
+                      value={crushPost.past_high_school}
+                      placeholder="고등학교 이름"
+                      onChange={(e) => updateCrushPost("past_high_school", e.target.value)}
                     />
                   </div>
                 </div>
