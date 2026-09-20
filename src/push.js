@@ -46,15 +46,23 @@ export const initPush = () => {
 
 export const linkPushUser = async (userId) => {
   if (!userId) return;
-  const ready = await ensureInit();
-  if (!ready) return;
-  const OneSignal = await loadOneSignal();
-  OneSignal?.login(String(userId));
+  try {
+    const ready = await ensureInit();
+    if (!ready) return;
+    const OneSignal = await loadOneSignal();
+    OneSignal?.login(String(userId));
+  } catch (err) {
+    console.log("[push] 로그인 연결 중 에러:", err?.message || err);
+  }
 };
 
 export const unlinkPushUser = async () => {
-  const ready = await ensureInit();
-  if (!ready) return;
-  const OneSignal = await loadOneSignal();
-  OneSignal?.logout();
+  try {
+    const ready = await ensureInit();
+    if (!ready) return;
+    const OneSignal = await loadOneSignal();
+    OneSignal?.logout();
+  } catch (err) {
+    console.log("[push] 로그아웃 연결 중 에러:", err?.message || err);
+  }
 };

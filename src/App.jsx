@@ -871,11 +871,13 @@ const [verificationFile, setVerificationFile] = useState(null);
     // 관리자는 인증 없이 바로 통과
     if (user?.app_metadata?.is_admin === true) return "approved";
 
-    const { data: profileData } = await supabase
+    const { data: profileData, error: profileCheckError } = await supabase
       .from("profiles")
       .select("is_deleted")
       .eq("user_id", user.id)
       .maybeSingle();
+
+    if (profileCheckError) console.log(profileCheckError);
 
     if (profileData?.is_deleted) {
       await supabase.auth.signOut();
@@ -891,7 +893,9 @@ const [verificationFile, setVerificationFile] = useState(null);
 
     if (error) {
       console.log(error);
-      return "none";
+      // 조회 실패를 승인 상태로 취급하면 안 되므로(예: 일시적 네트워크 오류로
+      // 미인증 사용자가 통과), 승인이 아닌 상태로 안전하게 처리한다.
+      return "unknown";
     }
 
     const latest = data?.[0] || null;
@@ -969,33 +973,37 @@ const [verificationFile, setVerificationFile] = useState(null);
     const initAuth = async () => {
       setAuthLoading(true);
 
-      const { data } = await supabase.auth.getSession();
+      try {
+        const { data } = await supabase.auth.getSession();
 
-      if (!mounted) return;
-
-      const savedSession = data.session;
-      const savedUser = savedSession?.user || null;
-
-      setSession(savedSession);
-      setCurrentUser(savedUser);
-      resetActivityDataIfUserChanged(savedUser?.id || null);
-
-      if (savedUser) {
-        // 인증 확인이 끝날 때까지 authLoading 유지 (홈 화면 노출 방지)
-        const verifyStatus = await checkVerificationStatus(savedUser);
         if (!mounted) return;
-        if (verifyStatus === "deleted") {
-          setSession(null);
-          setCurrentUser(null);
-          toast.error("탈퇴 처리된 계정이에요.");
-        } else if (verifyStatus === "pending" || verifyStatus === "incomplete" || verifyStatus === "rejected") {
-          setPage("verificationPending");
-        } else {
-          loadMyProfile(savedUser);
-        }
-      }
 
-      setAuthLoading(false);
+        const savedSession = data.session;
+        const savedUser = savedSession?.user || null;
+
+        setSession(savedSession);
+        setCurrentUser(savedUser);
+        resetActivityDataIfUserChanged(savedUser?.id || null);
+
+        if (savedUser) {
+          // 인증 확인이 끝날 때까지 authLoading 유지 (홈 화면 노출 방지)
+          const verifyStatus = await checkVerificationStatus(savedUser);
+          if (!mounted) return;
+          if (verifyStatus === "deleted") {
+            setSession(null);
+            setCurrentUser(null);
+            toast.error("탈퇴 처리된 계정이에요.");
+          } else if (verifyStatus === "pending" || verifyStatus === "incomplete" || verifyStatus === "rejected" || verifyStatus === "unknown") {
+            setPage("verificationPending");
+          } else {
+            loadMyProfile(savedUser);
+          }
+        }
+      } catch (e) {
+        console.log(e);
+      } finally {
+        if (mounted) setAuthLoading(false);
+      }
     };
 
     initAuth();
@@ -1476,9 +1484,11 @@ const handleLogin = async () => {
       setCurrentUser(data.user);
       resetActivityDataIfUserChanged(data.user?.id || null);
 
-      if (verifyStatus === "pending" || verifyStatus === "incomplete" || verifyStatus === "rejected") {
+      if (verifyStatus === "pending" || verifyStatus === "incomplete" || verifyStatus === "rejected" || verifyStatus === "unknown") {
         if (verifyStatus === "rejected") {
           toast.error("학생 인증이 거절됐어요. 인증 사진을 다시 제출해주세요.");
+        } else if (verifyStatus === "unknown") {
+          toast.error("인증 상태를 확인하지 못했어요. 잠시 후 다시 로그인해주세요.");
         } else {
           toast.error("학생 인증이 아직 승인되지 않았어요. 승인될 때까지 기다려주세요.");
         }
@@ -1539,29 +1549,70 @@ const handleLogin = async () => {
 
       const myPostIds = (myPosts || []).map((post) => post.id);
 
+      // 아래 삭제 중 하나라도 실패하면 즉시 중단한다 — 실패를 무시하고 계속 진행하면
+      // 글/응답 기록이 남아있는데도 "탈퇴 완료"로 안내하게 된다.
       if (myPostIds.length > 0) {
-        await supabase.from("claims").delete().in("crush_post_id", myPostIds);
-        await supabase.from("cloud_views").delete().in("crush_post_id", myPostIds);
+        const { error: claimsByPostError } = await supabase.from("claims").delete().in("crush_post_id", myPostIds);
+        if (claimsByPostError) {
+          toast.error("탈퇴 처리에 실패했어요: " + claimsByPostError.message);
+          console.log(claimsByPostError);
+          return;
+        }
+        const { error: viewsByPostError } = await supabase.from("cloud_views").delete().in("crush_post_id", myPostIds);
+        if (viewsByPostError) {
+          toast.error("탈퇴 처리에 실패했어요: " + viewsByPostError.message);
+          console.log(viewsByPostError);
+          return;
+        }
       }
 
-      await supabase.from("claims").delete().eq("claimer_user_id", currentUser.id);
-      await supabase.from("cloud_views").delete().eq("viewer_user_id", currentUser.id);
-      await supabase.from("cloud_checks").delete().eq("checker_user_id", currentUser.id);
-      await supabase.from("crush_posts").delete().eq("sender_user_id", currentUser.id);
+      const { error: claimsError } = await supabase.from("claims").delete().eq("claimer_user_id", currentUser.id);
+      if (claimsError) {
+        toast.error("탈퇴 처리에 실패했어요: " + claimsError.message);
+        console.log(claimsError);
+        return;
+      }
+
+      const { error: viewsError } = await supabase.from("cloud_views").delete().eq("viewer_user_id", currentUser.id);
+      if (viewsError) {
+        toast.error("탈퇴 처리에 실패했어요: " + viewsError.message);
+        console.log(viewsError);
+        return;
+      }
+
+      const { error: checksError } = await supabase.from("cloud_checks").delete().eq("checker_user_id", currentUser.id);
+      if (checksError) {
+        toast.error("탈퇴 처리에 실패했어요: " + checksError.message);
+        console.log(checksError);
+        return;
+      }
+
+      const { error: postsError } = await supabase.from("crush_posts").delete().eq("sender_user_id", currentUser.id);
+      if (postsError) {
+        toast.error("탈퇴 처리에 실패했어요: " + postsError.message);
+        console.log(postsError);
+        return;
+      }
 
       const { data: myVerifications } = await supabase
         .from("dku_verifications")
         .select("screenshot_path")
         .eq("user_id", currentUser.id);
 
-      await supabase.from("dku_verifications").delete().eq("user_id", currentUser.id);
+      const { error: verificationsError } = await supabase.from("dku_verifications").delete().eq("user_id", currentUser.id);
+      if (verificationsError) {
+        toast.error("탈퇴 처리에 실패했어요: " + verificationsError.message);
+        console.log(verificationsError);
+        return;
+      }
 
       const screenshotPaths = (myVerifications || [])
         .map((v) => v.screenshot_path)
         .filter(Boolean);
 
       if (screenshotPaths.length > 0) {
-        await supabase.storage.from("dku-verifications").remove(screenshotPaths);
+        const { error: storageError } = await supabase.storage.from("dku-verifications").remove(screenshotPaths);
+        if (storageError) console.log(storageError);
       }
 
       const { error } = await supabase
@@ -2955,7 +3006,12 @@ const hideSearchResult = (postId) => {
           .select()
           .maybeSingle();
         error = updateError;
-        savedPost = data || { ...editingPost, ...postData };
+        if (!error && !data) {
+          // 0행 매칭(글이 이미 삭제됐거나 소유자가 아님) — 성공으로 오인하지 않는다.
+          toast.error("수정할 구름을 찾지 못했어요. 새로고침 후 다시 시도해주세요.");
+          return;
+        }
+        savedPost = data;
       } else {
         // 새 구름 생성
         const { data, error: insertError } = await supabase
@@ -3462,7 +3518,7 @@ const hideSearchResult = (postId) => {
     return;
   }
 
-  if (["memory", "past_connection"].includes(selectedPost.room) && !claimForm.claimer_message.trim()) {
+  if (selectedPost.room !== "crush" && !claimForm.claimer_message.trim()) {
     toast.error("글쓴이에게 남길 말을 작성해주세요.");
     return;
   }
@@ -4671,14 +4727,19 @@ useEffect(() => {
           .maybeSingle();
 
         if (!claimFetchError && existingClaim?.id && existingClaim.status === "pending") {
-          const { error: claimUpdateError } = await supabase
+          // 조회 이후 상대가 먼저 거절/처리했을 수 있으니, 업데이트도 여전히
+          // pending인 경우에만 적용되도록 상태를 다시 확인한다.
+          const { data: updatedClaim, error: claimUpdateError } = await supabase
             .from("claims")
             .update({ status: "chat_requested", responded_at: new Date().toISOString() })
-            .eq("id", existingClaim.id);
+            .eq("id", existingClaim.id)
+            .eq("status", "pending")
+            .select()
+            .maybeSingle();
 
           if (claimUpdateError) {
             console.log(claimUpdateError);
-          } else {
+          } else if (updatedClaim) {
             toast.success("서로 확인했어요. 대화 요청을 보냈어요!");
             await loadMyActivityData();
             return;
@@ -4955,7 +5016,7 @@ useEffect(() => {
 );
   const filteredCommunityClouds = communityCloudRoom === "past_connection" && communityRegionFilter
     ? communityClouds.filter((post) => (
-        post.past_kind === "같은 고향 출신"
+        post.past_region
           ? post.past_region === communityRegionFilter
           : post.past_school_region === communityRegionFilter
       ))
@@ -5304,15 +5365,15 @@ useEffect(() => {
           <div className="claimActionRow">
             <button
               onClick={() => acceptChatRequest(claim, claim.claimer_nickname)}
-              disabled={claimActionSubmittingId === claim.id}
+              disabled={chatActionSubmitting || claimActionSubmittingId === claim.id}
             >
-              {claimActionSubmittingId === claim.id ? "수락 중..." : "채팅방 수락하기"}
+              {chatActionSubmitting ? "수락 중..." : "채팅방 수락하기"}
             </button>
             <button
               type="button"
               className="white"
               onClick={() => rejectClaim(claim.id, "sender")}
-              disabled={claimActionSubmittingId === claim.id}
+              disabled={chatActionSubmitting || claimActionSubmittingId === claim.id}
             >
               거절 의사 보내기
             </button>

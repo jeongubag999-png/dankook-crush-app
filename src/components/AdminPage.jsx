@@ -42,6 +42,10 @@ export function AdminPage({ onClose }) {
       supabase.from("dku_verifications").select("id", { count: "exact", head: true }).eq("status", "rejected"),
     ]);
 
+    if (pendingRes.error) console.log(pendingRes.error);
+    if (approvedRes.error) console.log(approvedRes.error);
+    if (rejectedRes.error) console.log(rejectedRes.error);
+
     setStats({
       pending: pendingRes.count || 0,
       approved: approvedRes.count || 0,

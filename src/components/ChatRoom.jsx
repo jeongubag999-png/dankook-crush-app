@@ -60,6 +60,7 @@ export function ChatRoom({ roomId, currentUserId, otherNickname, onClose, onDele
 
       if (roomError) {
         console.log(roomError);
+        toast.error("채팅방 정보를 불러오지 못했어요. 새로고침 후 다시 시도해주세요.");
       } else {
         setRoomInfo(room);
       }
@@ -143,7 +144,9 @@ export function ChatRoom({ roomId, currentUserId, otherNickname, onClose, onDele
 
   const sendMessage = async () => {
     const body = input.trim();
-    if (!body || sending || isExpired) return;
+    // 방금 만료됐을 수 있으니 60초 주기로만 갱신되는 `isExpired`가 아니라
+    // 전송 시점 기준으로 다시 계산해 확인한다.
+    if (!body || sending || isChatRoomExpired(roomInfo?.created_at, roomInfo?.closed_at, Date.now())) return;
 
     setSending(true);
 
