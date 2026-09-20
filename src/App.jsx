@@ -121,7 +121,6 @@ const CLOUD_CHECK_STEP_NAMES = {
   5: "최종 확인",
 };
 
-const PAST_CONNECTION_KIND_OPTIONS = ["같은 고향 출신", "같은 학교 출신"];
 const KOREA_REGION_OPTIONS = [
   "서울특별시", "부산광역시", "대구광역시", "인천광역시", "대전광역시", "울산광역시",
   "세종특별자치시", "경기도", "강원특별자치도", "충청북도", "충청남도", "전북특별자치도",
@@ -1901,11 +1900,15 @@ const hideSearchResult = (postId) => {
     post.past_high_school && `고등학교 · ${post.past_high_school}`,
   ].filter(Boolean).join(" | ");
 
-  const getPastConnectionDetail = (post) => (
-    post.past_kind === "같은 고향 출신"
-      ? [post.past_region, post.past_subregion].filter(Boolean).join(" ") || "-"
-      : [post.past_school_region, getPastSchoolSummary(post) || post.past_school].filter(Boolean).join(" · ") || "-"
-  );
+  const getPastConnectionDetail = (post) => {
+    const regionText = [post.past_region, post.past_subregion].filter(Boolean).join(" ");
+    const schoolText = post.past_school || getPastSchoolSummary(post);
+    if (regionText && schoolText) return `${regionText} · ${schoolText}`;
+    if (regionText) return regionText;
+    // 지역 정보가 없는 옛날 "같은 학교 출신" 글은 학교 지역으로 대체해 보여준다.
+    if (schoolText) return [post.past_school_region, schoolText].filter(Boolean).join(" · ");
+    return "-";
+  };
 
   const renderLanguagePostQA = (post) => (
     <div className="qaBox">
@@ -1945,8 +1948,7 @@ const hideSearchResult = (postId) => {
       return (
         <div className="qaBox">
           <p className="qaTitle">고향 구름</p>
-          <p><strong>구분:</strong> {post.past_kind || "-"}</p>
-          <p><strong>{post.past_kind === "같은 고향 출신" ? "고향:" : "학교:"}</strong> {getPastConnectionDetail(post)}</p>
+          <p><strong>고향:</strong> {getPastConnectionDetail(post)}</p>
         </div>
       );
     }
@@ -3001,50 +3003,23 @@ const hideSearchResult = (postId) => {
         return;
       }
     } else {
-      if (!crushPost.past_kind) {
-        toast.error("찾고 싶은 과거 인연을 선택해주세요.");
-        setCrushStep(1);
-        return;
-      }
-      if (crushPost.past_kind === "같은 고향 출신" && (!crushPost.past_region || !crushPost.past_subregion)) {
+      if (!crushPost.past_region || !crushPost.past_subregion) {
         toast.error("고향의 시·도와 시·군·구를 모두 선택해주세요.");
-        setCrushStep(2);
-        return;
-      }
-      const hasSchool = [
-        crushPost.past_elementary_school,
-        crushPost.past_middle_school,
-        crushPost.past_high_school,
-      ].some((school) => school.trim());
-      if (crushPost.past_kind === "같은 학교 출신" && !hasSchool) {
-        toast.error("초등학교, 중학교, 고등학교 중 하나 이상을 작성해주세요.");
-        setCrushStep(2);
-        return;
-      }
-      if (crushPost.past_kind === "같은 학교 출신" && !crushPost.past_school_region) {
-        toast.error("학교가 있는 시·도를 선택해주세요.");
-        setCrushStep(2);
+        setCrushStep(1);
         return;
       }
     }
 
     setPostSubmitting(true);
     try {
-      const schoolSummary = [
-        crushPost.past_elementary_school.trim() && `초등학교 · ${crushPost.past_elementary_school.trim()}`,
-        crushPost.past_middle_school.trim() && `중학교 · ${crushPost.past_middle_school.trim()}`,
-        crushPost.past_high_school.trim() && `고등학교 · ${crushPost.past_high_school.trim()}`,
-      ].filter(Boolean).join(" | ");
+      const pastSchool = crushPost.past_school.trim();
       const place = isMemory
         ? "게시판 구름방"
-        : crushPost.past_kind === "같은 고향 출신"
-          ? `${crushPost.past_region} ${crushPost.past_subregion}`
-          : `${crushPost.past_school_region} · ${schoolSummary}`;
+        : `${crushPost.past_region} ${crushPost.past_subregion}`;
       const message = isMemory
         ? crushPost.memory_story.trim()
-        : crushPost.past_kind === "같은 고향 출신"
-          ? `${crushPost.past_region} ${crushPost.past_subregion} 출신 단국대 사람을 찾고 있어요.`
-          : `${crushPost.past_school_region} ${schoolSummary} 출신 단국대 사람을 찾고 있어요.`;
+        : `${crushPost.past_region} ${crushPost.past_subregion} 출신 단국대 사람을 찾고 있어요.`
+          + (pastSchool ? ` (${pastSchool} 출신도 반가워요!)` : "");
       const postData = {
         room: crushPost.room,
         seen_date: isMemory
@@ -3054,7 +3029,7 @@ const hideSearchResult = (postId) => {
           ? "기억 게시물"
           : "상시",
         place,
-        main_place: isMemory ? "게시판 구름방" : crushPost.past_kind,
+        main_place: isMemory ? "게시판 구름방" : "같은 고향 출신",
         detail_place: isMemory ? "" : place,
         hair_feature: message,
         clothes_style: message,
@@ -3072,15 +3047,15 @@ const hideSearchResult = (postId) => {
         memory_semester: null,
         memory_story: isMemory ? crushPost.memory_story.trim() : null,
         memory_message: null,
-        past_kind: isMemory ? null : crushPost.past_kind,
-        past_school_level: isMemory ? null : crushPost.past_school_level || null,
+        past_kind: isMemory ? null : "같은 고향 출신",
+        past_school_level: null,
         past_region: isMemory ? null : crushPost.past_region || null,
         past_subregion: isMemory ? null : crushPost.past_subregion || null,
-        past_school_region: isMemory ? null : crushPost.past_school_region || null,
-        past_school: isMemory ? null : schoolSummary || null,
-        past_elementary_school: isMemory ? null : crushPost.past_elementary_school.trim() || null,
-        past_middle_school: isMemory ? null : crushPost.past_middle_school.trim() || null,
-        past_high_school: isMemory ? null : crushPost.past_high_school.trim() || null,
+        past_school_region: null,
+        past_school: isMemory ? null : pastSchool || null,
+        past_elementary_school: null,
+        past_middle_school: null,
+        past_high_school: null,
         past_start_year: null,
         past_end_year: null,
         past_story: null,
@@ -6704,11 +6679,11 @@ useEffect(() => {
           )}
 
           <p className="stepText">
-            {crushStep} / {["language", "memory"].includes(crushPost.room) ? 1 : crushPost.room === "past_connection" ? 2 : 3}
+            {crushStep} / {["language", "memory", "past_connection"].includes(crushPost.room) ? 1 : 3}
           </p>
 
           <StepProgress
-            total={["language", "memory"].includes(crushPost.room) ? 1 : crushPost.room === "past_connection" ? 2 : 3}
+            total={["language", "memory", "past_connection"].includes(crushPost.room) ? 1 : 3}
             current={crushStep}
           />
 
@@ -7338,91 +7313,39 @@ useEffect(() => {
           <>
             {crushStep === 1 && (
               <>
-                <h3 className="questionTitle">어떤 과거를 공유한 사람을 찾나요?</h3>
-                <div className="optionGrid">
-                  {PAST_CONNECTION_KIND_OPTIONS.map((option) => (
-                    <OptionButton key={option} value={option} selected={crushPost.past_kind === option} onClick={() => setCrushPost((prev) => ({
-                      ...prev,
-                      past_kind: option,
-                      past_region: "",
-                      past_subregion: "",
-                      past_school_region: "",
-                      past_elementary_school: "",
-                      past_middle_school: "",
-                      past_high_school: "",
-                    }))} />
-                  ))}
+                <h3 className="questionTitle">어느 지역 출신을 찾나요?</h3>
+                <p className="subtitle communityWriteGuide">특정한 한 사람이 아니라, 같은 고향 출신 단국대 사람들의 응답을 받아요.</p>
+                <div className="communityPostEditor communityRegionFields">
+                  <div className="formGroup">
+                    <label className="formLabel">시·도</label>
+                    <select
+                      value={crushPost.past_region}
+                      onChange={(e) => setCrushPost((prev) => ({ ...prev, past_region: e.target.value, past_subregion: "" }))}
+                    >
+                      <option value="">시·도 선택</option>
+                      {KOREA_REGION_OPTIONS.map((region) => <option key={region}>{region}</option>)}
+                    </select>
+                  </div>
+                  <div className="formGroup">
+                    <label className="formLabel">시·군·구</label>
+                    <select
+                      value={crushPost.past_subregion}
+                      disabled={!crushPost.past_region}
+                      onChange={(e) => updateCrushPost("past_subregion", e.target.value)}
+                    >
+                      <option value="">시·군·구 선택</option>
+                      {(KOREA_DISTRICT_OPTIONS[crushPost.past_region] || []).map((district) => <option key={district}>{district}</option>)}
+                    </select>
+                  </div>
+                  <div className="formGroup">
+                    <label className="formLabel">다닌 학교 (선택)</label>
+                    <input
+                      value={crushPost.past_school}
+                      placeholder="같은 학교 출신도 함께 찾고 싶다면 적어주세요."
+                      onChange={(e) => updateCrushPost("past_school", e.target.value)}
+                    />
+                  </div>
                 </div>
-                <div className="stepActions">
-                  <button onClick={goBackStep} className="white">이전</button>
-                  <button onClick={async () => {
-                    if (!crushPost.past_kind) {
-                      toast.error("찾고 싶은 과거 인연을 선택해주세요.");
-                      return;
-                    }
-                    await moveCloudSendStep(2, "next");
-                  }}>다음</button>
-                </div>
-              </>
-            )}
-
-            {crushStep === 2 && (
-              <>
-                {crushPost.past_kind === "같은 학교 출신" ? (
-                  <>
-                    <h3 className="questionTitle">같은 학교 출신을 찾아보세요.</h3>
-                    <p className="subtitle communityWriteGuide">학교가 있는 시·도와 기억나는 학교를 작성해주세요. 최소 한 곳은 입력해야 해요.</p>
-                    <div className="communityPostEditor pastSchoolFields">
-                      <div className="formGroup">
-                        <label className="formLabel">학교 지역</label>
-                        <select value={crushPost.past_school_region} onChange={(e) => updateCrushPost("past_school_region", e.target.value)}>
-                          <option value="">시·도 선택</option>
-                          {KOREA_REGION_OPTIONS.map((region) => <option key={region}>{region}</option>)}
-                        </select>
-                      </div>
-                      <div className="formGroup">
-                        <label className="formLabel">초등학교</label>
-                        <input value={crushPost.past_elementary_school} placeholder="초등학교 이름" onChange={(e) => updateCrushPost("past_elementary_school", e.target.value)} />
-                      </div>
-                      <div className="formGroup">
-                        <label className="formLabel">중학교</label>
-                        <input value={crushPost.past_middle_school} placeholder="중학교 이름" onChange={(e) => updateCrushPost("past_middle_school", e.target.value)} />
-                      </div>
-                      <div className="formGroup">
-                        <label className="formLabel">고등학교</label>
-                        <input value={crushPost.past_high_school} placeholder="고등학교 이름" onChange={(e) => updateCrushPost("past_high_school", e.target.value)} />
-                      </div>
-                    </div>
-                  </>
-                ) : (
-                  <>
-                    <h3 className="questionTitle">어느 지역 출신을 찾나요?</h3>
-                    <p className="subtitle communityWriteGuide">특정한 한 사람이 아니라, 같은 고향 출신 단국대 사람들의 응답을 받아요.</p>
-                    <div className="communityPostEditor communityRegionFields">
-                      <div className="formGroup">
-                        <label className="formLabel">시·도</label>
-                        <select
-                          value={crushPost.past_region}
-                          onChange={(e) => setCrushPost((prev) => ({ ...prev, past_region: e.target.value, past_subregion: "" }))}
-                        >
-                          <option value="">시·도 선택</option>
-                          {KOREA_REGION_OPTIONS.map((region) => <option key={region}>{region}</option>)}
-                        </select>
-                      </div>
-                      <div className="formGroup">
-                        <label className="formLabel">시·군·구</label>
-                        <select
-                          value={crushPost.past_subregion}
-                          disabled={!crushPost.past_region}
-                          onChange={(e) => updateCrushPost("past_subregion", e.target.value)}
-                        >
-                          <option value="">시·군·구 선택</option>
-                          {(KOREA_DISTRICT_OPTIONS[crushPost.past_region] || []).map((district) => <option key={district}>{district}</option>)}
-                        </select>
-                      </div>
-                    </div>
-                  </>
-                )}
                 <div className="stepActions">
                   <button onClick={goBackStep} className="white">이전</button>
                   <button onClick={saveCrushPost} disabled={postSubmitting}>{postSubmitting ? "구름 띄우는 중..." : "구름 띄우기"}</button>
@@ -7684,7 +7607,7 @@ useEffect(() => {
                 <div className="communityCloudCardTop">
                   <span>{post.room === "memory" ? "📖" : "🏡"}</span>
                   <div>
-                    <b>{post.room === "memory" ? post.memory_title || "게시판 구름" : post.past_kind}</b>
+                    <b>{post.room === "memory" ? post.memory_title || "게시판 구름" : [post.past_region, post.past_subregion].filter(Boolean).join(" ") || post.past_kind || "고향 구름"}</b>
                     <small>{post.sender_nickname || "단꿈 사용자"} · {post.campus || "단국대"}</small>
                   </div>
                 </div>
@@ -7707,7 +7630,6 @@ useEffect(() => {
                 ) : (
                   <>
                     <div className="communityCloudMeta">
-                      <span>{post.past_kind}</span>
                       <span>{getPastConnectionDetail(post)}</span>
                     </div>
                     {post.sender_user_id !== currentUser?.id && (
@@ -7718,7 +7640,7 @@ useEffect(() => {
                           setPage("claimForm");
                         }}
                       >
-                        {post.past_kind === "같은 고향 출신" ? "같은 고향 출신이에요" : "같은 학교 출신이에요"}
+                        저도 그 동네예요!
                       </button>
                     )}
                   </>
@@ -8556,9 +8478,7 @@ useEffect(() => {
                 : selectedPost?.room === "memory"
                   ? "예: 그때 그 이야기, 저인 것 같아요!"
                 : selectedPost?.room === "past_connection"
-                  ? selectedPost.past_kind === "같은 고향 출신"
-                    ? "같은 고향 출신이라는 것을 글쓴이에게 알려주세요."
-                    : "같은 학교 출신이라는 것을 글쓴이에게 알려주세요."
+                  ? "예: 저도 거기 살았어요! 반가워요."
                 : "상대에게 남길 말 예: 저 맞는 것 같아요!"
             }
             value={claimForm.claimer_message}
