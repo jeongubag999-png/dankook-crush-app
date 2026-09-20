@@ -6690,7 +6690,7 @@ useEffect(() => {
           </button>
 
           <button onClick={() => setPage("home")} className="white roomSelectHomeButton">
-            홈으로
+            🏠 홈으로
           </button>
         </div>
       )}
@@ -7642,8 +7642,8 @@ useEffect(() => {
             </span>
           </button>
 
-          <button onClick={() => setPage("home")} className="white">
-            홈으로
+          <button onClick={() => setPage("home")} className="white roomSelectHomeButton">
+            🏠 홈으로
           </button>
         </div>
       )}

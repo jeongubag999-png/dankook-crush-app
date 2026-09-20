@@ -2479,16 +2479,18 @@ body.chatRoomOpen {
   margin-top: 18px;
   height: auto;
   min-height: auto;
-  padding: 8px;
-  background: transparent;
-  border: none;
+  padding: 10px;
+  background: var(--v2-blue-soft);
+  border: 1.5px solid var(--v2-blue);
   box-shadow: none;
-  color: var(--v2-muted);
+  border-radius: 14px;
+  color: var(--v2-blue-dark);
   font-size: 13.5px;
   font-weight: 700;
 }
 
 .app .roomSelectPage .roomSelectHomeButton:hover {
-  background: transparent;
-  color: var(--v2-ink-soft);
+  background: var(--v2-blue-soft);
+  color: var(--v2-blue-dark);
+  border-color: var(--v2-blue-dark);
 }
