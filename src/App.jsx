@@ -6284,7 +6284,7 @@ useEffect(() => {
             <span className="homeV2ActionIcon blue">✉️</span>
             <span className="homeV2ActionText">
               <b>구름 친구에게 보내기</b>
-              <small>공개된 구름에서 떠오르는 친구를 찾아 링크로 바로 알려줘요</small>
+              <small>응답을 기다리는 구름을 보고, 떠오르는 친구에게 링크로 알려줘요</small>
             </span>
             <span className="homeV2ActionChevron">
               <ChevronRightIcon />

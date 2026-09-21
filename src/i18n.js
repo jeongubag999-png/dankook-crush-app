@@ -19,7 +19,7 @@ const rows = [
   ["구름 확인하기","Check clouds"],
   ["날짜와 그날의 내 모습을 입력해 나를 찾는 구름이 있는지 확인해요","Enter the date and what you looked like to check whether someone is looking for you"],
   ["구름 친구에게 보내기","Send a cloud to a friend"],
-  ["공개된 구름에서 떠오르는 친구를 찾아 링크로 바로 알려줘요","Find a public cloud that reminds you of a friend and send them its link"],
+  ["응답을 기다리는 구름을 보고, 떠오르는 친구에게 링크로 알려줘요","See clouds waiting for a response and send one to the friend it reminds you of"],
   ["처음이라면","New here?"],
   ["단꿈은 이렇게 이어져요","How Dankkum connects people"],
   ["단서를 남겨요","Leave some clues"],
