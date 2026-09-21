@@ -308,8 +308,10 @@ body {
 }
 
 .app .homeV2Header {
-  min-height: 88px;
+  align-items: flex-end;
+  min-height: 132px;
   margin-bottom: 14px;
+  padding-top: 62px;
 }
 
 .app .homeV2Greeting {
@@ -335,11 +337,11 @@ body {
 }
 
 .app .homeV2CloudMark {
-  left: auto;
-  right: 100px;
-  top: 45%;
-  transform: translateY(-50%);
-  opacity: 0.8;
+  left: 50%;
+  right: auto;
+  top: 0;
+  transform: translateX(-50%);
+  opacity: 0.9;
 }
 
 .app .homeV2CloudMark img {
@@ -413,7 +415,7 @@ body {
 
 .app .homeV2ActionCard,
 .app button.homeV2ActionCard {
-  min-height: 76px;
+  min-height: 88px;
   margin: 0 0 10px;
   padding: 14px 15px;
   border: 1px solid var(--ux-line);
@@ -637,6 +639,22 @@ body {
   box-shadow: none;
 }
 
+/* Give the My Clouds status folders enough room for two-line labels. */
+.app .cloudFolderButton {
+  min-height: 124px;
+  padding-block: 20px;
+}
+
+.app .cloudFolderContent {
+  gap: 8px;
+}
+
+.app .cloudFolderTitle,
+.app .cloudFolderDescription {
+  white-space: normal;
+  overflow: visible;
+}
+
 .app .statusPill {
   border: 1px solid var(--ux-line);
   font-weight: 800;
@@ -739,11 +757,21 @@ body {
   }
 
   .app .homeV2CloudMark {
-    display: none;
+    display: block;
+  }
+
+  .app .homeV2Header {
+    min-height: 126px;
+    padding-top: 58px;
   }
 
   .app .homeV2Greeting {
-    max-width: calc(100% - 104px);
+    max-width: calc(100% - 112px);
+  }
+
+  .app .cloudFolderButton {
+    min-height: 120px;
+    padding-block: 18px;
   }
 
   .app .homeV2Greeting h1 {

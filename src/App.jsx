@@ -5177,10 +5177,14 @@ useEffect(() => {
     } catch {}
   };
 
-  const openNotificationsPage = () => {
+  const openNotificationsPage = async () => {
+    const nextNotificationGroup =
+      receivedNotificationUnreadCount > sentNotificationUnreadCount ? "received" : "sent";
     markNotificationSeen();
-    markNotificationGroupSeen(notificationFilter);
-    setMatchingMode("notifications");
+    markNotificationGroupSeen(nextNotificationGroup);
+    setNotificationFilter(nextNotificationGroup);
+    setMatchingMode(nextNotificationGroup);
+    await openMatchingPage();
   };
 
   const renderBellWithBadge = (size = 21) => (
@@ -6180,10 +6184,7 @@ useEffect(() => {
                 type="button"
                 className="homeV2IconBtn"
                 aria-label="알림"
-                onClick={() => {
-                  openNotificationsPage();
-                  openMatchingPage();
-                }}
+                onClick={openNotificationsPage}
               >
                 {renderBellWithBadge(19)}
               </button>
@@ -6260,8 +6261,8 @@ useEffect(() => {
           <button type="button" onClick={openNewCloudPage} className="homeV2ActionCard primary">
             <span className="homeV2ActionIcon">☁️</span>
             <span className="homeV2ActionText">
-              <b>사람을 찾고 싶어요</b>
-              <small>기억나는 단서를 적어 구름을 띄워요</small>
+              <b>구름 띄우기</b>
+              <small>찾는 사람의 단서와 전하고 싶은 말을 적어 구름을 띄워요</small>
             </span>
             <span className="homeV2ActionChevron">
               <ChevronRightIcon />
@@ -6271,8 +6272,8 @@ useEffect(() => {
           <button type="button" onClick={() => openSearchPage()} className="homeV2ActionCard secondary">
             <span className="homeV2ActionIcon amber">🔔</span>
             <span className="homeV2ActionText">
-              <b>나를 찾는 글이 궁금해요</b>
-              <small>날짜와 모습으로 나를 찾는 구름을 확인해요</small>
+              <b>구름 확인하기</b>
+              <small>날짜와 그날의 내 모습을 입력해 나를 찾는 구름이 있는지 확인해요</small>
             </span>
             <span className="homeV2ActionChevron">
               <ChevronRightIcon />
@@ -6282,8 +6283,8 @@ useEffect(() => {
           <button type="button" onClick={openFindOwnerPage} className="homeV2ActionCard tertiary">
             <span className="homeV2ActionIcon blue">✉️</span>
             <span className="homeV2ActionText">
-              <b>오늘의 구름을 둘러볼래요</b>
-              <small>공개된 구름을 보고 친구에게 알려줘요</small>
+              <b>구름 친구에게 보내기</b>
+              <small>공개된 구름에서 떠오르는 친구를 찾아 링크로 바로 알려줘요</small>
             </span>
             <span className="homeV2ActionChevron">
               <ChevronRightIcon />
