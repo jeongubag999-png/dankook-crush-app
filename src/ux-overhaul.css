@@ -752,6 +752,358 @@ body {
   line-height: 14px;
 }
 
+/* Beginner-friendly record calendar: strong hierarchy, large targets, clear states. */
+.app .cloudCalendarCard {
+  padding: 24px 20px 28px;
+  background:
+    radial-gradient(circle at 100% 0%, rgba(72, 137, 255, 0.12), transparent 34%),
+    var(--v2-surface);
+}
+
+.app .cloudCalendarTop {
+  display: flex;
+  align-items: flex-start;
+  gap: 12px;
+  text-align: left;
+  margin-bottom: 22px;
+}
+
+.app .cloudCalendarTopIcon {
+  width: 46px;
+  height: 46px;
+  flex: 0 0 auto;
+  display: grid;
+  place-items: center;
+  border-radius: 15px;
+  background: linear-gradient(145deg, #edf4ff, #dce9ff);
+  font-size: 22px;
+  box-shadow: inset 0 0 0 1px rgba(49, 100, 205, 0.08);
+}
+
+.app .cloudCalendarHeaderCopy {
+  min-width: 0;
+}
+
+.app .cloudCalendarHeaderCopy .pageEyebrow,
+.app .cloudCalendarHeaderCopy h2,
+.app .cloudCalendarHeaderCopy .subtitle {
+  text-align: left;
+}
+
+.app .cloudCalendarHeaderCopy h2 {
+  margin: 2px 0 5px;
+  font-size: clamp(24px, 6vw, 31px);
+}
+
+.app .cloudCalendarHeaderCopy .subtitle {
+  margin: 0;
+  line-height: 1.55;
+  word-break: keep-all;
+}
+
+.app .cloudCalendarMonthNav {
+  grid-template-columns: 46px minmax(0, 1fr) 46px;
+  gap: 8px;
+  margin: 0 0 18px;
+  padding: 8px;
+  border: 1px solid var(--v2-line);
+  border-radius: 18px;
+  background: rgba(248, 250, 255, 0.9);
+}
+
+.app .cloudCalendarMonthNav .cloudCalendarIconButton {
+  width: 46px;
+  height: 46px;
+  min-height: 46px;
+  border: 0;
+  border-radius: 14px;
+  background: var(--v2-surface);
+}
+
+.app .cloudCalendarMonthHeading {
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  gap: 8px;
+  min-width: 0;
+}
+
+.app .cloudCalendarMonthTitle {
+  margin: 0;
+  font-size: clamp(20px, 5vw, 26px);
+  white-space: nowrap;
+}
+
+.app .cloudCalendarTodayButton {
+  width: auto;
+  min-width: 48px;
+  min-height: 32px;
+  height: 32px;
+  margin: 0;
+  padding: 0 10px;
+  border: 1px solid rgba(49, 100, 205, 0.18);
+  border-radius: 999px;
+  background: #edf4ff;
+  color: var(--v2-blue-dark);
+  box-shadow: none;
+  font-size: 12px;
+  font-weight: 800;
+}
+
+.app .cloudCalendarWeekdays {
+  margin-bottom: 6px;
+}
+
+.app .cloudCalendarWeekdays span {
+  font-size: 12px;
+}
+
+.app .cloudCalendarGrid {
+  gap: 5px;
+}
+
+.app .card .cloudCalendarGrid .cloudCalendarDay,
+.app .cloudCalendarDay {
+  position: relative;
+  min-height: 52px;
+  aspect-ratio: 1 / 1.08;
+  padding: 5px 2px 7px;
+  gap: 3px;
+  border-radius: 13px;
+  border: 1px solid transparent;
+  background: transparent;
+  color: #6f7b90;
+  transition: background 160ms ease, border-color 160ms ease, transform 160ms ease;
+}
+
+.app .cloudCalendarDay.checked {
+  background: #eef5ff;
+  color: var(--v2-ink);
+}
+
+.app .cloudCalendarDay.today::after {
+  content: "";
+  position: absolute;
+  top: 4px;
+  right: 5px;
+  width: 5px;
+  height: 5px;
+  border-radius: 50%;
+  background: #f5a940;
+}
+
+.app .cloudCalendarDay.selected {
+  border-color: var(--v2-blue);
+  background: var(--v2-blue);
+  color: #fff;
+  box-shadow: 0 8px 18px rgba(49, 100, 205, 0.2);
+}
+
+.app .cloudCalendarDay.selected .cloudCalendarCloudCount {
+  color: #fff;
+  background: rgba(255, 255, 255, 0.18);
+}
+
+.app .cloudCalendarDateNumber {
+  font-size: 17px;
+}
+
+.app .cloudCalendarCloudCount {
+  min-width: 20px;
+  min-height: 18px;
+  display: inline-grid;
+  place-items: center;
+  padding: 0 5px;
+  border-radius: 999px;
+  background: #dbe8ff;
+  color: var(--v2-blue-dark);
+  font-size: 10px;
+}
+
+.app .cloudCalendarLegend {
+  display: flex;
+  justify-content: flex-end;
+  gap: 14px;
+  margin-top: 12px;
+  color: var(--v2-muted);
+  font-size: 11.5px;
+  font-weight: 700;
+}
+
+.app .cloudCalendarLegend span {
+  display: inline-flex;
+  align-items: center;
+  gap: 6px;
+}
+
+.app .cloudCalendarLegend i {
+  width: 9px;
+  height: 9px;
+  border-radius: 3px;
+  background: #dbe8ff;
+}
+
+.app .cloudCalendarLegend i.selected {
+  background: var(--v2-blue);
+}
+
+.app .cloudCalendarSelectedDate {
+  display: flex;
+  align-items: flex-end;
+  justify-content: space-between;
+  gap: 12px;
+  margin: 24px 0 12px;
+  padding-top: 20px;
+  border-top: 1px solid var(--v2-line);
+}
+
+.app .cloudCalendarSelectedDate > div {
+  display: flex;
+  flex-direction: column;
+  gap: 4px;
+}
+
+.app .cloudCalendarSelectedLabel {
+  color: var(--v2-blue-dark);
+  font-size: 12px;
+  font-weight: 800;
+}
+
+.app .cloudCalendarSelectedDate b {
+  font-size: clamp(24px, 6vw, 30px);
+}
+
+.app .cloudCalendarSelectedDate > span {
+  padding-bottom: 4px;
+  font-size: 14px;
+}
+
+.app .cloudCalendarDetailCard {
+  margin: 0;
+  padding: 17px;
+  border: 1px solid rgba(49, 100, 205, 0.12);
+  border-radius: 18px;
+  background: linear-gradient(145deg, #eef6ff, #e6f1ff);
+}
+
+.app .cloudCalendarDetailHeader span {
+  line-height: 1.45;
+}
+
+.app .cloudCalendarEmptyAction {
+  margin-top: 0;
+  padding: 18px;
+  border: 1px dashed rgba(49, 100, 205, 0.25);
+  border-radius: 18px;
+  background: rgba(238, 245, 255, 0.65);
+  text-align: center;
+}
+
+.app .cloudCalendarEmptyAction p {
+  margin: 0 0 12px;
+  color: var(--v2-muted);
+  font-size: 13px;
+  line-height: 1.5;
+}
+
+.app .cloudCalendarEmptyAction button {
+  margin: 0;
+}
+
+/* Chat list deletion lives where users manage conversations, not inside a finished chat. */
+.app .chatListSwipeHint {
+  margin: 0 0 12px;
+  padding: 10px 12px;
+  border-radius: 12px;
+  background: var(--v2-blue-soft);
+  color: var(--v2-blue-dark);
+  font-size: 12px;
+  line-height: 1.45;
+  font-weight: 700;
+  word-break: keep-all;
+}
+
+.app .chatRoomSwipeRow {
+  position: relative;
+  overflow: hidden;
+  margin-bottom: 13px;
+  border-radius: var(--v2-radius-md);
+  background: #fff1f1;
+}
+
+.app .chatRoomSwipeDelete {
+  position: absolute;
+  inset: 0 auto 0 0;
+  width: 92px;
+  min-height: 100%;
+  margin: 0;
+  padding: 0;
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  justify-content: center;
+  gap: 4px;
+  border: 0;
+  border-radius: 0;
+  background: var(--v2-red);
+  color: #fff;
+  box-shadow: none;
+  font-size: 12px;
+  font-weight: 800;
+}
+
+.app .chatRoomSwipeRow .chatRoomListItem {
+  position: relative;
+  z-index: 1;
+  min-height: 84px;
+  margin: 0;
+  padding: 16px;
+  touch-action: pan-y;
+  transition: transform 180ms ease;
+}
+
+.app .chatRoomListInfo {
+  gap: 5px;
+}
+
+.app .chatRoomListPreview {
+  line-height: 1.45;
+}
+
+.app .chatRoomListStatus {
+  line-height: 1.35;
+}
+
+.app .chatMessageRow {
+  gap: 8px;
+}
+
+.app .chatBubble {
+  padding: 11px 14px;
+  line-height: 1.52;
+}
+
+@media (max-width: 420px) {
+  .app .cloudCalendarCard {
+    padding-inline: 16px;
+  }
+
+  .app .cloudCalendarMonthTitle {
+    font-size: 20px;
+  }
+
+  .app .cloudCalendarTodayButton {
+    min-width: 44px;
+    padding-inline: 8px;
+  }
+
+  .app .card .cloudCalendarGrid .cloudCalendarDay,
+  .app .cloudCalendarDay {
+    min-height: 46px;
+    border-radius: 11px;
+  }
+}
+
 /* Illustrated quick-start guide */
 .appGuideBackdrop {
   position: fixed;
