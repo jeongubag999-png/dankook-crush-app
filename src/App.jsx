@@ -37,8 +37,15 @@ import { StepProgress } from "./components/StepProgress";
 import { VerificationPendingPage } from "./components/VerificationPendingPage";
 import { AdminPage } from "./components/AdminPage";
 import { PrivacyPolicyPage } from "./components/PrivacyPolicyPage";
+import { TranslatedUserText } from "./components/TranslatedUserText";
 
 const PUBLIC_APP_URL = "https://dankook-crush-app.vercel.app";
+
+const getLocalizedSelectOptions = (options, language) =>
+  options.map((value) => ({
+    value,
+    label: language === "en" ? translateText(value, "en") : value,
+  }));
 
 function LocalizedDateInput({ language, value, onChange }) {
   const showEnglishFormat = language === "en" && !value;
@@ -102,7 +109,7 @@ import {
   pickImageFromLibrary,
 } from "./utils";
 import { submitDkuVerification } from "./dkuVerification";
-import { getAppLanguage, LANGUAGE_OPTIONS, setAppLanguage } from "./i18n";
+import { getAppLanguage, LANGUAGE_OPTIONS, setAppLanguage, translateText } from "./i18n";
 
 const CLOUD_SEND_MAX_SECONDS = 180;
 const CLOUD_SEND_STEP_NAMES = {
@@ -2046,6 +2053,26 @@ const hideSearchResult = (postId) => {
     return [...prev, postId];
   });
 };
+  const renderTranslatedCloudText = (
+    post,
+    text,
+    { field = "message", className = "message", quote = false, as = "p", fallback = "" } = {}
+  ) => {
+    const sourceText = field === "message" ? cleanMessage(text) : String(text || "").trim();
+    if (!sourceText) return fallback ? <p className={className}>{fallback}</p> : null;
+    return (
+      <TranslatedUserText
+        as={as}
+        text={sourceText}
+        language={language}
+        postId={post?.id}
+        field={field}
+        className={className}
+        quote={quote}
+      />
+    );
+  };
+
   const renderPostHeaderLine = (post) => {
     if (post.room === "language") {
       return `${post.lang_country || "-"} · ${(post.lang_spoken || []).join(", ") || "-"}`;
@@ -2103,7 +2130,11 @@ const hideSearchResult = (postId) => {
       return (
         <div className="qaBox">
           <p className="qaTitle">게시판 구름 게시글</p>
-          <p className="communityPostBody">{post.memory_story || post.message || "-"}</p>
+          {renderTranslatedCloudText(post, post.memory_story || post.message, {
+            field: post.memory_story ? "memory_story" : "message",
+            className: "communityPostBody",
+            fallback: "-",
+          })}
         </div>
       );
     }
@@ -2198,9 +2229,11 @@ const hideSearchResult = (postId) => {
           </div>
         )}
 
-        {post.sender_bio && (
-          <p className="senderIntroBio">“{post.sender_bio}”</p>
-        )}
+        {post.sender_bio && renderTranslatedCloudText(post, post.sender_bio, {
+          field: "sender_bio",
+          className: "senderIntroBio",
+          quote: true,
+        })}
       </div>
     );
   };
@@ -2328,9 +2361,12 @@ const hideSearchResult = (postId) => {
 
             <span className="cloudBoardMeta">{getCloudBoardMeta(post)}</span>
 
-            <span className="cloudBoardMessage">
-              “{cleanMessage(post.message) || "남긴 메시지가 없어요."}”
-            </span>
+            {renderTranslatedCloudText(post, post.message, {
+              className: "cloudBoardMessage",
+              as: "span",
+              quote: true,
+              fallback: "남긴 메시지가 없어요.",
+            })}
           </span>
 
           <span className={`cloudBoardChevron ${expanded ? "open" : ""}`}>
@@ -5341,17 +5377,6 @@ useEffect(() => {
   const cloudCalendarMonthTitle = `${cloudCalendarMonth.getFullYear()}년 ${
     cloudCalendarMonth.getMonth() + 1
   }월`;
-  const cloudCalendarMonthKey = `${cloudCalendarMonth.getFullYear()}-${String(
-    cloudCalendarMonth.getMonth() + 1
-  ).padStart(2, "0")}`;
-  const cloudCalendarMonthRecords = cloudCalendarRecords.filter((record) =>
-    String(record.checked_date || "").startsWith(cloudCalendarMonthKey)
-  );
-  const cloudCalendarMonthMatchedCount = cloudCalendarMonthRecords.reduce(
-    (sum, record) => sum + Number(record.matched_cloud_count || 0),
-    0
-  );
-
   const getCloudCalendarOutfitRows = (record) => {
     if (!record) return [];
 
@@ -5475,11 +5500,11 @@ useEffect(() => {
         <p className="qaTitle">{title}</p>
         <p><b>{renderPostHeaderLine(post)}</b></p>
         {renderPostQuestionAnswer(post)}
-        {!["memory", "past_connection"].includes(post.room) && (
-          <p className="message">
-            “{cleanMessage(post.message) || "남긴 메시지가 없어요."}”
-          </p>
-        )}
+        {!["memory", "past_connection"].includes(post.room) &&
+          renderTranslatedCloudText(post, post.message, {
+            quote: true,
+            fallback: "남긴 메시지가 없어요.",
+          })}
       </div>
     );
   };
@@ -5604,11 +5629,11 @@ useEffect(() => {
         <div className="postBody">
           {renderPostQuestionAnswer(post)}
 
-          {!["memory", "past_connection"].includes(post.room) && (
-            <p className="message">
-              “{cleanMessage(post.message) || "남긴 메시지가 없어요."}”
-            </p>
-          )}
+          {!["memory", "past_connection"].includes(post.room) &&
+            renderTranslatedCloudText(post, post.message, {
+              quote: true,
+              fallback: "남긴 메시지가 없어요.",
+            })}
 
           {mode === "empty" && (
     <div className="noticeBox">
@@ -5690,10 +5715,11 @@ useEffect(() => {
 
             {renderPostQuestionAnswer(post)}
 
-            <p className="message">
-              상대가 띄운 구름: “
-              {cleanMessage(post.message) || "남긴 메시지가 없어요."}”
-            </p>
+            <p className="message">상대가 띄운 구름:</p>
+            {renderTranslatedCloudText(post, post.message, {
+              quote: true,
+              fallback: "남긴 메시지가 없어요.",
+            })}
           </>
         ) : (
           <p className="notice">연결된 구름 글을 찾지 못했어요.</p>
@@ -5855,9 +5881,10 @@ useEffect(() => {
 
         {renderSenderIntro(post)}
 
-        <p className="message">
-          “{cleanMessage(post.message) || "남긴 메시지가 없어요."}”
-        </p>
+        {renderTranslatedCloudText(post, post.message, {
+          quote: true,
+          fallback: "남긴 메시지가 없어요.",
+        })}
 
         {renderCloudActionButtons(post)}
 
@@ -6757,17 +6784,6 @@ useEffect(() => {
             </button>
           </div>
 
-          <div className="cloudCalendarMonthlySummary" aria-label={`${cloudCalendarMonthTitle} 요약`}>
-            <div className="cloudCalendarSummaryCard checkedDays">
-              <span>확인한 날</span>
-              <b>{cloudCalendarMonthRecords.length}<small>일</small></b>
-            </div>
-            <div className="cloudCalendarSummaryCard foundClouds">
-              <span>찾은 구름</span>
-              <b>{cloudCalendarMonthMatchedCount}<small>개</small></b>
-            </div>
-          </div>
-
           {cloudCalendarLoading ? (
             <p className="noticeBox">구름 달력을 불러오는 중이에요...</p>
           ) : (
@@ -6828,23 +6844,18 @@ useEffect(() => {
                       aria-label={`${day.dateKey}, ${hasRecord ? `구름 확인 기록 있음, 찾은 구름 ${matchedCount}개` : "구름 확인 기록 없음"}`}
                     >
                       <span className="cloudCalendarDateNumber">{day.day}</span>
-                      <span
-                        className={`cloudCalendarCloudCount ${
-                          hasRecord ? (matchedCount > 0 ? "hasMatches" : "checkedZero") : "notChecked"
-                        }`}
-                      >
-                        {hasRecord ? `☁ ${matchedCount}개` : "미확인"}
-                      </span>
+                      {hasRecord && (
+                        <span
+                          className={`cloudCalendarCloudCount ${
+                            matchedCount > 0 ? "hasMatches" : "checkedZero"
+                          }`}
+                        >
+                          ☁ {matchedCount}개
+                        </span>
+                      )}
                     </button>
                   );
                 })}
-              </div>
-
-              <div className="cloudCalendarLegend" aria-label="달력 표시 안내">
-                <span><i className="unchecked" /> 확인 안 함</span>
-                <span><i className="checked" /> 확인 완료</span>
-                <span><i className="matched" /> 구름 발견</span>
-                <span><i className="selected" /> 선택 중</span>
               </div>
 
               <section className="cloudCalendarAgenda" aria-label={`${selectedCloudCalendarLabel} 기록`}>
@@ -7037,7 +7048,7 @@ useEffect(() => {
               <div className="formGroup">
                 <label className="formLabel">장소</label>
                 <SearchableSelect
-                  options={getPlaceOptions(profile.campus)}
+                  options={getLocalizedSelectOptions(getPlaceOptions(profile.campus), language)}
                   value={crushPost.place}
                   placeholder="장소 검색 또는 선택 (예: 도서관)"
                   onChange={(option) =>
@@ -7683,7 +7694,7 @@ useEffect(() => {
               <div className="formGroup">
                 <label className="formLabel">국적</label>
                 <SearchableSelect
-                  options={countryOptions}
+                  options={getLocalizedSelectOptions(countryOptions, language)}
                   value={crushPost.lang_country}
                   placeholder="국가 검색 또는 선택"
                   onChange={(option) =>
@@ -7935,7 +7946,10 @@ useEffect(() => {
 
                 {post.room === "memory" ? (
                   <>
-                    <p className="communityPostBody">{post.memory_story || post.message}</p>
+                    {renderTranslatedCloudText(post, post.memory_story || post.message, {
+                      field: post.memory_story ? "memory_story" : "message",
+                      className: "communityPostBody",
+                    })}
                     {post.sender_user_id !== currentUser?.id && (
                       <button
                         className="communityResponseButton"
@@ -8478,7 +8492,7 @@ useEffect(() => {
               <div className="formGroup">
                 <label className="formLabel">선호하는 상대 국가 (선택)</label>
                 <SearchableSelect
-                  options={["상관없음", ...countryOptions]}
+                  options={getLocalizedSelectOptions(["상관없음", ...countryOptions], language)}
                   value={searchForm.lang_country}
                   placeholder="국가 검색 또는 선택"
                   onChange={(option) =>
@@ -8586,9 +8600,10 @@ useEffect(() => {
 
           {renderSenderIntro(post)}
 
-          <p className="message">
-            “{cleanMessage(post.message) || "남긴 메시지가 없어요."}”
-          </p>
+          {renderTranslatedCloudText(post, post.message, {
+            quote: true,
+            fallback: "남긴 메시지가 없어요.",
+          })}
 
           {renderCloudActionButtons(post)}
 
@@ -8769,9 +8784,10 @@ useEffect(() => {
 
               {renderPostQuestionAnswer(selectedPost)}
 
-              {!["memory", "past_connection"].includes(selectedPost.room) && (
-                <p className="message">“{cleanMessage(selectedPost.message)}”</p>
-              )}
+              {!["memory", "past_connection"].includes(selectedPost.room) &&
+                renderTranslatedCloudText(selectedPost, selectedPost.message, {
+                  quote: true,
+                })}
             </div>
           )}
 
@@ -8975,9 +8991,10 @@ useEffect(() => {
 
               {renderSenderIntro(sharedPost)}
 
-              <p className="message">
-                “{cleanMessage(sharedPost.message) || "남긴 메시지가 없어요."}”
-              </p>
+              {renderTranslatedCloudText(sharedPost, sharedPost.message, {
+                quote: true,
+                fallback: "남긴 메시지가 없어요.",
+              })}
 
               {renderCloudActionButtons(sharedPost)}
             </div>
