@@ -17,6 +17,7 @@ import {
   SearchIcon,
   ListIcon,
   BellIcon,
+  HelpCircleIcon,
   PersonIcon,
   LanguageIcon,
   ChevronLeftIcon,
@@ -114,6 +115,38 @@ const getDisplayedCloudCount = (count) => Math.ceil((Number(count) || 0) * CLOUD
 const USER_COUNT_MULTIPLIER = 1.5;
 const getDisplayedUserCount = (count) => Math.ceil((Number(count) || 0) * USER_COUNT_MULTIPLIER);
 const HOME_BANNER_SLIDE_COUNT = 5;
+const APP_GUIDE_STEPS = [
+  {
+    image: "/guide/home.jpg",
+    alt: "단꿈 홈 화면과 세 가지 시작 메뉴",
+    title: "원하는 방법으로 시작해요",
+    description: "홈에서 구름을 띄우거나 확인하고, 친구에게 보내는 기능을 바로 선택할 수 있어요.",
+  },
+  {
+    image: "/guide/send.jpg",
+    alt: "시그널, 기억, 과거 인연, 글로벌 구름방 선택 화면",
+    title: "찾는 인연에 맞는 구름을 띄워요",
+    description: "시그널·기억·과거 인연·글로벌 중 알맞은 방을 골라 기억나는 단서와 메시지를 남겨요.",
+  },
+  {
+    image: "/guide/check.jpg",
+    alt: "나를 찾는 구름을 확인할 방을 선택하는 화면",
+    title: "나를 찾는 구름을 확인해요",
+    description: "날짜와 그날의 모습을 입력하거나 다른 구름방을 둘러보며 나를 찾는 글을 확인해요.",
+  },
+  {
+    image: "/guide/share.jpg",
+    alt: "응답을 기다리는 오늘의 공개 구름 목록",
+    title: "친구 같은 구름을 발견하면 알려줘요",
+    description: "‘이거 내 친구 같은데?’ 싶은 구름을 열고 링크를 보내 당사자가 확인할 수 있게 도와줘요.",
+  },
+  {
+    image: "/guide/my-clouds.jpg",
+    alt: "내가 띄운 구름과 새 응답을 관리하는 내 구름 화면",
+    title: "새 응답은 내 구름에서 확인해요",
+    description: "하단 내 구름에 숫자가 뜨면 새 응답이 온 거예요. 새로 온 응답 목록을 열면 숫자가 사라져요.",
+  },
+];
 const CLOUD_CHECK_STEP_NAMES = {
   1: "확인할 날짜",
   2: "헤어 정보",
@@ -232,6 +265,8 @@ const getKoreanWeekdayLabel = (dateString) => {
 
 function App() {
   const [page, setPage] = useState("home");
+  const [showAppGuide, setShowAppGuide] = useState(false);
+  const [appGuideStep, setAppGuideStep] = useState(0);
   const [language, setLanguage] = useState(getAppLanguage);
   const [languageMenuOpen, setLanguageMenuOpen] = useState(false);
   const [crushStep, setCrushStep] = useState(1);
@@ -451,13 +486,6 @@ const [verificationFile, setVerificationFile] = useState(null);
   const [matchingMode, setMatchingMode] = useState("sent");
   const [notificationFilter, setNotificationFilter] = useState("sent");
   const [expandedSentPostId, setExpandedSentPostId] = useState(null);
-  const [notificationSeenAt, setNotificationSeenAt] = useState(() => {
-    try {
-      return Number(localStorage.getItem("dankkum_notification_seen_at") || 0);
-    } catch {
-      return 0;
-    }
-  });
   const [sentNotificationSeenAt, setSentNotificationSeenAt] = useState(() => {
     try {
       return Number(localStorage.getItem("dankkum_sent_notification_seen_at") || 0);
@@ -5149,18 +5177,7 @@ useEffect(() => {
   const receivedNotificationUnreadCount = receivedNotificationItems.filter(
     (item) => getItemTime(item) > receivedNotificationSeenAt
   ).length;
-  const notificationBadgeCount = Math.min(
-    notificationItems.filter((item) => getItemTime(item) > notificationSeenAt).length,
-    99
-  );
-
-  const markNotificationSeen = () => {
-    const now = Date.now();
-    setNotificationSeenAt(now);
-    try {
-      localStorage.setItem("dankkum_notification_seen_at", String(now));
-    } catch {}
-  };
+  const newResponseBadgeCount = sentNotificationUnreadCount;
 
   const markNotificationGroupSeen = (group) => {
     const now = Date.now();
@@ -5180,18 +5197,18 @@ useEffect(() => {
   const openNotificationsPage = async () => {
     const nextNotificationGroup =
       receivedNotificationUnreadCount > sentNotificationUnreadCount ? "received" : "sent";
-    markNotificationSeen();
-    markNotificationGroupSeen(nextNotificationGroup);
     setNotificationFilter(nextNotificationGroup);
     setMatchingMode(nextNotificationGroup);
     await openMatchingPage();
   };
 
-  const renderBellWithBadge = (size = 21) => (
+  const renderMyCloudNavIcon = (size = 21) => (
     <span className="notificationBellWrap">
       <BellIcon size={size} />
-      {notificationBadgeCount > 0 && (
-        <span className="notificationBadge">{notificationBadgeCount}</span>
+      {newResponseBadgeCount > 0 && (
+        <span className="notificationBadge" aria-label={`새 응답 ${newResponseBadgeCount}개`}>
+          {newResponseBadgeCount > 99 ? "99+" : newResponseBadgeCount}
+        </span>
       )}
     </span>
   );
@@ -5755,7 +5772,7 @@ useEffect(() => {
       {
         key: "responses",
         label: "내 구름",
-        icon: renderBellWithBadge(20),
+        icon: renderMyCloudNavIcon(20),
         active: page === "matching" || page === "claim",
         onClick: () => {
           setMatchingMode("sent");
@@ -6183,10 +6200,13 @@ useEffect(() => {
               <button
                 type="button"
                 className="homeV2IconBtn"
-                aria-label="알림"
-                onClick={openNotificationsPage}
+                aria-label="단꿈 사용 안내"
+                onClick={() => {
+                  setAppGuideStep(0);
+                  setShowAppGuide(true);
+                }}
               >
-                {renderBellWithBadge(19)}
+                <HelpCircleIcon size={20} />
               </button>
               <div className="homeLanguagePicker">
                 <button
@@ -8981,7 +9001,7 @@ useEffect(() => {
                 aria-label="알림"
                 onClick={openNotificationsPage}
               >
-                {renderBellWithBadge(21)}
+                <BellIcon size={21} />
               </button>
               <button
                 type="button"
@@ -9390,6 +9410,86 @@ useEffect(() => {
             </div>
           )}
 
+	        </div>
+	      )}
+	      {showAppGuide && (
+	        <div
+	          className="appGuideBackdrop"
+	          role="presentation"
+	          onMouseDown={(event) => {
+	            if (event.target === event.currentTarget) setShowAppGuide(false);
+	          }}
+	        >
+	          <section
+	            className="appGuideDialog"
+	            role="dialog"
+	            aria-modal="true"
+	            aria-labelledby="app-guide-title"
+	          >
+	            <header className="appGuideHeader">
+	              <div>
+	                <span>단꿈 사용 안내</span>
+	                <h2 id="app-guide-title">처음이어도 쉽게 시작해요</h2>
+	              </div>
+	              <button
+	                type="button"
+	                className="appGuideClose"
+	                aria-label="사용 안내 닫기"
+	                onClick={() => setShowAppGuide(false)}
+	              >
+	                ×
+	              </button>
+	            </header>
+
+	            <div className="appGuideImageFrame">
+	              <img
+	                src={APP_GUIDE_STEPS[appGuideStep].image}
+	                alt={APP_GUIDE_STEPS[appGuideStep].alt}
+	              />
+	            </div>
+
+	            <div className="appGuideCopy" aria-live="polite">
+	              <span>{appGuideStep + 1} / {APP_GUIDE_STEPS.length}</span>
+	              <h3>{APP_GUIDE_STEPS[appGuideStep].title}</h3>
+	              <p>{APP_GUIDE_STEPS[appGuideStep].description}</p>
+	            </div>
+
+	            <div className="appGuideDots" aria-label="사용 안내 단계">
+	              {APP_GUIDE_STEPS.map((step, index) => (
+	                <button
+	                  type="button"
+	                  key={step.title}
+	                  className={index === appGuideStep ? "active" : ""}
+	                  aria-label={`${index + 1}단계: ${step.title}`}
+	                  aria-current={index === appGuideStep ? "step" : undefined}
+	                  onClick={() => setAppGuideStep(index)}
+	                />
+	              ))}
+	            </div>
+
+	            <div className="appGuideActions">
+	              <button
+	                type="button"
+	                className="white"
+	                disabled={appGuideStep === 0}
+	                onClick={() => setAppGuideStep((step) => Math.max(0, step - 1))}
+	              >
+	                이전
+	              </button>
+	              <button
+	                type="button"
+	                onClick={() => {
+	                  if (appGuideStep === APP_GUIDE_STEPS.length - 1) {
+	                    setShowAppGuide(false);
+	                    return;
+	                  }
+	                  setAppGuideStep((step) => Math.min(APP_GUIDE_STEPS.length - 1, step + 1));
+	                }}
+	              >
+	                {appGuideStep === APP_GUIDE_STEPS.length - 1 ? "확인했어요" : "다음"}
+	              </button>
+	            </div>
+	          </section>
 	        </div>
 	      )}
 	      {page !== "chatRoom" && renderBottomNav()}
