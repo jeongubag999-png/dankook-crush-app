@@ -6789,6 +6789,8 @@ useEffect(() => {
                   const dayClasses = [
                     "cloudCalendarDay",
                     hasRecord ? "checked" : "unchecked",
+                    hasRecord && matchedCount > 0 ? "matched" : "",
+                    hasRecord && matchedCount === 0 ? "checkedEmpty" : "",
                     day.dayOfWeek === 0 ? "sunday" : "",
                     day.dayOfWeek === 6 ? "saturday" : "",
                     isToday ? "today" : "",
@@ -6822,7 +6824,9 @@ useEffect(() => {
               </div>
 
               <div className="cloudCalendarLegend" aria-label="달력 표시 안내">
+                <span><i className="unchecked" /> 확인 안 한 날</span>
                 <span><i className="checked" /> 확인한 날</span>
+                <span><i className="matched" /> 구름 찾은 날</span>
                 <span><i className="selected" /> 선택한 날</span>
               </div>
 
@@ -9126,24 +9130,6 @@ useEffect(() => {
               <p className="responseHeaderDescription">
                 내가 띄운 구름, 받은 응답, 확인한 구름을 한곳에서 관리해요.
               </p>
-            </div>
-            <div className="manageHeaderIcons">
-              <button
-                type="button"
-                className="manageHeaderIconBtn"
-                aria-label="알림"
-                onClick={openNotificationsPage}
-              >
-                <BellIcon size={21} />
-              </button>
-              <button
-                type="button"
-                className="manageHeaderIconBtn"
-                aria-label="구름 확인 기록 보기"
-                onClick={openCloudCalendarPage}
-              >
-                <CalendarIcon size={21} />
-              </button>
             </div>
           </div>
 

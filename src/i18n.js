@@ -1050,6 +1050,8 @@ const englishOverrides = {
   "날짜를 누르면 그날 입력한 모습과 찾은 구름 수를 볼 수 있어요.": "Tap a date to see what you entered and how many clouds you found that day.",
   "오늘": "Today",
   "확인한 날": "Checked day",
+  "확인 안 한 날": "Not checked",
+  "구름 찾은 날": "Clouds found",
   "선택한 날": "Selected day",
   "선택한 날짜": "Selected date",
   "이날 확인한 내용": "What you checked that day",
