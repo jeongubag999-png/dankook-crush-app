@@ -1,9 +1,13 @@
 // Internal growth-seeding script — NOT part of the app.
-// Signs in as the 15 seed accounts (test12..test26) and posts one new
-// "crush" cloud each, dated today, with a random time slot strictly before
-// 15:00 KST (so nothing ever looks like it happened in the future when this
-// runs at 15:00 KST daily). Content (place/outfit/message) is randomized
-// from the same option pools the real send-cloud form uses.
+// Meant to run once per hour (cron fires hourly). Each run looks up the
+// current Asia/Seoul hour in HOURLY_PLAN and posts only the seed accounts
+// scheduled for that hour, so the 25 fake "crush cloud" posts trickle in
+// across the day instead of appearing all at once:
+//   - 09~14시: 15 posts, "seen" sometime in the 08:00~14:00 window
+//   - 15~17시: 5 posts, "seen" sometime in the 14:00~18:00 window
+//   - 22~23시: 5 posts at 학교 앞 상권 bars/편의점 (볶신/곰포차/혜자/낭만단대/세븐일레븐),
+//     "seen" in the 22:00~24:00 window
+// Hours with no plan entry are a no-op.
 //
 // Run: node scripts/seed-daily-cloud-posts.mjs
 import { createClient } from "@supabase/supabase-js";
@@ -24,21 +28,49 @@ const makeAuthEmail = (loginId) => {
   return `user-${encodedId}@dankum.app`;
 };
 
-const todayInSeoul = () =>
-  new Intl.DateTimeFormat("en-CA", {
+const nowInSeoul = () => {
+  const parts = new Intl.DateTimeFormat("en-CA", {
     timeZone: "Asia/Seoul",
     year: "numeric",
     month: "2-digit",
     day: "2-digit",
-  }).format(new Date());
+    hour: "2-digit",
+    hour12: false,
+  }).formatToParts(new Date());
+  const get = (type) => parts.find((p) => p.type === type)?.value;
+  return { date: `${get("year")}-${get("month")}-${get("day")}`, hour: Number(get("hour")) };
+};
 
-const LOGIN_IDS = [
-  "test12", "test13", "test14", "test15", "test16", "test17", "test18",
-  "test19", "test20", "test21", "test22", "test23", "test24", "test25", "test26",
-];
+// Morning window (09~14시 KST): 15 posts, one per seed account.
+const MORNING_TIME_SLOTS = ["08:00~10:00", "10:00~12:00", "12:00~14:00"];
+// Afternoon window (15~17시 KST): 5 posts.
+const AFTERNOON_TIME_SLOTS = ["14:00~16:00", "16:00~18:00"];
+// Night window (22~23시 KST): fixed, matches the 10pm~midnight ask exactly.
+const NIGHT_TIME_SLOT = "22:00~24:00";
 
-// Strictly before 15:00 so a 15:00 KST run never posts a "future" sighting.
-const TIME_SLOTS = ["08:00~10:00", "10:00~12:00", "12:00~14:00"];
+const NIGHT_VENUES = ["볶신", "곰포차", "혜자", "낭만단대", "세븐일레븐"];
+
+// hour (KST, 0~23) -> list of { loginId, kind }. kind: "morning" | "afternoon" | { venue }
+const HOURLY_PLAN = {
+  9: [{ loginId: "test12", kind: "morning" }, { loginId: "test13", kind: "morning" }, { loginId: "test14", kind: "morning" }],
+  10: [{ loginId: "test15", kind: "morning" }, { loginId: "test16", kind: "morning" }],
+  11: [{ loginId: "test17", kind: "morning" }, { loginId: "test18", kind: "morning" }, { loginId: "test19", kind: "morning" }],
+  12: [{ loginId: "test20", kind: "morning" }, { loginId: "test21", kind: "morning" }],
+  13: [{ loginId: "test22", kind: "morning" }, { loginId: "test23", kind: "morning" }, { loginId: "test24", kind: "morning" }],
+  14: [{ loginId: "test25", kind: "morning" }, { loginId: "test26", kind: "morning" }],
+  15: [{ loginId: "test12", kind: "afternoon" }, { loginId: "test16", kind: "afternoon" }],
+  16: [{ loginId: "test20", kind: "afternoon" }, { loginId: "test24", kind: "afternoon" }],
+  17: [{ loginId: "test26", kind: "afternoon" }],
+  22: [
+    { loginId: "test13", kind: "night", venue: "볶신" },
+    { loginId: "test17", kind: "night", venue: "곰포차" },
+    { loginId: "test21", kind: "night", venue: "혜자" },
+  ],
+  23: [
+    { loginId: "test25", kind: "night", venue: "낭만단대" },
+    { loginId: "test14", kind: "night", venue: "세븐일레븐" },
+  ],
+};
 
 const PLACES = [
   "평화의광장/곰상", "국제관", "글로컬산학협력관", "난파음악관", "노천마당",
@@ -94,15 +126,15 @@ const MESSAGES = [
   "정류장에서 폰 보고 계셨는데 그 모습도 예뻤어요",
 ];
 
+const NIGHT_MESSAGES = [
+  "술집에서 친구들이랑 계셨는데 너무 예뻐서 계속 쳐다봤어요",
+  "혼자 계산하러 나오셨는데 그 잠깐 사이에 반했어요",
+  "일행이랑 웃으면서 나오시는데 너무 눈에 띄었어요",
+  "편의점에서 잠깐 마주쳤는데 계속 생각나서 올려봐요",
+  "밤에 친구들이랑 걸어가시는 거 보고 인연이었으면 했어요",
+];
+
 const pick = (arr) => arr[Math.floor(Math.random() * arr.length)];
-const shuffle = (arr) => {
-  const a = [...arr];
-  for (let i = a.length - 1; i > 0; i--) {
-    const j = Math.floor(Math.random() * (i + 1));
-    [a[i], a[j]] = [a[j], a[i]];
-  }
-  return a;
-};
 
 const OUTFIT_PART_LABELS = { top: "상의", outer: "아우터", bottom: "하의" };
 
@@ -114,126 +146,132 @@ const buildRandomLook = () => {
   return { top, outer, bottom };
 };
 
+const buildPlanForEntry = (entry) => {
+  if (entry.kind === "morning") {
+    return { timePeriod: pick(MORNING_TIME_SLOTS), place: pick(PLACES), mainPlace: null, detailPlace: "", message: pick(MESSAGES) };
+  }
+  if (entry.kind === "afternoon") {
+    return { timePeriod: pick(AFTERNOON_TIME_SLOTS), place: pick(PLACES), mainPlace: null, detailPlace: "", message: pick(MESSAGES) };
+  }
+  // night
+  const mainPlace = "학교 앞 상권/거리";
+  return {
+    timePeriod: NIGHT_TIME_SLOT,
+    place: `${mainPlace} - ${entry.venue}`,
+    mainPlace,
+    detailPlace: entry.venue,
+    message: pick(NIGHT_MESSAGES),
+  };
+};
+
+async function postOne(entry) {
+  const supabase = createClient(SUPABASE_URL, SUPABASE_ANON_KEY);
+  const email = makeAuthEmail(entry.loginId);
+
+  const { data: signInData, error: signInError } = await supabase.auth.signInWithPassword({
+    email,
+    password: entry.loginId,
+  });
+  if (signInError) return { ...entry, ok: false, step: "signIn", error: signInError.message };
+  const user = signInData.user;
+
+  const { data: profileRow, error: profileFetchError } = await supabase
+    .from("profiles")
+    .select("nickname, department, mbti, bio, instagram_id, campus")
+    .eq("user_id", user.id)
+    .single();
+  if (profileFetchError) return { ...entry, ok: false, step: "profileFetch", error: profileFetchError.message };
+
+  const { date: seenDate } = nowInSeoul();
+  const look = buildRandomLook();
+  const { timePeriod, place, mainPlace, detailPlace, message } = buildPlanForEntry(entry);
+  const hairColor = pick(HAIR_COLORS);
+  const hat = pick(HAT_STATUSES);
+  const bangs = pick(BANGS_STATUSES);
+  const glasses = pick(GLASSES_STATUSES);
+  const shoe = pick(SHOE_TYPES);
+  const bag = pick(BAG_TYPES);
+  const earphone = pick(EARPHONE_TYPES);
+
+  const parts = ["top", "outer", "bottom"].filter((part) => look[part]);
+  const structuredOutfitText = parts
+    .map((part) => `${OUTFIT_PART_LABELS[part]}: ${look[part].color} ${look[part].type}`)
+    .join(" / ");
+  const clothesStyleText = [structuredOutfitText, message].filter(Boolean).join(" / 자세히: ");
+  const hairFeatureText = [hairColor, hat, bangs, message].filter(Boolean).join(" / ");
+  const accessoryText = [glasses, bag, earphone, shoe, message].filter(Boolean).join(" / ");
+  const pickedColor = parts.map((part) => look[part].color).find(Boolean) || "";
+
+  const postData = {
+    sender_user_id: user.id,
+    room: "crush",
+    seen_date: seenDate,
+    place,
+    main_place: mainPlace || place,
+    detail_place: detailPlace,
+    time_period: timePeriod,
+    hair_feature: hairFeatureText,
+    hair_color: hairColor,
+    hat_status: hat,
+    bangs_status: bangs,
+    glasses_status: glasses,
+    top_type: look.top?.type || "",
+    top_color: look.top?.color || "",
+    top_detail: "",
+    outer_type: look.outer?.type || "",
+    outer_color: look.outer?.color || "",
+    bottom_type: look.bottom?.type || "",
+    bottom_color: look.bottom?.color || "",
+    bottom_detail: "",
+    shoe_type: shoe,
+    shoe_detail: "",
+    bag_type: bag,
+    earphone_type: earphone,
+    item_detail: "",
+    clothes_color: pickedColor,
+    clothes_style: clothesStyleText,
+    accessory: accessoryText,
+    message,
+    sender_nickname: profileRow.nickname,
+    sender_instagram: profileRow.instagram_id || "",
+    sender_gender: "남자",
+    sender_department: profileRow.department,
+    sender_mbti: profileRow.mbti,
+    sender_bio: profileRow.bio,
+    target_gender: "여자",
+    campus: profileRow.campus,
+  };
+
+  const { error: insertError } = await supabase.from("crush_posts").insert([postData]);
+  if (insertError) return { ...entry, ok: false, step: "insert", error: insertError.message };
+
+  return { ...entry, ok: true, place, timePeriod };
+}
+
 async function main() {
-  const seenDate = todayInSeoul();
-  // Assign slots round-robin across the 3 pre-3pm buckets, shuffled.
-  const slotAssignment = shuffle(
-    LOGIN_IDS.map((_, i) => TIME_SLOTS[i % TIME_SLOTS.length])
-  );
-  const messagePool = shuffle(MESSAGES);
-  const placePool = shuffle(PLACES);
+  const { date, hour } = nowInSeoul();
+  const entries = HOURLY_PLAN[hour];
 
-  const results = [];
-
-  for (let i = 0; i < LOGIN_IDS.length; i++) {
-    const loginId = LOGIN_IDS[i];
-    const supabase = createClient(SUPABASE_URL, SUPABASE_ANON_KEY);
-    const email = makeAuthEmail(loginId);
-
-    try {
-      const { data: signInData, error: signInError } = await supabase.auth.signInWithPassword({
-        email,
-        password: loginId,
-      });
-      if (signInError) {
-        results.push({ loginId, ok: false, step: "signIn", error: signInError.message });
-        continue;
-      }
-      const user = signInData.user;
-
-      const { data: profileRow, error: profileFetchError } = await supabase
-        .from("profiles")
-        .select("nickname, department, mbti, bio, instagram_id, campus")
-        .eq("user_id", user.id)
-        .single();
-      if (profileFetchError) {
-        results.push({ loginId, ok: false, step: "profileFetch", error: profileFetchError.message });
-        continue;
-      }
-
-      const look = buildRandomLook();
-      const message = messagePool[i % messagePool.length];
-      const place = placePool[i % placePool.length];
-      const timePeriod = slotAssignment[i];
-      const hairColor = pick(HAIR_COLORS);
-      const hat = pick(HAT_STATUSES);
-      const bangs = pick(BANGS_STATUSES);
-      const glasses = pick(GLASSES_STATUSES);
-      const shoe = pick(SHOE_TYPES);
-      const bag = pick(BAG_TYPES);
-      const earphone = pick(EARPHONE_TYPES);
-
-      const parts = ["top", "outer", "bottom"].filter((part) => look[part]);
-      const structuredOutfitText = parts
-        .map((part) => `${OUTFIT_PART_LABELS[part]}: ${look[part].color} ${look[part].type}`)
-        .join(" / ");
-      const clothesStyleText = [structuredOutfitText, message].filter(Boolean).join(" / 자세히: ");
-      const hairFeatureText = [hairColor, hat, bangs, message].filter(Boolean).join(" / ");
-      const accessoryText = [glasses, bag, earphone, shoe, message].filter(Boolean).join(" / ");
-      const pickedColor = parts.map((part) => look[part].color).find(Boolean) || "";
-
-      const postData = {
-        sender_user_id: user.id,
-        room: "crush",
-        seen_date: seenDate,
-        place,
-        main_place: place,
-        detail_place: "",
-        time_period: timePeriod,
-        hair_feature: hairFeatureText,
-        hair_color: hairColor,
-        hat_status: hat,
-        bangs_status: bangs,
-        glasses_status: glasses,
-        top_type: look.top?.type || "",
-        top_color: look.top?.color || "",
-        top_detail: "",
-        outer_type: look.outer?.type || "",
-        outer_color: look.outer?.color || "",
-        bottom_type: look.bottom?.type || "",
-        bottom_color: look.bottom?.color || "",
-        bottom_detail: "",
-        shoe_type: shoe,
-        shoe_detail: "",
-        bag_type: bag,
-        earphone_type: earphone,
-        item_detail: "",
-        clothes_color: pickedColor,
-        clothes_style: clothesStyleText,
-        accessory: accessoryText,
-        message,
-        sender_nickname: profileRow.nickname,
-        sender_instagram: profileRow.instagram_id || "",
-        sender_gender: "남자",
-        sender_department: profileRow.department,
-        sender_mbti: profileRow.mbti,
-        sender_bio: profileRow.bio,
-        target_gender: "여자",
-        campus: profileRow.campus,
-      };
-
-      const { error: insertError } = await supabase.from("crush_posts").insert([postData]);
-      if (insertError) {
-        results.push({ loginId, ok: false, step: "insert", error: insertError.message });
-        continue;
-      }
-
-      results.push({ loginId, ok: true, place, timePeriod });
-    } catch (e) {
-      results.push({ loginId, ok: false, step: "exception", error: String(e) });
-    }
+  if (!entries) {
+    console.log(`${date} ${hour}시 KST — 이 시간대에는 예정된 게시가 없습니다.`);
+    return;
   }
 
-  console.log(`\n=== ${seenDate} 구름 시딩 결과 ===`);
+  const results = [];
+  for (const entry of entries) {
+    results.push(await postOne(entry));
+  }
+
+  console.log(`\n=== ${date} ${hour}시 KST 구름 시딩 결과 ===`);
   for (const r of results) {
     console.log(
       r.ok
-        ? `✅ ${r.loginId} — ${r.place} ${r.timePeriod}`
+        ? `✅ ${r.loginId} (${r.kind}) — ${r.place} ${r.timePeriod}`
         : `❌ ${r.loginId} — 실패 at ${r.step}: ${r.error}`
     );
   }
   const okCount = results.filter((r) => r.ok).length;
-  console.log(`\n${okCount}/${LOGIN_IDS.length} 완료`);
+  console.log(`\n${okCount}/${entries.length} 완료`);
 }
 
 main();
