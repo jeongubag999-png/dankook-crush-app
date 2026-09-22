@@ -1403,3 +1403,296 @@ body {
     transition-duration: 0.01ms !important;
   }
 }
+
+/* Planit-inspired calendar: dense month overview with readable, in-cell status cards. */
+.app .cloudCalendarCard {
+  padding: 22px 18px 28px;
+  border: 1px solid #dfe7f4;
+  background: linear-gradient(180deg, #f7faff 0%, #ffffff 34%);
+}
+
+.app .cloudCalendarTop {
+  margin-bottom: 18px;
+}
+
+.app .cloudCalendarHeaderCopy h2 {
+  margin-top: 3px;
+  font-size: clamp(28px, 7vw, 36px);
+  letter-spacing: -0.04em;
+}
+
+.app .cloudCalendarHeaderCopy .subtitle {
+  max-width: 440px;
+  color: #63708a;
+}
+
+.app .cloudCalendarMonthNav {
+  margin-bottom: 12px;
+  padding: 7px;
+  border-color: #e3e9f3;
+  border-radius: 20px;
+  background: #f4f7fc;
+}
+
+.app .cloudCalendarMonthNav .cloudCalendarIconButton {
+  border: 1px solid #e6ebf4;
+  background: #fff;
+  box-shadow: 0 5px 14px rgba(26, 46, 82, 0.06);
+}
+
+.app .cloudCalendarMonthTitle {
+  color: #101f3d;
+  font-size: clamp(20px, 5vw, 25px);
+  letter-spacing: -0.035em;
+}
+
+.app .cloudCalendarMonthlySummary {
+  display: grid;
+  grid-template-columns: repeat(2, minmax(0, 1fr));
+  gap: 10px;
+  margin: 0 0 18px;
+}
+
+.app .cloudCalendarSummaryCard {
+  min-height: 74px;
+  display: flex;
+  align-items: flex-end;
+  justify-content: space-between;
+  gap: 8px;
+  padding: 13px 15px;
+  border: 1px solid transparent;
+  border-radius: 17px;
+}
+
+.app .cloudCalendarSummaryCard.checkedDays {
+  border-color: #a9dfc6;
+  background: linear-gradient(145deg, #e9f9f2, #dff5eb);
+  color: #176548;
+}
+
+.app .cloudCalendarSummaryCard.foundClouds {
+  border-color: #ffd18a;
+  background: linear-gradient(145deg, #fff6e6, #ffedce);
+  color: #8b5500;
+}
+
+.app .cloudCalendarSummaryCard > span {
+  font-size: 12px;
+  font-weight: 800;
+}
+
+.app .cloudCalendarSummaryCard b {
+  font-size: 27px;
+  line-height: 1;
+  letter-spacing: -0.04em;
+}
+
+.app .cloudCalendarSummaryCard small {
+  margin-left: 3px;
+  font-size: 12px;
+}
+
+.app .cloudCalendarWeekdays {
+  gap: 4px;
+  margin: 0 0 7px;
+  padding: 0 2px;
+}
+
+.app .cloudCalendarWeekdays span {
+  font-size: 11px;
+  font-weight: 850;
+}
+
+.app .cloudCalendarGrid {
+  gap: 5px;
+}
+
+.app .card .cloudCalendarGrid .cloudCalendarDay,
+.app .cloudCalendarDay {
+  min-height: 72px;
+  aspect-ratio: auto;
+  align-items: flex-start;
+  justify-content: space-between;
+  gap: 5px;
+  padding: 8px 5px 6px;
+  border-width: 1px;
+  border-radius: 12px;
+  box-shadow: none;
+}
+
+.app .cloudCalendarBlank {
+  min-height: 72px;
+  aspect-ratio: auto;
+}
+
+.app .cloudCalendarDay.unchecked {
+  border-color: #e8ebf1;
+  background: #f7f8fb;
+  color: #8d96a8;
+}
+
+.app .cloudCalendarDay.checkedEmpty {
+  border-color: #9dd9bd;
+  background: #e6f7ef;
+  color: #176548;
+}
+
+.app .cloudCalendarDay.matched {
+  border-color: #ffc86f;
+  background: #fff0d7;
+  color: #8b5500;
+}
+
+.app .cloudCalendarDay.selected,
+.app .cloudCalendarDay.selected.checkedEmpty,
+.app .cloudCalendarDay.selected.matched,
+.app .cloudCalendarDay.selected.unchecked {
+  border-color: #173d7a;
+  background: inherit;
+  color: inherit;
+  outline: 2px solid #2f75df;
+  outline-offset: 1px;
+  box-shadow: 0 8px 20px rgba(38, 91, 173, 0.18);
+}
+
+.app .cloudCalendarDay.selected.checkedEmpty {
+  background: #e6f7ef;
+  color: #176548;
+}
+
+.app .cloudCalendarDay.selected.matched {
+  background: #fff0d7;
+  color: #8b5500;
+}
+
+.app .cloudCalendarDay.selected.unchecked {
+  background: #f7f8fb;
+  color: #697489;
+}
+
+.app .cloudCalendarDateNumber {
+  width: 100%;
+  padding-left: 2px;
+  text-align: left;
+  font-size: 16px;
+  line-height: 1;
+}
+
+.app .cloudCalendarDay.today::after {
+  top: 6px;
+  right: 7px;
+  width: 6px;
+  height: 6px;
+  background: #ff8a4c;
+  box-shadow: 0 0 0 2px rgba(255, 138, 76, 0.14);
+}
+
+.app .cloudCalendarCloudCount,
+.app .cloudCalendarDay.selected .cloudCalendarCloudCount {
+  width: 100%;
+  min-width: 0;
+  min-height: 19px;
+  padding: 4px 1px;
+  border: 0;
+  border-radius: 6px;
+  background: rgba(255, 255, 255, 0.72);
+  color: inherit;
+  font-size: 9px;
+  font-weight: 850;
+  line-height: 1;
+  letter-spacing: -0.04em;
+}
+
+.app .cloudCalendarCloudCount.notChecked {
+  background: transparent;
+  color: #9aa2b1;
+  font-size: 8.5px;
+}
+
+.app .cloudCalendarLegend {
+  gap: 7px 12px;
+  margin: 13px 2px 0;
+  font-size: 10.5px;
+}
+
+.app .cloudCalendarLegend i.selected {
+  border: 2px solid #2f75df;
+  background: #fff;
+}
+
+.app .cloudCalendarAgenda {
+  display: block;
+  margin-top: 22px;
+  padding: 17px;
+  border: 1px solid #e2e8f2;
+  border-radius: 21px;
+  background: #fff;
+  box-shadow: 0 14px 34px rgba(24, 48, 86, 0.08);
+}
+
+.app .cloudCalendarAgenda .cloudCalendarSelectedDate {
+  margin: 0 0 14px;
+  padding: 0 0 14px;
+  border-bottom: 1px solid #edf0f5;
+  border-top: 0;
+}
+
+.app .cloudCalendarSelectedMeta {
+  display: flex;
+  flex-direction: column;
+  align-items: flex-end;
+  gap: 6px;
+}
+
+.app .cloudCalendarSelectedMeta > span {
+  color: #78849a;
+  font-size: 13px;
+  font-weight: 750;
+}
+
+.app .cloudCalendarSelectedMeta strong {
+  padding: 5px 9px;
+  border-radius: 999px;
+  font-size: 10.5px;
+  font-weight: 850;
+}
+
+.app .cloudCalendarSelectedMeta .isChecked {
+  background: #def5e9;
+  color: #176548;
+}
+
+.app .cloudCalendarSelectedMeta .isUnchecked {
+  background: #eef1f5;
+  color: #697489;
+}
+
+.app .cloudCalendarAgenda .cloudCalendarDetailCard,
+.app .cloudCalendarAgenda .cloudCalendarEmptyAction {
+  margin: 0;
+}
+
+@media (max-width: 420px) {
+  .app .cloudCalendarCard {
+    padding-inline: 13px;
+  }
+
+  .app .cloudCalendarGrid {
+    gap: 4px;
+  }
+
+  .app .card .cloudCalendarGrid .cloudCalendarDay,
+  .app .cloudCalendarDay,
+  .app .cloudCalendarBlank {
+    min-height: 67px;
+  }
+
+  .app .cloudCalendarDay {
+    padding-inline: 4px;
+  }
+
+  .app .cloudCalendarCloudCount,
+  .app .cloudCalendarDay.selected .cloudCalendarCloudCount {
+    font-size: 8.5px;
+  }
+}

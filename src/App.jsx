@@ -5341,6 +5341,16 @@ useEffect(() => {
   const cloudCalendarMonthTitle = `${cloudCalendarMonth.getFullYear()}년 ${
     cloudCalendarMonth.getMonth() + 1
   }월`;
+  const cloudCalendarMonthKey = `${cloudCalendarMonth.getFullYear()}-${String(
+    cloudCalendarMonth.getMonth() + 1
+  ).padStart(2, "0")}`;
+  const cloudCalendarMonthRecords = cloudCalendarRecords.filter((record) =>
+    String(record.checked_date || "").startsWith(cloudCalendarMonthKey)
+  );
+  const cloudCalendarMonthMatchedCount = cloudCalendarMonthRecords.reduce(
+    (sum, record) => sum + Number(record.matched_cloud_count || 0),
+    0
+  );
 
   const getCloudCalendarOutfitRows = (record) => {
     if (!record) return [];
@@ -6705,12 +6715,11 @@ useEffect(() => {
 	      {page === "cloudCalendar" && (
 	        <div className="card cloudCalendarCard">
           <div className="cloudCalendarTop">
-            <span className="cloudCalendarTopIcon" aria-hidden="true">☁️</span>
             <div className="cloudCalendarHeaderCopy">
               <p className="pageEyebrow">기록</p>
-              <h2>내 구름 확인 기록</h2>
+              <h2>구름 캘린더</h2>
               <p className="subtitle">
-                날짜를 누르면 그날 입력한 모습과 찾은 구름 수를 볼 수 있어요.
+                내가 구름을 확인한 날과 찾은 구름 수를 월별로 모아봐요.
               </p>
             </div>
           </div>
@@ -6746,6 +6755,17 @@ useEffect(() => {
             >
               <ChevronRightIcon size={22} />
             </button>
+          </div>
+
+          <div className="cloudCalendarMonthlySummary" aria-label={`${cloudCalendarMonthTitle} 요약`}>
+            <div className="cloudCalendarSummaryCard checkedDays">
+              <span>확인한 날</span>
+              <b>{cloudCalendarMonthRecords.length}<small>일</small></b>
+            </div>
+            <div className="cloudCalendarSummaryCard foundClouds">
+              <span>찾은 구름</span>
+              <b>{cloudCalendarMonthMatchedCount}<small>개</small></b>
+            </div>
           </div>
 
           {cloudCalendarLoading ? (
@@ -6809,14 +6829,11 @@ useEffect(() => {
                     >
                       <span className="cloudCalendarDateNumber">{day.day}</span>
                       <span
-                        className={
-                          matchedCount > 0
-                            ? "cloudCalendarCloudCount"
-                            : "cloudCalendarCloudCount empty"
-                        }
-                        aria-hidden={matchedCount === 0}
+                        className={`cloudCalendarCloudCount ${
+                          hasRecord ? (matchedCount > 0 ? "hasMatches" : "checkedZero") : "notChecked"
+                        }`}
                       >
-                        {matchedCount > 0 ? `${matchedCount}` : "0"}
+                        {hasRecord ? `☁ ${matchedCount}개` : "미확인"}
                       </span>
                     </button>
                   );
@@ -6824,18 +6841,24 @@ useEffect(() => {
               </div>
 
               <div className="cloudCalendarLegend" aria-label="달력 표시 안내">
-                <span><i className="unchecked" /> 확인 안 한 날</span>
-                <span><i className="checked" /> 확인한 날</span>
-                <span><i className="matched" /> 구름 찾은 날</span>
-                <span><i className="selected" /> 선택한 날</span>
+                <span><i className="unchecked" /> 확인 안 함</span>
+                <span><i className="checked" /> 확인 완료</span>
+                <span><i className="matched" /> 구름 발견</span>
+                <span><i className="selected" /> 선택 중</span>
               </div>
 
+              <section className="cloudCalendarAgenda" aria-label={`${selectedCloudCalendarLabel} 기록`}>
               <div className="cloudCalendarSelectedDate">
                 <div>
                   <span className="cloudCalendarSelectedLabel">선택한 날짜</span>
                   <b>{selectedCloudCalendarLabel}</b>
                 </div>
-                <span>{getKoreanWeekdayLabel(selectedCloudCalendarDate)}요일</span>
+                <div className="cloudCalendarSelectedMeta">
+                  <span>{getKoreanWeekdayLabel(selectedCloudCalendarDate)}요일</span>
+                  <strong className={selectedCloudCalendarRecord ? "isChecked" : "isUnchecked"}>
+                    {selectedCloudCalendarRecord ? "확인 완료" : "확인 안 함"}
+                  </strong>
+                </div>
               </div>
 
               {selectedCloudCalendarRecord && (
@@ -6862,16 +6885,17 @@ useEffect(() => {
                   </div>
                 </div>
               )}
-            </>
-          )}
 
-          {!selectedCloudCalendarRecord && (
-            <div className="cloudCalendarEmptyAction">
-              <p>이 날짜에는 아직 구름을 확인한 기록이 없어요.</p>
-              <button onClick={openCloudCheckFromCalendar}>
-                이 날짜로 구름 확인하기
-              </button>
-            </div>
+              {!selectedCloudCalendarRecord && (
+                <div className="cloudCalendarEmptyAction">
+                  <p>이 날짜에는 아직 구름을 확인한 기록이 없어요.</p>
+                  <button onClick={openCloudCheckFromCalendar}>
+                    이 날짜로 구름 확인하기
+                  </button>
+                </div>
+              )}
+              </section>
+            </>
           )}
 	        </div>
 	      )}
