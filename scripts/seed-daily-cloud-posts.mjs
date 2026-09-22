@@ -257,8 +257,14 @@ async function main() {
     return;
   }
 
+  const sleep = (ms) => new Promise((resolve) => setTimeout(resolve, ms));
+
   const results = [];
   for (const entry of entries) {
+    // Small random gap so posts in the same hour don't land at the exact
+    // same timestamp (a real person wouldn't post two clouds in the same
+    // second either).
+    if (results.length > 0) await sleep(5000 + Math.random() * 45000);
     results.push(await postOne(entry));
   }
 
