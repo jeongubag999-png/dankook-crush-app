@@ -3,6 +3,7 @@ import toast, { Toaster } from "react-hot-toast";
 import { App as CapacitorApp } from "@capacitor/app";
 import "./App.css";
 import "./theme-v2.css";
+import "./ux-overhaul.css";
 import { supabase } from "./supabase";
 import { initPush, linkPushUser, unlinkPushUser } from "./push";
 import { OptionButton } from "./components/OptionButton";
@@ -5749,7 +5750,7 @@ useEffect(() => {
       },
       {
         key: "responses",
-        label: "응답",
+        label: "내 구름",
         icon: renderBellWithBadge(20),
         active: page === "matching" || page === "claim",
         onClick: () => {
@@ -5759,7 +5760,7 @@ useEffect(() => {
       },
       {
         key: "calendar",
-        label: "달력",
+        label: "기록",
         icon: <CalendarIcon size={20} />,
         active: page === "cloudCalendar",
         onClick: openCloudCalendarPage,
@@ -5773,7 +5774,7 @@ useEffect(() => {
       },
       {
         key: "profile",
-        label: "내 정보",
+        label: "프로필",
         icon: <PersonIcon size={20} />,
         active: page === "profile",
         onClick: openProfilePage,
@@ -5788,6 +5789,7 @@ useEffect(() => {
             key={item.key}
             className={item.active ? "bottomNavItem active" : "bottomNavItem"}
             onClick={item.onClick}
+            aria-current={item.active ? "page" : undefined}
           >
             <span className="bottomNavIcon">{item.icon}</span>
             <span>{item.label}</span>
@@ -6168,7 +6170,7 @@ useEffect(() => {
           <div className="homeV2Header">
             <div className="homeV2Greeting">
               <p>안녕하세요! 👋</p>
-              <h1>오늘도 좋은 구름이<br />떠오르길 바랄게요.</h1>
+              <h1>오늘, 어떤 인연을<br />찾고 있나요?</h1>
             </div>
             <div className="homeV2CloudMark" aria-hidden="true">
               <img src="/home-cloud-mark.png" alt="" />
@@ -6249,38 +6251,45 @@ useEffect(() => {
             </span>
           </div>
 
-          <button type="button" onClick={openNewCloudPage} className="homeV2ActionCard">
+          <section className="homeTaskSection" aria-labelledby="home-task-title">
+            <div className="homeSectionHeading">
+              <span>바로 시작하기</span>
+              <h2 id="home-task-title">무엇을 하고 싶나요?</h2>
+            </div>
+
+          <button type="button" onClick={openNewCloudPage} className="homeV2ActionCard primary">
             <span className="homeV2ActionIcon">☁️</span>
             <span className="homeV2ActionText">
-              <b>구름 띄우기</b>
-              <small>스쳐간 마음을 구름으로 남겨요.</small>
+              <b>사람을 찾고 싶어요</b>
+              <small>기억나는 단서를 적어 구름을 띄워요</small>
             </span>
             <span className="homeV2ActionChevron">
               <ChevronRightIcon />
             </span>
           </button>
 
-          <button type="button" onClick={() => openSearchPage()} className="homeV2ActionCard">
+          <button type="button" onClick={() => openSearchPage()} className="homeV2ActionCard secondary">
             <span className="homeV2ActionIcon amber">🔔</span>
             <span className="homeV2ActionText">
-              <b>구름 확인하기</b>
-              <small>그날의 모습으로 나를 찾는 구름을 찾아요.</small>
+              <b>나를 찾는 글이 궁금해요</b>
+              <small>날짜와 모습으로 나를 찾는 구름을 확인해요</small>
             </span>
             <span className="homeV2ActionChevron">
               <ChevronRightIcon />
             </span>
           </button>
 
-          <button type="button" onClick={openFindOwnerPage} className="homeV2ActionCard">
+          <button type="button" onClick={openFindOwnerPage} className="homeV2ActionCard tertiary">
             <span className="homeV2ActionIcon blue">✉️</span>
             <span className="homeV2ActionText">
-              <b>구름 찾아주기</b>
-              <small>오늘 뜬 구름을 한눈에 둘러봐요.</small>
+              <b>오늘의 구름을 둘러볼래요</b>
+              <small>공개된 구름을 보고 친구에게 알려줘요</small>
             </span>
             <span className="homeV2ActionChevron">
               <ChevronRightIcon />
             </span>
           </button>
+          </section>
 
           <div className="homeV2TodayCard">
             <div className="homeV2TodayHeader">
@@ -6329,27 +6338,39 @@ useEffect(() => {
             )}
           </div>
 
+          <section className="homeHowItWorks" aria-labelledby="how-it-works-title">
+            <div className="homeSectionHeading compact">
+              <span>처음이라면</span>
+              <h2 id="how-it-works-title">단꿈은 이렇게 이어져요</h2>
+            </div>
+            <ol>
+              <li><span className="homeHowItWorksNumber" aria-hidden="true">1</span><b>단서를 남겨요</b><span>날짜·장소·기억나는 특징을 적어요.</span></li>
+              <li><span className="homeHowItWorksNumber" aria-hidden="true">2</span><b>상대가 확인해요</b><span>자기 모습과 맞는 구름을 찾아요.</span></li>
+              <li><span className="homeHowItWorksNumber" aria-hidden="true">3</span><b>서로 동의하면 대화해요</b><span>수락 전에는 개인정보가 공개되지 않아요.</span></li>
+            </ol>
+          </section>
+
           <div className="homeV2TrustRow">
             <div className="homeV2TrustItem">
               <span className="homeV2TrustIcon">
                 <ShieldCheckIcon size={17} />
               </span>
-              <b>단국대 구성원 중심</b>
-              <span>안전한 캠퍼스 서비스</span>
+              <b>단국대 학생 인증</b>
+              <span>인증된 구성원이 이용해요</span>
             </div>
             <div className="homeV2TrustItem">
               <span className="homeV2TrustIcon">
                 <UsersIcon size={17} />
               </span>
-              <b>서로 동의할 때만 공개</b>
-              <span>원할 때만 인스타 공개</span>
+              <b>서로 동의한 연결</b>
+              <span>수락 후에만 대화가 열려요</span>
             </div>
             <div className="homeV2TrustItem">
               <span className="homeV2TrustIcon">
                 <TrashIcon size={17} />
               </span>
-              <b>내가 남긴 구름은 삭제 가능</b>
-              <span>언제든 관리할 수 있어요</span>
+              <b>신고·차단·삭제 지원</b>
+              <span>내 활동은 언제든 관리해요</span>
             </div>
           </div>
 
@@ -6426,11 +6447,15 @@ useEffect(() => {
             </p>
           </div>
 
-          <input
-            placeholder="닉네임 예: 정우23"
-            value={profile.nickname}
-            onChange={(e) => setProfile({ ...profile, nickname: e.target.value })}
-          />
+          <div className="formGroup">
+            <label className="formLabel" htmlFor="profile-nickname">닉네임</label>
+            <input
+              id="profile-nickname"
+              placeholder="예: 정우23"
+              value={profile.nickname}
+              onChange={(e) => setProfile({ ...profile, nickname: e.target.value })}
+            />
+          </div>
 
           <div className="formGroup">
             <label className="formLabel">성별</label>
@@ -6453,29 +6478,42 @@ useEffect(() => {
             )}
           </div>
 
-          <input
-            placeholder="학과 예: 글로벌경영학과 (필수)"
-            value={profile.department}
-            onChange={(e) =>
-              setProfile({ ...profile, department: e.target.value })
-            }
-          />
+          <div className="formGroup">
+            <label className="formLabel" htmlFor="profile-department">학과 <span className="requiredText">필수</span></label>
+            <input
+              id="profile-department"
+              placeholder="예: 글로벌경영학과"
+              value={profile.department}
+              onChange={(e) =>
+                setProfile({ ...profile, department: e.target.value })
+              }
+            />
+          </div>
 
-          <input
-            placeholder="학번 표시 예: 23학번 또는 32240000"
-            value={profile.student_year}
-            onChange={(e) =>
-              setProfile({ ...profile, student_year: e.target.value })
-            }
-          />
+          <div className="formGroup">
+            <label className="formLabel" htmlFor="profile-student-year">학번 표시</label>
+            <input
+              id="profile-student-year"
+              placeholder="예: 23학번 또는 32240000"
+              value={profile.student_year}
+              onChange={(e) =>
+                setProfile({ ...profile, student_year: e.target.value })
+              }
+            />
+          </div>
 
-          <input
-            placeholder="인스타 아이디 예: dankum_test"
-            value={profile.instagram_id}
-            onChange={(e) =>
-              setProfile({ ...profile, instagram_id: e.target.value })
-            }
-          />
+          <div className="formGroup">
+            <label className="formLabel" htmlFor="profile-instagram">인스타그램 아이디</label>
+            <input
+              id="profile-instagram"
+              placeholder="예: dankum_test"
+              value={profile.instagram_id}
+              onChange={(e) =>
+                setProfile({ ...profile, instagram_id: e.target.value })
+              }
+            />
+            <p className="helperText">채팅 종료 후 서로 동의했을 때만 공개돼요.</p>
+          </div>
 
           <div className="formGroup">
             <label className="formLabel">MBTI (필수)</label>
@@ -6492,11 +6530,16 @@ useEffect(() => {
             </select>
           </div>
 
-          <textarea
-            placeholder="한 줄 소개 (필수) - 다른 사람이 내 구름을 볼 때 함께 보여요"
-            value={profile.bio}
-            onChange={(e) => setProfile({ ...profile, bio: e.target.value })}
-          />
+          <div className="formGroup">
+            <label className="formLabel" htmlFor="profile-bio">한 줄 소개 <span className="requiredText">필수</span></label>
+            <textarea
+              id="profile-bio"
+              placeholder="예: 커피와 전시를 좋아하는 23학번이에요."
+              value={profile.bio}
+              onChange={(e) => setProfile({ ...profile, bio: e.target.value })}
+            />
+            <p className="helperText">다른 사람이 내 구름을 볼 때 함께 표시돼요.</p>
+          </div>
 
 	          <button onClick={saveProfile} disabled={profileSubmitting}>
 	            {profileSubmitting ? "저장 중..." : "저장하기"}
@@ -6670,7 +6713,9 @@ useEffect(() => {
 
 	      {page === "sendRoomSelect" && (
         <div className="card roomSelectPage">
+          <p className="pageEyebrow">구름 띄우기</p>
           <h3 className="questionTitle">어떤 방에 구름을 띄울까요?</h3>
+          <p className="roomSelectLead">찾고 싶은 인연과 가장 가까운 방을 하나 골라주세요.</p>
 
           <button
             type="button"
@@ -6746,8 +6791,9 @@ useEffect(() => {
             </div>
           )}
 
+          <p className="pageEyebrow">구름 띄우기</p>
           <p className="stepText">
-            {crushStep} / {["language", "memory", "past_connection"].includes(crushPost.room) ? 1 : 3}
+            {crushStep}단계 / 총 {["language", "memory", "past_connection"].includes(crushPost.room) ? 1 : 3}단계
           </p>
 
           <StepProgress
@@ -7591,7 +7637,9 @@ useEffect(() => {
 
       {page === "searchRoomSelect" && (
         <div className="card roomSelectPage">
+          <p className="pageEyebrow">구름 확인하기</p>
           <h3 className="questionTitle">어떤 방에서 확인할까요?</h3>
+          <p className="roomSelectLead">시그널은 내 정보로 검색하고, 나머지 방은 게시글을 둘러봐요.</p>
 
           <button
             type="button"
@@ -7743,7 +7791,7 @@ useEffect(() => {
           <h2 className="sendStepTitle">구름 확인하기</h2>
 
           <p className="stepText">
-            {searchStep} / {searchForm.room === "language" ? 1 : 5}
+            {searchStep}단계 / 총 {searchForm.room === "language" ? 1 : 5}단계
           </p>
 
           <StepProgress
@@ -8859,9 +8907,10 @@ useEffect(() => {
   <div className="card cloudBoardCard">
     <div className="cloudBoardHeader">
       <div>
-        <h2>구름 찾아주기</h2>
+        <p className="pageEyebrow">구름 둘러보기</p>
+        <h2>오늘의 구름</h2>
         <p className="subtitle">
-          오늘 뜬 구름을 연애방/글로벌방 구분 없이 한눈에 모아 보여줘요.
+          공개된 구름을 한눈에 살펴보고, 떠오르는 친구에게 알려주세요.
         </p>
       </div>
 
