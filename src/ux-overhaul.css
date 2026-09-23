@@ -1155,6 +1155,242 @@ body {
   }
 }
 
+/* Cloud browser: compact page width with roomy, readable post cards. */
+.app .cloudBoardCard {
+  width: min(100%, 500px);
+  max-width: 500px;
+}
+
+.app .cloudBoardHeader {
+  display: grid;
+  grid-template-columns: minmax(0, 1fr);
+  gap: 18px;
+}
+
+.app .cloudBoardHeader .localizedDateInput {
+  width: min(100%, 190px);
+}
+
+.app .cloudBoardHeader .localizedDateInput input {
+  width: 100%;
+  min-height: 48px;
+}
+
+.app .cloudBoardFilters {
+  display: grid;
+  gap: 8px;
+}
+
+.app .cloudBoardFilterRow {
+  display: flex;
+  align-items: stretch;
+  gap: 8px;
+}
+
+.app .cloudBoardFilterRow .localizedDateInput {
+  flex: 1 1 180px;
+}
+
+.app .cloudBoardMonthButton {
+  width: auto;
+  min-width: 112px;
+  min-height: 48px;
+  margin: 0;
+  padding-inline: 14px;
+}
+
+.app .monthAllButton {
+  margin-top: 10px;
+}
+
+.app .cloudBoardCount {
+  margin: 22px 0 10px;
+}
+
+.app .cloudBoardList {
+  gap: 10px;
+  margin: 0;
+}
+
+.app .cloudBoardItem {
+  overflow: hidden;
+  border: 1px solid var(--ux-line);
+  border-radius: 18px;
+}
+
+.app .cloudBoardRow {
+  min-height: 108px;
+  align-items: flex-start;
+  gap: 13px;
+  padding: 16px 18px;
+  cursor: pointer;
+}
+
+.app .cloudBoardRow:focus-visible {
+  outline: 2px solid #7ca9ed;
+  outline-offset: -2px;
+}
+
+.app .cloudBoardIcon {
+  width: 48px;
+  height: 48px;
+  margin-top: 1px;
+}
+
+.app .cloudBoardIcon.roomIconMemory { background: #e6e0ff; }
+.app .cloudBoardIcon.roomIconPastConnection { background: #ffedc8; }
+.app .cloudBoardIcon.roomIconTaxi { background: #fff0ae; }
+
+.app .cloudBoardBody {
+  position: relative;
+  gap: 5px;
+}
+
+.app .cloudBoardTitleRow {
+  align-items: flex-start;
+  gap: 8px;
+}
+
+.app .cloudBoardTitle {
+  white-space: normal;
+  overflow: visible;
+  text-overflow: clip;
+  line-height: 1.35;
+  overflow-wrap: anywhere;
+}
+
+.app .cloudBoardBadge {
+  margin-top: 1px;
+  padding: 3px 8px;
+}
+
+.app .cloudBoardBadge.signal {
+  background: #fff0f5;
+  color: #c94870;
+}
+
+.app .cloudBoardBadge.memory {
+  background: #f1eeff;
+  color: #6550ba;
+}
+
+.app .cloudBoardBadge.hometown {
+  background: #fff4dc;
+  color: #9b6418;
+}
+
+.app .cloudBoardBadge.taxi {
+  background: #fff5c7;
+  color: #8a6800;
+}
+
+.app .cloudBoardMeta {
+  white-space: normal;
+  overflow: visible;
+  text-overflow: clip;
+  line-height: 1.4;
+}
+
+.app .cloudBoardMessage.translatedUserText {
+  position: relative;
+  display: block;
+  overflow: visible;
+  white-space: normal;
+}
+
+.app .cloudBoardMessage .translatedUserTextBody {
+  display: -webkit-box;
+  overflow: hidden;
+  white-space: normal;
+  line-height: 1.45;
+  -webkit-box-orient: vertical;
+  -webkit-line-clamp: 2;
+}
+
+.app .cloudBoardMessage .translatedUserTextControls {
+  position: absolute;
+  top: -27px;
+  right: 0;
+  z-index: 1;
+  flex-wrap: nowrap;
+}
+
+.app .cloudBoardMessage .translatedUserTextBadge {
+  display: none;
+}
+
+.app .cloudBoardMessage .translatedUserTextControls button {
+  width: auto;
+  height: 26px;
+  min-height: 26px;
+  margin: 0;
+  padding: 0 9px;
+  border: 1px solid #dbe4f0;
+  border-radius: 8px;
+  background: #ffffff;
+  color: #3f659e;
+  box-shadow: 0 1px 2px rgba(28, 55, 94, 0.06);
+  font-size: 10.5px;
+  font-weight: 750;
+  line-height: 1;
+  text-decoration: none;
+  white-space: nowrap;
+}
+
+.app .cloudBoardMessage .translatedUserTextControls button:hover,
+.app .cloudBoardMessage .translatedUserTextControls button:active {
+  border-color: #bfd0e6;
+  background: #f3f7fc;
+  box-shadow: none;
+}
+
+.app .cloudBoardBody:has(.translatedUserTextControls) .cloudBoardMeta {
+  padding-right: 104px;
+}
+
+.app .cloudBoardChevron {
+  align-self: center;
+}
+
+.app .roomSelectPage .homeV2ActionText {
+  min-width: 0;
+}
+
+.app .roomSelectPage .homeV2ActionText small {
+  line-height: 1.45;
+  overflow-wrap: anywhere;
+}
+
+.app .roomSelectPage .roomSelectHomeButton {
+  display: block;
+  width: min(100%, 220px);
+  margin-inline: auto;
+}
+
+@media (max-width: 540px) {
+  .app .cloudBoardCard {
+    width: 100%;
+  }
+
+  .app .cloudBoardRow {
+    min-height: 112px;
+    padding: 16px 14px;
+  }
+
+  .app .cloudBoardIcon {
+    width: 44px;
+    height: 44px;
+  }
+
+  .app .cloudBoardFilterRow {
+    flex-wrap: wrap;
+  }
+
+  .app .cloudBoardMonthButton {
+    width: 100%;
+  }
+}
+
 /* Illustrated quick-start guide */
 .appGuideBackdrop {
   position: fixed;

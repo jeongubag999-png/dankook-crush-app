@@ -123,6 +123,18 @@ const CLOUD_COUNT_MULTIPLIER = 2.5;
 const getDisplayedCloudCount = (count) => Math.ceil((Number(count) || 0) * CLOUD_COUNT_MULTIPLIER);
 const USER_COUNT_MULTIPLIER = 1.5;
 const getDisplayedUserCount = (count) => Math.ceil((Number(count) || 0) * USER_COUNT_MULTIPLIER);
+const getKoreaMonthRange = () => {
+  const today = getKoreaDateString();
+  const [year, month] = today.slice(0, 7).split("-").map(Number);
+  const nextYear = month === 12 ? year + 1 : year;
+  const nextMonth = month === 12 ? 1 : month + 1;
+
+  return {
+    monthStart: `${year}-${String(month).padStart(2, "0")}-01`,
+    nextMonthStart: `${nextYear}-${String(nextMonth).padStart(2, "0")}-01`,
+    monthLabel: `${month}월`,
+  };
+};
 const HOME_BANNER_SLIDE_COUNT = 5;
 const APP_GUIDE_STEPS = [
   {
@@ -591,10 +603,12 @@ const [verificationFile, setVerificationFile] = useState(null);
     }
   });
   const [activityDate, setActivityDate] = useState("");
-  const [weatherDate, setWeatherDate] = useState(() => getKoreaDateString());
+  const [weatherDate, setWeatherDate] = useState("");
+  const [weatherAppliedDate, setWeatherAppliedDate] = useState("");
   const [weatherLoading, setWeatherLoading] = useState(false);
   const [weatherClouds, setWeatherClouds] = useState([]);
-  const [findOwnerDate, setFindOwnerDate] = useState(() => getKoreaDateString());
+  const [findOwnerDate, setFindOwnerDate] = useState("");
+  const [findOwnerAppliedDate, setFindOwnerAppliedDate] = useState("");
   const [findOwnerLoading, setFindOwnerLoading] = useState(false);
   const [findOwnerClouds, setFindOwnerClouds] = useState([]);
   const [findOwnerExpandedId, setFindOwnerExpandedId] = useState(null);
@@ -894,18 +908,17 @@ const [verificationFile, setVerificationFile] = useState(null);
   const loadHomeTopWeatherPlace = useCallback(async () => {
     if (!profile.campus) return;
 
-    const today = getKoreaDateString();
-    const monthStart = `${today.slice(0, 7)}-01`;
+    const { monthStart, nextMonthStart } = getKoreaMonthRange();
 
     const { data, error } = await supabase
       .from("crush_posts")
       .select(
-        "id, created_at, seen_date, place, time_period, target_gender, message, sender_nickname"
+        "id, created_at, seen_date, room, place, time_period, target_gender, message, sender_nickname"
       )
       .gte("seen_date", monthStart)
-      .lte("seen_date", today)
+      .lt("seen_date", nextMonthStart)
       .eq("campus", profile.campus)
-      .eq("room", "crush")
+      .order("seen_date", { ascending: false })
       .order("created_at", { ascending: false });
 
     if (error) {
@@ -2316,56 +2329,122 @@ const hideSearchResult = (postId) => {
     return `${Math.floor(diffHour / 24)}일 전`;
   };
 
+  const getCloudBoardRoomMeta = (post) => {
+    const roomMeta = {
+      crush: {
+        label: "시그널",
+        badgeClass: "signal",
+        iconClass: "roomIconCrush",
+        icon: "💕",
+      },
+      memory: {
+        label: "게시판",
+        badgeClass: "memory",
+        iconClass: "roomIconMemory",
+        icon: "📖",
+      },
+      past_connection: {
+        label: "고향",
+        badgeClass: "hometown",
+        iconClass: "roomIconPastConnection",
+        icon: "🏡",
+      },
+      language: {
+        label: "글로벌",
+        badgeClass: "language",
+        iconClass: "roomIconLanguage",
+        icon: "🌍",
+      },
+      taxi: {
+        label: "택시팟",
+        badgeClass: "taxi",
+        iconClass: "roomIconTaxi",
+        icon: "🚕",
+      },
+    };
+
+    return roomMeta[post.room] || roomMeta.crush;
+  };
+
   const getCloudBoardTitle = (post) => {
-    if (post.room === "language") {
-      return `${post.lang_country || "글로벌"} · 언어교환`;
+    switch (post.room) {
+      case "memory":
+        return post.memory_title || "게시판 구름";
+      case "past_connection":
+        return (
+          [post.past_region, post.past_subregion].filter(Boolean).join(" ") ||
+          "고향 인연을 찾는 중"
+        );
+      case "language":
+        return `${post.lang_country || "글로벌"} · 언어교환`;
+      case "taxi":
+        return `${post.place || "출발지 미정"} · ${post.time_period || "출발 시각 미정"}`;
+      default:
+        return `${getMainPlaceFromPost(post)} · ${post.target_gender || "누군가"} 찾는 중`;
     }
-    return `${getMainPlaceFromPost(post)} · ${post.target_gender || "누군가"} 찾는 중`;
   };
 
   const getCloudBoardMeta = (post) => {
+    const seenDate = post.seen_date ? formatDateLabel(post.seen_date) : "날짜 미정";
     const when = formatRelativeTimeKo(post.created_at);
-    if (post.room === "language") {
-      const spoken = (post.lang_spoken || []).join(", ");
-      return [spoken, when].filter(Boolean).join(" · ");
+    switch (post.room) {
+      case "memory":
+        return [seenDate, post.sender_nickname, post.campus, when].filter(Boolean).join(" · ");
+      case "past_connection":
+        return [seenDate, getPastConnectionDetail(post), when].filter(Boolean).join(" · ");
+      case "language": {
+        const spoken = (post.lang_spoken || []).join(", ");
+        return [seenDate, spoken, when].filter(Boolean).join(" · ");
+      }
+      case "taxi":
+        return [seenDate, "같이 탈 사람을 찾는 중", when].filter(Boolean).join(" · ");
+      default:
+        return [seenDate, post.time_period, post.place, when].filter(Boolean).join(" · ");
     }
-    return [post.time_period, post.place, when].filter(Boolean).join(" · ");
   };
 
   const renderCloudBoardItem = (post) => {
-    const isLanguage = post.room === "language";
+    const roomMeta = getCloudBoardRoomMeta(post);
     const expanded = findOwnerExpandedId === post.id;
+    const previewMessage =
+      post.room === "memory" ? post.memory_story || post.message : post.message;
+    const toggleCloudBoardItem = () => {
+      setFindOwnerExpandedId((prev) => (prev === post.id ? null : post.id));
+    };
 
     return (
       <div className="cloudBoardItem" key={post.id}>
-        <button
-          type="button"
+        <div
+          role="button"
+          tabIndex={0}
           className="cloudBoardRow"
-          onClick={() =>
-            setFindOwnerExpandedId((prev) => (prev === post.id ? null : post.id))
-          }
+          onClick={toggleCloudBoardItem}
+          onKeyDown={(event) => {
+            if (event.target !== event.currentTarget) return;
+            if (event.key === "Enter" || event.key === " ") {
+              event.preventDefault();
+              toggleCloudBoardItem();
+            }
+          }}
         >
           <span
-            className={`cloudBoardIcon ${
-              isLanguage ? "roomIconLanguage" : "roomIconCrush"
-            }`}
+            className={`cloudBoardIcon ${roomMeta.iconClass}`}
           >
-            {isLanguage ? "🌍" : "☁️"}
+            {roomMeta.icon}
           </span>
 
           <span className="cloudBoardBody">
             <span className="cloudBoardTitleRow">
               <b className="cloudBoardTitle">{getCloudBoardTitle(post)}</b>
-              <span
-                className={`cloudBoardBadge ${isLanguage ? "language" : "crush"}`}
-              >
-                {isLanguage ? "글로벌" : "연애"}
+              <span className={`cloudBoardBadge ${roomMeta.badgeClass}`}>
+                {roomMeta.label}
               </span>
             </span>
 
             <span className="cloudBoardMeta">{getCloudBoardMeta(post)}</span>
 
-            {renderTranslatedCloudText(post, post.message, {
+            {renderTranslatedCloudText(post, previewMessage, {
+              field: post.room === "memory" && post.memory_story ? "memory_story" : "message",
               className: "cloudBoardMessage",
               as: "span",
               quote: true,
@@ -2376,7 +2455,7 @@ const hideSearchResult = (postId) => {
           <span className={`cloudBoardChevron ${expanded ? "open" : ""}`}>
             <ChevronRightIcon />
           </span>
-        </button>
+        </div>
 
         {expanded && (
           <div className="cloudBoardDetail">
@@ -4311,22 +4390,24 @@ const hideSearchResult = (postId) => {
     await leaveActiveFlow("bottom_chats", "chats");
     await loadMyActivityData();
   };
-  const loadCloudWeather = async (targetDate = weatherDate) => {
+  const loadCloudWeather = async (targetDate = "") => {
   if (!checkProfileRequired()) return;
 
-  if (!targetDate) {
-    toast.error("날짜를 선택해주세요.");
-    return;
-  }
-
+  const { monthStart, nextMonthStart } = getKoreaMonthRange();
+  setWeatherAppliedDate(targetDate);
   setWeatherLoading(true);
 
-  const { data, error } = await supabase
+  let query = supabase
     .from("crush_posts")
     .select("*")
-    .eq("seen_date", targetDate)
-    .eq("campus", profile.campus)
-    .eq("room", "crush")
+    .eq("campus", profile.campus);
+
+  query = targetDate
+    ? query.eq("seen_date", targetDate)
+    : query.gte("seen_date", monthStart).lt("seen_date", nextMonthStart);
+
+  const { data, error } = await query
+    .order("seen_date", { ascending: false })
     .order("created_at", { ascending: false });
 
   if (error) {
@@ -4343,8 +4424,10 @@ const hideSearchResult = (postId) => {
 const openWeatherPage = async () => {
   if (!checkProfileRequired()) return;
 
+  setWeatherDate("");
+  setWeatherAppliedDate("");
   setPage("weather");
-  await loadCloudWeather(weatherDate);
+  await loadCloudWeather("");
 };
 
 const getWeatherPlaceCounts = () => {
@@ -4374,23 +4457,26 @@ const getWeatherPlaceCounts = () => {
 };
 
 const loadFindOwnerClouds = async (
-  targetDate = findOwnerDate,
+  targetDate = "",
   silent = false
 ) => {
   if (!checkProfileRequired()) return false;
 
-  if (!targetDate) {
-    if (!silent) toast.error("날짜를 선택해주세요.");
-    return false;
-  }
-
+  const { monthStart, nextMonthStart } = getKoreaMonthRange();
+  setFindOwnerAppliedDate(targetDate);
   setFindOwnerLoading(true);
 
-  const { data, error } = await supabase
+  let query = supabase
     .from("crush_posts")
     .select("*")
-    .eq("seen_date", targetDate)
-    .eq("campus", profile.campus)
+    .eq("campus", profile.campus);
+
+  query = targetDate
+    ? query.eq("seen_date", targetDate)
+    : query.gte("seen_date", monthStart).lt("seen_date", nextMonthStart);
+
+  const { data, error } = await query
+    .order("seen_date", { ascending: false })
     .order("created_at", { ascending: false });
 
   if (error) {
@@ -4411,22 +4497,22 @@ const loadFindOwnerClouds = async (
 const openFindOwnerPage = async () => {
   if (!checkProfileRequired()) return;
 
-  const today = getKoreaDateString();
-  setFindOwnerDate(today);
+  setFindOwnerDate("");
+  setFindOwnerAppliedDate("");
   setFindOwnerExpandedId(null);
   setPage("findOwner");
-  await loadFindOwnerClouds(today);
+  await loadFindOwnerClouds("");
 };
 
 useEffect(() => {
-  if (page !== "findOwner" || !findOwnerDate || !profile.campus) return undefined;
+  if (page !== "findOwner" || !profile.campus) return undefined;
 
   const timer = setInterval(() => {
-    loadFindOwnerClouds(findOwnerDate, true);
+    loadFindOwnerClouds(findOwnerAppliedDate, true);
   }, 30000);
 
   return () => clearInterval(timer);
-}, [page, findOwnerDate, profile.campus]);
+}, [page, findOwnerAppliedDate, profile.campus]);
 
   const requestChat = async (claimId) => {
     if (claimActionSubmittingId) return;
@@ -6547,10 +6633,7 @@ useEffect(() => {
               <button
                 type="button"
                 className="homeV2SeeAll"
-                onClick={() => {
-                  setWeatherDate(getKoreaDateString());
-                  openWeatherPage();
-                }}
+                onClick={openWeatherPage}
               >
                 전체 보기 ›
               </button>
@@ -6563,10 +6646,7 @@ useEffect(() => {
                     type="button"
                     key={item.place}
                     className="placeCloudChip"
-                    onClick={() => {
-                      setWeatherDate(getKoreaDateString());
-                      openWeatherPage();
-                    }}
+                    onClick={openWeatherPage}
                   >
                     <span className="placeCloudRank">{index + 1}</span>
                     <span className="placeCloudName">{item.place}</span>
@@ -9216,16 +9296,16 @@ useEffect(() => {
       )}
       {page === "weather" && (
   <div className="card weatherCard">
-    <h2>오늘의 단국대 구름</h2>
+    <h2>{getKoreaMonthRange().monthLabel}의 단국대 구름</h2>
 
     <p className="subtitle">
-      날짜를 선택하면 장소별 구름 개수 순위를 확인할 수 있어요.
+      이번 달 전체 순위를 보고, 날짜를 선택해 일자별로 확인할 수 있어요.
     </p>
 
     <div className="weatherHeroBox">
       <div className="weatherIcon">☁️</div>
       <div>
-        <p className="weatherHeroTitle">오늘의 단국대 구름</p>
+        <p className="weatherHeroTitle">{getKoreaMonthRange().monthLabel}의 단국대 구름</p>
         <p className="weatherHeroDesc">
           많이 언급된 장소일수록 구름이 많이 뜬 곳이에요.
         </p>
@@ -9233,7 +9313,7 @@ useEffect(() => {
     </div>
 
     <div className="formGroup">
-      <label className="formLabel">확인할 날짜</label>
+      <label className="formLabel">일자별로 보기</label>
       <LocalizedDateInput
         language={language}
         value={weatherDate}
@@ -9243,18 +9323,32 @@ useEffect(() => {
 
 	    <button
 	      onClick={() => loadCloudWeather(weatherDate)}
-	      disabled={weatherLoading}
+	      disabled={weatherLoading || !weatherDate}
 	    >
 	      {weatherLoading ? "구름을 불러오는 중..." : "이 날짜의 구름 보기"}
 	    </button>
 
+    <button
+      type="button"
+      className="white monthAllButton"
+      onClick={() => {
+        setWeatherDate("");
+        loadCloudWeather("");
+      }}
+      disabled={weatherLoading && !weatherAppliedDate}
+    >
+      이번 달 전체 보기
+    </button>
+
     {weatherLoading && (
-        <p className="notice">이 날짜에 등록된 구름을 불러오는 중이에요...</p>
+        <p className="notice">
+          {weatherAppliedDate ? "이 날짜의 구름을 불러오는 중이에요..." : "이번 달 구름을 불러오는 중이에요..."}
+        </p>
     )}
 
     {!weatherLoading && weatherClouds.length === 0 && (
       <div className="noticeBox">
-        <p>이 날짜에는 아직 뜬 구름이 없어요.</p>
+        <p>{weatherAppliedDate ? "이 날짜에는 아직 뜬 구름이 없어요." : "이번 달에는 아직 뜬 구름이 없어요."}</p>
         <p>첫 번째 구름을 띄워보면 이곳에 표시돼요.</p>
       </div>
     )}
@@ -9263,7 +9357,7 @@ useEffect(() => {
       <>
         <div className="weatherSummaryGrid">
           <div className="weatherSummaryItem">
-            <span>전체 구름</span>
+            <span>{weatherAppliedDate ? `${formatDateLabel(weatherAppliedDate)} 구름` : `${getKoreaMonthRange().monthLabel} 전체 구름`}</span>
             <b>{weatherDisplayedCloudCount}</b>
           </div>
 
@@ -9306,36 +9400,54 @@ useEffect(() => {
     <div className="cloudBoardHeader">
       <div>
         <p className="pageEyebrow">구름 둘러보기</p>
-        <h2>오늘의 구름</h2>
+        <h2>구름 친구에게 보내기</h2>
         <p className="subtitle">
-          공개된 구름을 한눈에 살펴보고, 떠오르는 친구에게 알려주세요.
+          이번 달 구름을 살펴보고, 떠오르는 친구에게 알려주세요.
         </p>
       </div>
 
-      <LocalizedDateInput
-        language={language}
-        value={findOwnerDate}
-        onChange={(e) => {
-          setFindOwnerDate(e.target.value);
-          loadFindOwnerClouds(e.target.value);
-        }}
-      />
+      <div className="cloudBoardFilters">
+        <label className="formLabel">일자별 검색</label>
+        <div className="cloudBoardFilterRow">
+          <LocalizedDateInput
+            language={language}
+            value={findOwnerDate}
+            onChange={(e) => {
+              const nextDate = e.target.value;
+              setFindOwnerDate(nextDate);
+              loadFindOwnerClouds(nextDate);
+            }}
+          />
+          <button
+            type="button"
+            className="white cloudBoardMonthButton"
+            onClick={() => {
+              setFindOwnerDate("");
+              loadFindOwnerClouds("");
+            }}
+          >
+            이번 달 전체
+          </button>
+        </div>
+      </div>
     </div>
 
     {findOwnerLoading && (
-      <p className="notice">오늘 뜬 구름을 불러오는 중이에요...</p>
+      <p className="notice">
+        {findOwnerAppliedDate ? "선택한 날짜의 구름을 불러오는 중이에요..." : "이번 달 구름을 불러오는 중이에요..."}
+      </p>
     )}
 
     {!findOwnerLoading && findOwnerClouds.length === 0 && (
       <div className="noticeBox">
-        <p>이 날짜에 뜬 구름이 아직 없어요.</p>
+        <p>{findOwnerAppliedDate ? "이 날짜에 뜬 구름이 아직 없어요." : "이번 달에 뜬 구름이 아직 없어요."}</p>
       </div>
     )}
 
     {!findOwnerLoading && findOwnerClouds.length > 0 && (
       <>
         <p className="cloudBoardCount">
-          오늘 뜬 구름 <b>{findOwnerClouds.length}</b>개
+          {findOwnerAppliedDate ? `${formatDateLabel(findOwnerAppliedDate)}에 뜬 구름` : `${getKoreaMonthRange().monthLabel}에 뜬 구름`} <b>{findOwnerClouds.length}</b>개
         </p>
 
         <div className="cloudBoardList">

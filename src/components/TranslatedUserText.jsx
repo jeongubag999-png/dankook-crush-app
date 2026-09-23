@@ -103,10 +103,16 @@ function TranslatedUserTextContent({
               ? language === "en" ? `Original · ${sourceLanguageName}` : `원문 · ${sourceLanguageName}`
               : language === "en" ? "Auto-translated" : "자동 번역"}
           </span>
-          <button type="button" onClick={() => setShowOriginal((value) => !value)}>
+          <button
+            type="button"
+            onClick={(event) => {
+              event.stopPropagation();
+              setShowOriginal((value) => !value);
+            }}
+          >
             {showOriginal
               ? language === "en" ? "View translation" : "번역문 보기"
-              : language === "en" ? `View original · ${sourceLanguageName}` : `원문 보기 · ${sourceLanguageName}`}
+              : language === "en" ? "View original" : "원문 보기"}
           </button>
         </span>
       )}

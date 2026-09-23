@@ -1,5 +1,5 @@
-// DB 트리거(2026_08_29_push_notification_triggers.sql)가 호출하는 웹훅.
-// claims/chat_messages 변화를 받아서 OneSignal로 푸시 알림을 보냅니다.
+// DB 트리거가 호출하는 웹훅. 응답/채팅/택시팟 및 오늘의 활동량 구간 도달 이벤트를
+// 받아서 OneSignal로 대상 사용자 또는 전체 구독자에게 푸시 알림을 보냅니다.
 // Supabase 대시보드 Edge Functions에서 아래 시크릿을 설정한 뒤 배포하세요:
 //   supabase secrets set ONESIGNAL_APP_ID=... ONESIGNAL_REST_API_KEY=... PUSH_WEBHOOK_SECRET=...
 // SUPABASE_URL / SUPABASE_SERVICE_ROLE_KEY는 Edge Function에 자동으로 주입됩니다.
@@ -46,6 +46,37 @@ const sendOneSignalPush = async (externalUserId: string, title: string, body: st
   const resBody = await res.text();
   if (!res.ok) {
     console.log("OneSignal 요청 실패", res.status, resBody);
+  }
+  return { oneSignalStatus: res.status, oneSignalResponse: resBody };
+};
+
+const sendOneSignalBroadcast = async (title: string, body: string) => {
+  const appId = Deno.env.get("ONESIGNAL_APP_ID");
+  const apiKey = Deno.env.get("ONESIGNAL_REST_API_KEY");
+
+  if (!appId || !apiKey) {
+    console.log("OneSignal 시크릿이 설정되지 않아 푸시를 건너뜁니다.");
+    return { skipped: "no_secrets" };
+  }
+
+  const res = await fetch("https://onesignal.com/api/v1/notifications", {
+    method: "POST",
+    headers: {
+      "Content-Type": "application/json",
+      Authorization: `Key ${apiKey}`,
+    },
+    body: JSON.stringify({
+      app_id: appId,
+      included_segments: ["Subscribed Users"],
+      target_channel: "push",
+      headings: { en: title, ko: title },
+      contents: { en: body, ko: body },
+    }),
+  });
+
+  const resBody = await res.text();
+  if (!res.ok) {
+    console.log("OneSignal 전체 알림 요청 실패", res.status, resBody);
   }
   return { oneSignalStatus: res.status, oneSignalResponse: resBody };
 };
@@ -184,6 +215,34 @@ Deno.serve(async (req) => {
         }
       } else {
         pushResult = { skipped: "chat_room_not_found" };
+      }
+    } else if (type === "daily_cloud_milestone") {
+      const milestone = Number(record.milestone);
+      const displayCount = Number(record.display_count ?? record.milestone);
+      if (
+        Number.isInteger(milestone) && milestone >= 5 && milestone % 5 === 0 &&
+        Number.isInteger(displayCount) && displayCount >= milestone
+      ) {
+        pushResult = await sendOneSignalBroadcast(
+          `오늘 벌써 구름 ${displayCount}개가 떴어요 ☁️`,
+          "혹시 나를 찾는 구름이 있을지 확인해보세요."
+        );
+      } else {
+        pushResult = { skipped: "invalid_milestone" };
+      }
+    } else if (type === "daily_checker_milestone") {
+      const milestone = Number(record.milestone);
+      const displayCount = Number(record.display_count ?? record.milestone);
+      if (
+        Number.isInteger(milestone) && milestone >= 5 && milestone % 5 === 0 &&
+        Number.isInteger(displayCount) && displayCount >= milestone
+      ) {
+        pushResult = await sendOneSignalBroadcast(
+          `오늘 벌써 ${displayCount}명이 구름을 확인했어요 👀`,
+          "찾는 사람이 있다면 지금 구름을 띄워보세요."
+        );
+      } else {
+        pushResult = { skipped: "invalid_milestone" };
       }
     } else if (type === "new_taxi_post") {
       if (typeof record.lat === "number" && typeof record.lng === "number") {
