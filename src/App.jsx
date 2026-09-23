@@ -893,13 +893,15 @@ const [verificationFile, setVerificationFile] = useState(null);
     if (!profile.campus) return;
 
     const today = getKoreaDateString();
+    const monthStart = `${today.slice(0, 7)}-01`;
 
     const { data, error } = await supabase
       .from("crush_posts")
       .select(
         "id, created_at, seen_date, place, time_period, target_gender, message, sender_nickname"
       )
-      .eq("seen_date", today)
+      .gte("seen_date", monthStart)
+      .lte("seen_date", today)
       .eq("campus", profile.campus)
       .eq("room", "crush")
       .order("created_at", { ascending: false });
@@ -5232,6 +5234,9 @@ useEffect(() => {
     (sum, item) => sum + item.displayCount,
     0
   );
+  const homeTodayOnlyCloudCount = getDisplayedCloudCount(
+    homeTodayClouds.filter((post) => post.seen_date === getKoreaDateString()).length
+  );
   const homeTotalCloudDisplayCount = getDisplayedCloudCount(homeAppStats.totalClouds);
   const homeTotalUserDisplayCount = getDisplayedUserCount(homeAppStats.totalUsers);
   const homeTotalCheckDisplayCount = getDisplayedCloudCount(homeAppStats.totalChecks);
@@ -5258,7 +5263,7 @@ useEffect(() => {
     {
       key: "todayClouds",
       label: "오늘 뜬 구름",
-      value: homeWeatherCloudCount,
+      value: homeTodayOnlyCloudCount,
       unit: "개",
     },
     {
@@ -6465,7 +6470,7 @@ useEffect(() => {
           <div className="homeV2TodayCard">
             <div className="homeV2TodayHeader">
               <div>
-                <b>오늘의 단국대 구름</b>
+                <b>이달의 단국대 구름</b>
               </div>
               <button
                 type="button"
@@ -6501,7 +6506,7 @@ useEffect(() => {
               <div className="homeV2TodayEmpty">
                 <span className="homeV2TodayEmoji">☁️ ☁️</span>
                 <p>
-                  아직 오늘 떠오른 구름이 없어요.
+                  아직 이번 달 떠오른 구름이 없어요.
                   <br />
                   첫 구름의 주인공이 되어보세요!
                 </p>
