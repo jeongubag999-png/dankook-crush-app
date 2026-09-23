@@ -271,7 +271,7 @@ export function ChatRoom({ roomId, currentUserId, otherNickname, onClose, onLeav
           <ChevronLeftIcon size={22} />
         </button>
         <div className="chatRoomHeaderInfo">
-          <span className="chatRoomHeaderName">{otherNickname || "상대"}</span>
+          <span className="chatRoomHeaderName" data-i18n-ignore>{otherNickname || "상대"}</span>
           {roomInfo && (
             <span className="chatRoomHeaderStatus">
               {formatChatRoomRemaining(roomInfo.created_at, roomInfo.closed_at, now)}

@@ -2217,7 +2217,7 @@ const hideSearchResult = (postId) => {
       <div className="senderIntroBox">
         <p className="qaTitle">이 구름을 띄운 사람</p>
 
-        <p className="senderIntroName">{post.sender_nickname || "익명"}</p>
+        <p className="senderIntroName" data-i18n-ignore>{post.sender_nickname || "익명"}</p>
 
         {tags.length > 0 && (
           <div className="senderIntroTags">
@@ -5410,11 +5410,12 @@ useEffect(() => {
     if (post?.room === "past_connection") {
       return `🏡 ${post.past_kind || "고향 구름"} · ${getPastConnectionDetail(post)}`;
     }
-    return [
-      `☁ ${formatCloudSummaryDate(post?.seen_date)}`,
-      post?.place || "장소 없음",
-      post?.sender_nickname || "닉네임 없음",
-    ].join(", ");
+    return (
+      <>
+        ☁ {formatCloudSummaryDate(post?.seen_date)}, {post?.place || "장소 없음"},{" "}
+        <span data-i18n-ignore>{post?.sender_nickname || "닉네임 없음"}</span>
+      </>
+    );
   };
 
   const renderCloudFolderButton = ({
@@ -5519,7 +5520,7 @@ useEffect(() => {
       </p>
 
       <p>
-        요청한 사람 닉네임: <b>{claim.claimer_nickname || "-"}</b>
+        요청한 사람 닉네임: <b data-i18n-ignore>{claim.claimer_nickname || "-"}</b>
       </p>
 
       <p className="message">“{claim.claimer_message || "-"}”</p>
@@ -5710,7 +5711,7 @@ useEffect(() => {
         {post ? (
           <>
             <p>
-              구름을 보낸 사람: <b>{post.sender_nickname || "-"}</b>
+              구름을 보낸 사람: <b data-i18n-ignore>{post.sender_nickname || "-"}</b>
             </p>
 
             {renderPostQuestionAnswer(post)}
@@ -6576,7 +6577,7 @@ useEffect(() => {
             <div className="mypageAvatar">☁️</div>
             <div className="mypageHeroBody">
               <div className="mypageHeroNameRow">
-                <b>{profile.nickname || "단꿈러"}</b>
+                <b data-i18n-ignore>{profile.nickname || "단꿈러"}</b>
                 <span className="mypageEditBadge">내 프로필</span>
               </div>
               <p>다른 사람에게 보이는 정보와 계정 설정을 관리해요.</p>
@@ -7940,7 +7941,7 @@ useEffect(() => {
                   <span>{post.room === "memory" ? "📖" : "🏡"}</span>
                   <div>
                     <b>{post.room === "memory" ? post.memory_title || "게시판 구름" : [post.past_region, post.past_subregion].filter(Boolean).join(" ") || post.past_kind || "고향 구름"}</b>
-                    <small>{post.sender_nickname || "단꿈 사용자"} · {post.campus || "단국대"}</small>
+                    <small><span data-i18n-ignore>{post.sender_nickname || "단꿈 사용자"}</span> · {post.campus || "단국대"}</small>
                   </div>
                 </div>
 
@@ -8867,7 +8868,7 @@ useEffect(() => {
           ) : (
             <div className="noticeBox">
               <p>
-                <b>{chatPreviewProfile.nickname}</b>
+                <b data-i18n-ignore>{chatPreviewProfile.nickname}</b>
               </p>
               <p>
                 {chatPreviewProfile.department} {chatPreviewProfile.student_year}학번
@@ -9442,7 +9443,7 @@ useEffect(() => {
                   <p>
                     <b>{item.title}</b>
                   </p>
-                  <p>{item.description}</p>
+                  <p data-i18n-ignore>{item.description}</p>
                   <p className="helperText">{formatShortDateTime(item.created_at)}</p>
                 </div>
               ))}
