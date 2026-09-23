@@ -15,8 +15,12 @@ export function SearchableSelect({ options, value, onChange, placeholder }) {
     return () => document.removeEventListener("mousedown", handleOutsideClick);
   }, []);
 
-  const filteredOptions = options.filter((option) =>
-    option.toLowerCase().includes(query.toLowerCase())
+  const normalizedOptions = options.map((option) =>
+    typeof option === "string" ? { value: option, label: option } : option
+  );
+  const selectedOption = normalizedOptions.find((option) => option.value === value);
+  const filteredOptions = normalizedOptions.filter((option) =>
+    `${option.label} ${option.value}`.toLowerCase().includes(query.toLowerCase())
   );
 
   return (
@@ -24,7 +28,7 @@ export function SearchableSelect({ options, value, onChange, placeholder }) {
       <input
         type="text"
         placeholder={placeholder}
-        value={open ? query : value || ""}
+        value={open ? query : selectedOption?.label || value || ""}
         onFocus={() => {
           setQuery("");
           setOpen(true);
@@ -38,17 +42,17 @@ export function SearchableSelect({ options, value, onChange, placeholder }) {
           )}
           {filteredOptions.map((option) => (
             <button
-              key={option}
+              key={option.value}
               type="button"
               className="searchableSelectOption"
               onMouseDown={(e) => {
                 e.preventDefault();
-                onChange(option);
+                onChange(option.value);
                 setQuery("");
                 setOpen(false);
               }}
             >
-              {option}
+              {option.label}
             </button>
           ))}
         </div>

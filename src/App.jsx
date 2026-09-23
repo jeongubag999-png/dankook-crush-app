@@ -3,6 +3,7 @@ import toast, { Toaster } from "react-hot-toast";
 import { App as CapacitorApp } from "@capacitor/app";
 import "./App.css";
 import "./theme-v2.css";
+import "./ux-overhaul.css";
 import { supabase } from "./supabase";
 import { initPush, linkPushUser, unlinkPushUser } from "./push";
 import { OptionButton } from "./components/OptionButton";
@@ -16,6 +17,7 @@ import {
   SearchIcon,
   ListIcon,
   BellIcon,
+  HelpCircleIcon,
   PersonIcon,
   LanguageIcon,
   ChevronLeftIcon,
@@ -35,8 +37,15 @@ import { StepProgress } from "./components/StepProgress";
 import { VerificationPendingPage } from "./components/VerificationPendingPage";
 import { AdminPage } from "./components/AdminPage";
 import { PrivacyPolicyPage } from "./components/PrivacyPolicyPage";
+import { TranslatedUserText } from "./components/TranslatedUserText";
 
 const PUBLIC_APP_URL = "https://dankook-crush-app.vercel.app";
+
+const getLocalizedSelectOptions = (options, language) =>
+  options.map((value) => ({
+    value,
+    label: language === "en" ? translateText(value, "en") : value,
+  }));
 
 function LocalizedDateInput({ language, value, onChange }) {
   const showEnglishFormat = language === "en" && !value;
@@ -100,7 +109,7 @@ import {
   pickImageFromLibrary,
 } from "./utils";
 import { submitDkuVerification } from "./dkuVerification";
-import { getAppLanguage, LANGUAGE_OPTIONS, setAppLanguage } from "./i18n";
+import { getAppLanguage, LANGUAGE_OPTIONS, setAppLanguage, translateText } from "./i18n";
 
 const CLOUD_SEND_MAX_SECONDS = 180;
 const CLOUD_SEND_STEP_NAMES = {
@@ -113,6 +122,38 @@ const getDisplayedCloudCount = (count) => Math.ceil((Number(count) || 0) * CLOUD
 const USER_COUNT_MULTIPLIER = 1.5;
 const getDisplayedUserCount = (count) => Math.ceil((Number(count) || 0) * USER_COUNT_MULTIPLIER);
 const HOME_BANNER_SLIDE_COUNT = 5;
+const APP_GUIDE_STEPS = [
+  {
+    image: "/guide/home.jpg",
+    alt: "단꿈 홈 화면과 세 가지 시작 메뉴",
+    title: "원하는 방법으로 시작해요",
+    description: "홈에서 구름을 띄우거나 확인하고, 친구에게 보내는 기능을 바로 선택할 수 있어요.",
+  },
+  {
+    image: "/guide/send.jpg",
+    alt: "시그널, 게시판, 고향, 글로벌 구름방 선택 화면",
+    title: "찾는 인연에 맞는 구름을 띄워요",
+    description: "시그널·게시판·고향·글로벌 중 알맞은 방을 골라 기억나는 단서와 전하고 싶은 말을 남겨요.",
+  },
+  {
+    image: "/guide/check.jpg",
+    alt: "나를 찾는 구름을 확인할 방을 선택하는 화면",
+    title: "나를 찾는 구름을 확인해요",
+    description: "날짜와 그날의 모습을 입력하거나 다른 구름방을 둘러보며 나를 찾는 글을 확인해요.",
+  },
+  {
+    image: "/guide/share.jpg",
+    alt: "응답을 기다리는 오늘의 공개 구름 목록",
+    title: "친구 같은 구름을 발견하면 알려줘요",
+    description: "‘이거 내 친구 같은데?’ 싶은 구름을 열고 링크를 보내 당사자가 확인할 수 있게 도와줘요.",
+  },
+  {
+    image: "/guide/my-clouds.jpg",
+    alt: "내가 띄운 구름과 새 응답을 관리하는 내 구름 화면",
+    title: "새 응답은 내 구름에서 확인해요",
+    description: "하단 내 구름에 숫자가 뜨면 새 응답이 온 거예요. 새로 온 응답 목록을 열면 숫자가 사라져요.",
+  },
+];
 const CLOUD_CHECK_STEP_NAMES = {
   1: "확인할 날짜",
   2: "헤어 정보",
@@ -229,8 +270,91 @@ const getKoreanWeekdayLabel = (dateString) => {
   return ["일", "월", "화", "수", "목", "금", "토"][date.getDay()];
 };
 
+function SwipeableChatRoomItem({
+  room,
+  preview,
+  previewTime,
+  expired,
+  statusText,
+  deleting,
+  onOpen,
+  onDelete,
+}) {
+  const [dragOffset, setDragOffset] = useState(0);
+  const dragStartXRef = useRef(null);
+  const didDragRef = useRef(false);
+  const initial = (room.otherNickname || "구").trim().charAt(0) || "구";
+
+  const finishSwipe = () => {
+    if (dragStartXRef.current === null) return;
+    setDragOffset((current) => (current >= 52 ? 92 : 0));
+    dragStartXRef.current = null;
+  };
+
+  return (
+    <div className={`chatRoomSwipeRow${expired ? " canDelete" : ""}`}>
+      {expired && (
+        <button
+          type="button"
+          className="chatRoomSwipeDelete"
+          onClick={() => onDelete(room.chatRoomId)}
+          disabled={deleting}
+          aria-label={`${room.otherNickname || "상대"}님과의 종료된 채팅방 삭제`}
+        >
+          <TrashIcon size={19} />
+          <span>{deleting ? "삭제 중" : "삭제"}</span>
+        </button>
+      )}
+      <button
+        type="button"
+        className="chatRoomListItem"
+        style={{ transform: `translateX(${dragOffset}px)` }}
+        onPointerDown={(event) => {
+          if (!expired || deleting) return;
+          dragStartXRef.current = event.clientX;
+          didDragRef.current = false;
+          event.currentTarget.setPointerCapture?.(event.pointerId);
+        }}
+        onPointerMove={(event) => {
+          if (dragStartXRef.current === null) return;
+          const nextOffset = Math.max(0, Math.min(96, event.clientX - dragStartXRef.current));
+          if (nextOffset > 6) didDragRef.current = true;
+          setDragOffset(nextOffset);
+        }}
+        onPointerUp={finishSwipe}
+        onPointerCancel={finishSwipe}
+        onClick={() => {
+          if (didDragRef.current) {
+            didDragRef.current = false;
+            return;
+          }
+          if (dragOffset > 0) {
+            setDragOffset(0);
+            return;
+          }
+          onOpen();
+        }}
+      >
+        <span className="chatRoomListAvatar">{initial}</span>
+        <span className="chatRoomListInfo">
+          <span className="chatRoomListTopRow">
+            <b>{room.otherNickname}</b>
+            <span className="chatRoomListTime">{formatChatListTime(previewTime)}</span>
+          </span>
+          <span className="chatRoomListPreview">{preview?.body || "아직 메시지가 없어요."}</span>
+          <span className={expired ? "chatRoomListStatus expired" : "chatRoomListStatus"}>
+            {statusText}
+          </span>
+        </span>
+      </button>
+    </div>
+  );
+}
+
 function App() {
   const [page, setPage] = useState("home");
+  const [showAppGuide, setShowAppGuide] = useState(false);
+  const [appGuideStep, setAppGuideStep] = useState(0);
   const [language, setLanguage] = useState(getAppLanguage);
   const [languageMenuOpen, setLanguageMenuOpen] = useState(false);
   const [crushStep, setCrushStep] = useState(1);
@@ -450,13 +574,6 @@ const [verificationFile, setVerificationFile] = useState(null);
   const [matchingMode, setMatchingMode] = useState("sent");
   const [notificationFilter, setNotificationFilter] = useState("sent");
   const [expandedSentPostId, setExpandedSentPostId] = useState(null);
-  const [notificationSeenAt, setNotificationSeenAt] = useState(() => {
-    try {
-      return Number(localStorage.getItem("dankkum_notification_seen_at") || 0);
-    } catch {
-      return 0;
-    }
-  });
   const [sentNotificationSeenAt, setSentNotificationSeenAt] = useState(() => {
     try {
       return Number(localStorage.getItem("dankkum_sent_notification_seen_at") || 0);
@@ -500,6 +617,7 @@ const [verificationFile, setVerificationFile] = useState(null);
   const [chatActionSubmitting, setChatActionSubmitting] = useState(false);
   const [activeChatRoomId, setActiveChatRoomId] = useState(null);
   const [activeChatRoomNickname, setActiveChatRoomNickname] = useState("");
+  const [deletingChatRoomId, setDeletingChatRoomId] = useState(null);
   const [chatLastMessages, setChatLastMessages] = useState({});
   const [chatRoomStatusMap, setChatRoomStatusMap] = useState({});
   const [chatListNowTick, setChatListNowTick] = useState(() => Date.now());
@@ -544,6 +662,7 @@ const [verificationFile, setVerificationFile] = useState(null);
   const [selectedCloudCalendarDate, setSelectedCloudCalendarDate] = useState(() =>
     getKoreaDateString()
   );
+  const [searchReturnPage, setSearchReturnPage] = useState("searchRoomSelect");
 
   const femaleHairGuideImage = "/hair-length-guide.png";
 
@@ -1934,6 +2053,26 @@ const hideSearchResult = (postId) => {
     return [...prev, postId];
   });
 };
+  const renderTranslatedCloudText = (
+    post,
+    text,
+    { field = "message", className = "message", quote = false, as = "p", fallback = "" } = {}
+  ) => {
+    const sourceText = field === "message" ? cleanMessage(text) : String(text || "").trim();
+    if (!sourceText) return fallback ? <p className={className}>{fallback}</p> : null;
+    return (
+      <TranslatedUserText
+        as={as}
+        text={sourceText}
+        language={language}
+        postId={post?.id}
+        field={field}
+        className={className}
+        quote={quote}
+      />
+    );
+  };
+
   const renderPostHeaderLine = (post) => {
     if (post.room === "language") {
       return `${post.lang_country || "-"} · ${(post.lang_spoken || []).join(", ") || "-"}`;
@@ -1991,7 +2130,11 @@ const hideSearchResult = (postId) => {
       return (
         <div className="qaBox">
           <p className="qaTitle">게시판 구름 게시글</p>
-          <p className="communityPostBody">{post.memory_story || post.message || "-"}</p>
+          {renderTranslatedCloudText(post, post.memory_story || post.message, {
+            field: post.memory_story ? "memory_story" : "message",
+            className: "communityPostBody",
+            fallback: "-",
+          })}
         </div>
       );
     }
@@ -2086,9 +2229,11 @@ const hideSearchResult = (postId) => {
           </div>
         )}
 
-        {post.sender_bio && (
-          <p className="senderIntroBio">“{post.sender_bio}”</p>
-        )}
+        {post.sender_bio && renderTranslatedCloudText(post, post.sender_bio, {
+          field: "sender_bio",
+          className: "senderIntroBio",
+          quote: true,
+        })}
       </div>
     );
   };
@@ -2216,9 +2361,12 @@ const hideSearchResult = (postId) => {
 
             <span className="cloudBoardMeta">{getCloudBoardMeta(post)}</span>
 
-            <span className="cloudBoardMessage">
-              “{cleanMessage(post.message) || "남긴 메시지가 없어요."}”
-            </span>
+            {renderTranslatedCloudText(post, post.message, {
+              className: "cloudBoardMessage",
+              as: "span",
+              quote: true,
+              fallback: "남긴 메시지가 없어요.",
+            })}
           </span>
 
           <span className={`cloudBoardChevron ${expanded ? "open" : ""}`}>
@@ -2388,6 +2536,7 @@ const hideSearchResult = (postId) => {
     }
 
     if (room) {
+      setSearchReturnPage(page === "cloudCalendar" ? "cloudCalendar" : "searchRoomSelect");
       setSearchForm((prev) => ({ ...prev, room }));
       setSearchStep(1);
       await startCloudCheckFlowLog();
@@ -2395,6 +2544,7 @@ const hideSearchResult = (postId) => {
       return;
     }
 
+    setSearchReturnPage("searchRoomSelect");
     setPage("searchRoomSelect");
   };
 
@@ -2403,6 +2553,7 @@ const hideSearchResult = (postId) => {
       await openCommunityCloudRoom(room);
       return;
     }
+    setSearchReturnPage("searchRoomSelect");
     setSearchForm((prev) => ({ ...prev, room }));
     setSearchStep(1);
     await startCloudCheckFlowLog();
@@ -2718,7 +2869,7 @@ const hideSearchResult = (postId) => {
 
   const goBackSearchStep = async () => {
     if (searchStep === 1) {
-      await leaveCloudCheckFlow("home_exit", "searchRoomSelect");
+      await leaveCloudCheckFlow("previous", searchReturnPage);
       return;
     }
 
@@ -3712,7 +3863,7 @@ const hideSearchResult = (postId) => {
       .order("checked_date", { ascending: false });
 
     if (error) {
-      toast.error("구름 달력을 불러오지 못했어요: " + error.message);
+      toast.error("구름 확인 기록을 불러오지 못했어요: " + error.message);
       console.log(error);
       setCloudCalendarLoading(false);
       return false;
@@ -4072,6 +4223,7 @@ const hideSearchResult = (postId) => {
   const openCloudCheckFromCalendar = async () => {
     if (!selectedCloudCalendarDate) return;
 
+    setSearchReturnPage("cloudCalendar");
     setSearchForm((prev) => ({
       ...prev,
       seen_date: selectedCloudCalendarDate,
@@ -4373,6 +4525,31 @@ useEffect(() => {
     setActiveChatRoomId(roomId);
     setActiveChatRoomNickname(nickname);
     setPage("chatRoom");
+  };
+
+  const deleteChatRoomFromList = async (roomId) => {
+    if (!roomId || deletingChatRoomId) return;
+
+    const ok = window.confirm(
+      "이 종료된 채팅방을 내 목록에서 삭제할까요? 상대방의 목록과 대화 기록에는 영향을 주지 않아요."
+    );
+    if (!ok) return;
+
+    setDeletingChatRoomId(roomId);
+    const { error } = await supabase.rpc("delete_my_chat_room_view", {
+      p_room_id: roomId,
+    });
+
+    if (error) {
+      console.log(error);
+      toast.error(error.message || "채팅방을 삭제하지 못했어요. 잠시 후 다시 시도해주세요.");
+      setDeletingChatRoomId(null);
+      return;
+    }
+
+    toast.success("내 채팅 목록에서 삭제했어요.");
+    setDeletingChatRoomId(null);
+    await loadMyActivityData();
   };
 
   const acceptChatRequest = async (claim, otherNickname = "") => {
@@ -5148,18 +5325,7 @@ useEffect(() => {
   const receivedNotificationUnreadCount = receivedNotificationItems.filter(
     (item) => getItemTime(item) > receivedNotificationSeenAt
   ).length;
-  const notificationBadgeCount = Math.min(
-    notificationItems.filter((item) => getItemTime(item) > notificationSeenAt).length,
-    99
-  );
-
-  const markNotificationSeen = () => {
-    const now = Date.now();
-    setNotificationSeenAt(now);
-    try {
-      localStorage.setItem("dankkum_notification_seen_at", String(now));
-    } catch {}
-  };
+  const newResponseBadgeCount = sentNotificationUnreadCount;
 
   const markNotificationGroupSeen = (group) => {
     const now = Date.now();
@@ -5176,17 +5342,21 @@ useEffect(() => {
     } catch {}
   };
 
-  const openNotificationsPage = () => {
-    markNotificationSeen();
-    markNotificationGroupSeen(notificationFilter);
-    setMatchingMode("notifications");
+  const openNotificationsPage = async () => {
+    const nextNotificationGroup =
+      receivedNotificationUnreadCount > sentNotificationUnreadCount ? "received" : "sent";
+    setNotificationFilter(nextNotificationGroup);
+    setMatchingMode(nextNotificationGroup);
+    await openMatchingPage();
   };
 
-  const renderBellWithBadge = (size = 21) => (
+  const renderMyCloudNavIcon = (size = 21) => (
     <span className="notificationBellWrap">
       <BellIcon size={size} />
-      {notificationBadgeCount > 0 && (
-        <span className="notificationBadge">{notificationBadgeCount}</span>
+      {newResponseBadgeCount > 0 && (
+        <span className="notificationBadge" aria-label={`새 응답 ${newResponseBadgeCount}개`}>
+          {newResponseBadgeCount > 99 ? "99+" : newResponseBadgeCount}
+        </span>
       )}
     </span>
   );
@@ -5207,7 +5377,6 @@ useEffect(() => {
   const cloudCalendarMonthTitle = `${cloudCalendarMonth.getFullYear()}년 ${
     cloudCalendarMonth.getMonth() + 1
   }월`;
-
   const getCloudCalendarOutfitRows = (record) => {
     if (!record) return [];
 
@@ -5331,11 +5500,11 @@ useEffect(() => {
         <p className="qaTitle">{title}</p>
         <p><b>{renderPostHeaderLine(post)}</b></p>
         {renderPostQuestionAnswer(post)}
-        {!["memory", "past_connection"].includes(post.room) && (
-          <p className="message">
-            “{cleanMessage(post.message) || "남긴 메시지가 없어요."}”
-          </p>
-        )}
+        {!["memory", "past_connection"].includes(post.room) &&
+          renderTranslatedCloudText(post, post.message, {
+            quote: true,
+            fallback: "남긴 메시지가 없어요.",
+          })}
       </div>
     );
   };
@@ -5460,11 +5629,11 @@ useEffect(() => {
         <div className="postBody">
           {renderPostQuestionAnswer(post)}
 
-          {!["memory", "past_connection"].includes(post.room) && (
-            <p className="message">
-              “{cleanMessage(post.message) || "남긴 메시지가 없어요."}”
-            </p>
-          )}
+          {!["memory", "past_connection"].includes(post.room) &&
+            renderTranslatedCloudText(post, post.message, {
+              quote: true,
+              fallback: "남긴 메시지가 없어요.",
+            })}
 
           {mode === "empty" && (
     <div className="noticeBox">
@@ -5546,10 +5715,11 @@ useEffect(() => {
 
             {renderPostQuestionAnswer(post)}
 
-            <p className="message">
-              상대가 띄운 구름: “
-              {cleanMessage(post.message) || "남긴 메시지가 없어요."}”
-            </p>
+            <p className="message">상대가 띄운 구름:</p>
+            {renderTranslatedCloudText(post, post.message, {
+              quote: true,
+              fallback: "남긴 메시지가 없어요.",
+            })}
           </>
         ) : (
           <p className="notice">연결된 구름 글을 찾지 못했어요.</p>
@@ -5711,9 +5881,10 @@ useEffect(() => {
 
         {renderSenderIntro(post)}
 
-        <p className="message">
-          “{cleanMessage(post.message) || "남긴 메시지가 없어요."}”
-        </p>
+        {renderTranslatedCloudText(post, post.message, {
+          quote: true,
+          fallback: "남긴 메시지가 없어요.",
+        })}
 
         {renderCloudActionButtons(post)}
 
@@ -5749,8 +5920,8 @@ useEffect(() => {
       },
       {
         key: "responses",
-        label: "응답",
-        icon: renderBellWithBadge(20),
+        label: "내 구름",
+        icon: renderMyCloudNavIcon(20),
         active: page === "matching" || page === "claim",
         onClick: () => {
           setMatchingMode("sent");
@@ -5759,7 +5930,7 @@ useEffect(() => {
       },
       {
         key: "calendar",
-        label: "달력",
+        label: "기록",
         icon: <CalendarIcon size={20} />,
         active: page === "cloudCalendar",
         onClick: openCloudCalendarPage,
@@ -5773,7 +5944,7 @@ useEffect(() => {
       },
       {
         key: "profile",
-        label: "내 정보",
+        label: "프로필",
         icon: <PersonIcon size={20} />,
         active: page === "profile",
         onClick: openProfilePage,
@@ -5788,6 +5959,7 @@ useEffect(() => {
             key={item.key}
             className={item.active ? "bottomNavItem active" : "bottomNavItem"}
             onClick={item.onClick}
+            aria-current={item.active ? "page" : undefined}
           >
             <span className="bottomNavIcon">{item.icon}</span>
             <span>{item.label}</span>
@@ -6168,7 +6340,7 @@ useEffect(() => {
           <div className="homeV2Header">
             <div className="homeV2Greeting">
               <p>안녕하세요! 👋</p>
-              <h1>오늘도 좋은 구름이<br />떠오르길 바랄게요.</h1>
+              <h1>오늘, 어떤 인연을<br />찾고 있나요?</h1>
             </div>
             <div className="homeV2CloudMark" aria-hidden="true">
               <img src="/home-cloud-mark.png" alt="" />
@@ -6177,13 +6349,13 @@ useEffect(() => {
               <button
                 type="button"
                 className="homeV2IconBtn"
-                aria-label="알림"
+                aria-label="단꿈 사용 안내"
                 onClick={() => {
-                  openNotificationsPage();
-                  openMatchingPage();
+                  setAppGuideStep(0);
+                  setShowAppGuide(true);
                 }}
               >
-                {renderBellWithBadge(19)}
+                <HelpCircleIcon size={20} />
               </button>
               <div className="homeLanguagePicker">
                 <button
@@ -6249,38 +6421,45 @@ useEffect(() => {
             </span>
           </div>
 
-          <button type="button" onClick={openNewCloudPage} className="homeV2ActionCard">
+          <section className="homeTaskSection" aria-labelledby="home-task-title">
+            <div className="homeSectionHeading">
+              <span>바로 시작하기</span>
+              <h2 id="home-task-title">무엇을 하고 싶나요?</h2>
+            </div>
+
+          <button type="button" onClick={openNewCloudPage} className="homeV2ActionCard primary">
             <span className="homeV2ActionIcon">☁️</span>
             <span className="homeV2ActionText">
               <b>구름 띄우기</b>
-              <small>스쳐간 마음을 구름으로 남겨요.</small>
+              <small>찾는 사람의 단서와 전하고 싶은 말을 적어 구름을 띄워요</small>
             </span>
             <span className="homeV2ActionChevron">
               <ChevronRightIcon />
             </span>
           </button>
 
-          <button type="button" onClick={() => openSearchPage()} className="homeV2ActionCard">
+          <button type="button" onClick={() => openSearchPage()} className="homeV2ActionCard secondary">
             <span className="homeV2ActionIcon amber">🔔</span>
             <span className="homeV2ActionText">
               <b>구름 확인하기</b>
-              <small>그날의 모습으로 나를 찾는 구름을 찾아요.</small>
+              <small>날짜와 그날의 내 모습을 입력해 나를 찾는 구름이 있는지 확인해요</small>
             </span>
             <span className="homeV2ActionChevron">
               <ChevronRightIcon />
             </span>
           </button>
 
-          <button type="button" onClick={openFindOwnerPage} className="homeV2ActionCard">
+          <button type="button" onClick={openFindOwnerPage} className="homeV2ActionCard tertiary">
             <span className="homeV2ActionIcon blue">✉️</span>
             <span className="homeV2ActionText">
-              <b>구름 찾아주기</b>
-              <small>오늘 뜬 구름을 한눈에 둘러봐요.</small>
+              <b>구름 친구에게 보내기</b>
+              <small>응답을 기다리는 구름을 보고, 떠오르는 친구에게 링크로 알려줘요</small>
             </span>
             <span className="homeV2ActionChevron">
               <ChevronRightIcon />
             </span>
           </button>
+          </section>
 
           <div className="homeV2TodayCard">
             <div className="homeV2TodayHeader">
@@ -6329,27 +6508,39 @@ useEffect(() => {
             )}
           </div>
 
+          <section className="homeHowItWorks" aria-labelledby="how-it-works-title">
+            <div className="homeSectionHeading compact">
+              <span>처음이라면</span>
+              <h2 id="how-it-works-title">단꿈은 이렇게 이어져요</h2>
+            </div>
+            <ol>
+              <li><span className="homeHowItWorksNumber" aria-hidden="true">1</span><b>단서를 남겨요</b><span>날짜·장소·기억나는 특징을 적어요.</span></li>
+              <li><span className="homeHowItWorksNumber" aria-hidden="true">2</span><b>상대가 확인해요</b><span>자기 모습과 맞는 구름을 찾아요.</span></li>
+              <li><span className="homeHowItWorksNumber" aria-hidden="true">3</span><b>서로 동의하면 대화해요</b><span>수락 전에는 개인정보가 공개되지 않아요.</span></li>
+            </ol>
+          </section>
+
           <div className="homeV2TrustRow">
             <div className="homeV2TrustItem">
               <span className="homeV2TrustIcon">
                 <ShieldCheckIcon size={17} />
               </span>
-              <b>단국대 구성원 중심</b>
-              <span>안전한 캠퍼스 서비스</span>
+              <b>단국대 학생 인증</b>
+              <span>인증된 구성원이 이용해요</span>
             </div>
             <div className="homeV2TrustItem">
               <span className="homeV2TrustIcon">
                 <UsersIcon size={17} />
               </span>
-              <b>서로 동의할 때만 공개</b>
-              <span>원할 때만 인스타 공개</span>
+              <b>서로 동의한 연결</b>
+              <span>수락 후에만 대화가 열려요</span>
             </div>
             <div className="homeV2TrustItem">
               <span className="homeV2TrustIcon">
                 <TrashIcon size={17} />
               </span>
-              <b>내가 남긴 구름은 삭제 가능</b>
-              <span>언제든 관리할 수 있어요</span>
+              <b>신고·차단·삭제 지원</b>
+              <span>내 활동은 언제든 관리해요</span>
             </div>
           </div>
 
@@ -6367,11 +6558,14 @@ useEffect(() => {
 	      {page === "profile" && (
 	        <div className="card">
           <div className="mypageHeaderRow">
-            <h2>마이페이지</h2>
+            <div>
+              <p className="pageEyebrow">프로필</p>
+              <h2>내 정보와 계정</h2>
+            </div>
             <button
               type="button"
               className="mypageGearBtn"
-              aria-label="설정"
+              aria-label="개인정보처리방침 보기"
               onClick={() => setShowPrivacyPolicy(true)}
             >
               <GearIcon size={18} />
@@ -6383,16 +6577,16 @@ useEffect(() => {
             <div className="mypageHeroBody">
               <div className="mypageHeroNameRow">
                 <b>{profile.nickname || "단꿈러"}</b>
-                <span className="mypageEditBadge">프로필 편집</span>
+                <span className="mypageEditBadge">내 프로필</span>
               </div>
-              <p>내가 남긴 구름과 받은 알림을 한곳에서 관리해요.</p>
+              <p>다른 사람에게 보이는 정보와 계정 설정을 관리해요.</p>
             </div>
           </div>
 
           <div className="myCloudHeroBox">
-             <p className="myCloudHeroTitle">☁️ 나에게 온 구름 {receivedCloudCount}개</p>
+             <p className="myCloudHeroTitle">☁️ 나와 연결된 구름 {receivedCloudCount}개</p>
              <p className="myCloudHeroDesc">
-               오늘도 누군가의 기억 속에 머물렀어요.
+               내가 확인하거나 응답한 구름을 모아 보여줘요.
              </p>
           </div>
           <div className="mypageStatsGrid">
@@ -6401,21 +6595,21 @@ useEffect(() => {
               <b>{mySentPosts.length}</b>
             </div>
             <div className="mypageStat">
-              <span>도착 응답</span>
+              <span>받은 응답</span>
               <b>{totalSentResponseCount}</b>
             </div>
             <div className="mypageStat">
-              <span>나에게 온 구름</span>
+              <span>확인한 구름</span>
               <b>{receivedCloudCount}</b>
             </div>
             <div className="mypageStat">
-              <span>매칭</span>
+              <span>연결 완료</span>
               <b>{acceptedMatchCount}</b>
             </div>
           </div>
 
           <h3 className="manageSectionTitle" style={{ marginTop: 22, textAlign: "left" }}>
-            프로필 정보 수정
+            공개 프로필 수정
           </h3>
 
           <div className="formGroup">
@@ -6426,11 +6620,15 @@ useEffect(() => {
             </p>
           </div>
 
-          <input
-            placeholder="닉네임 예: 정우23"
-            value={profile.nickname}
-            onChange={(e) => setProfile({ ...profile, nickname: e.target.value })}
-          />
+          <div className="formGroup">
+            <label className="formLabel" htmlFor="profile-nickname">닉네임</label>
+            <input
+              id="profile-nickname"
+              placeholder="예: 정우23"
+              value={profile.nickname}
+              onChange={(e) => setProfile({ ...profile, nickname: e.target.value })}
+            />
+          </div>
 
           <div className="formGroup">
             <label className="formLabel">성별</label>
@@ -6453,32 +6651,45 @@ useEffect(() => {
             )}
           </div>
 
-          <input
-            placeholder="학과 예: 글로벌경영학과 (필수)"
-            value={profile.department}
-            onChange={(e) =>
-              setProfile({ ...profile, department: e.target.value })
-            }
-          />
-
-          <input
-            placeholder="학번 표시 예: 23학번 또는 32240000"
-            value={profile.student_year}
-            onChange={(e) =>
-              setProfile({ ...profile, student_year: e.target.value })
-            }
-          />
-
-          <input
-            placeholder="인스타 아이디 예: dankum_test"
-            value={profile.instagram_id}
-            onChange={(e) =>
-              setProfile({ ...profile, instagram_id: e.target.value })
-            }
-          />
+          <div className="formGroup">
+            <label className="formLabel" htmlFor="profile-department">학과 <span className="requiredText">필수</span></label>
+            <input
+              id="profile-department"
+              placeholder="예: 글로벌경영학과"
+              value={profile.department}
+              onChange={(e) =>
+                setProfile({ ...profile, department: e.target.value })
+              }
+            />
+          </div>
 
           <div className="formGroup">
-            <label className="formLabel">MBTI (필수)</label>
+            <label className="formLabel" htmlFor="profile-student-year">학번</label>
+            <input
+              id="profile-student-year"
+              placeholder="예: 23학번 또는 32240000"
+              value={profile.student_year}
+              onChange={(e) =>
+                setProfile({ ...profile, student_year: e.target.value })
+              }
+            />
+          </div>
+
+          <div className="formGroup">
+            <label className="formLabel" htmlFor="profile-instagram">인스타그램 아이디</label>
+            <input
+              id="profile-instagram"
+              placeholder="예: dankum_test"
+              value={profile.instagram_id}
+              onChange={(e) =>
+                setProfile({ ...profile, instagram_id: e.target.value })
+              }
+            />
+            <p className="helperText">24시간 채팅이 끝난 뒤 두 사람 모두 동의해야 상대에게 공개돼요.</p>
+          </div>
+
+          <div className="formGroup">
+            <label className="formLabel">MBTI <span className="requiredText">필수</span></label>
             <select
               value={profile.mbti}
               onChange={(e) => setProfile({ ...profile, mbti: e.target.value })}
@@ -6492,19 +6703,20 @@ useEffect(() => {
             </select>
           </div>
 
-          <textarea
-            placeholder="한 줄 소개 (필수) - 다른 사람이 내 구름을 볼 때 함께 보여요"
-            value={profile.bio}
-            onChange={(e) => setProfile({ ...profile, bio: e.target.value })}
-          />
+          <div className="formGroup">
+            <label className="formLabel" htmlFor="profile-bio">한 줄 소개 <span className="requiredText">필수</span></label>
+            <textarea
+              id="profile-bio"
+              placeholder="예: 커피와 전시를 좋아하는 23학번이에요."
+              value={profile.bio}
+              onChange={(e) => setProfile({ ...profile, bio: e.target.value })}
+            />
+            <p className="helperText">다른 사람이 내 구름을 볼 때 함께 표시돼요.</p>
+          </div>
 
 	          <button onClick={saveProfile} disabled={profileSubmitting}>
-	            {profileSubmitting ? "저장 중..." : "저장하기"}
+	            {profileSubmitting ? "저장 중..." : "프로필 저장하기"}
 	          </button>
-
-          <button onClick={() => setPage("home")} className="white">
-            홈으로
-          </button>
 
           <button
             onClick={() => setShowPrivacyPolicy(true)}
@@ -6530,10 +6742,11 @@ useEffect(() => {
 	      {page === "cloudCalendar" && (
 	        <div className="card cloudCalendarCard">
           <div className="cloudCalendarTop">
-            <div>
-              <h2>구름 달력</h2>
+            <div className="cloudCalendarHeaderCopy">
+              <p className="pageEyebrow">기록</p>
+              <h2>구름 캘린더</h2>
               <p className="subtitle">
-                날짜별로 내가 확인한 구름 기록을 살펴보세요.
+                내가 구름을 확인한 날과 찾은 구름 수를 월별로 모아봐요.
               </p>
             </div>
           </div>
@@ -6547,7 +6760,20 @@ useEffect(() => {
             >
               <ChevronLeftIcon size={22} />
             </button>
-            <div className="cloudCalendarMonthTitle">{cloudCalendarMonthTitle}</div>
+            <div className="cloudCalendarMonthHeading">
+              <div className="cloudCalendarMonthTitle">{cloudCalendarMonthTitle}</div>
+              <button
+                type="button"
+                className="cloudCalendarTodayButton"
+                onClick={() => {
+                  const today = getKoreaDateString();
+                  setCloudCalendarMonth(parseLocalDate(today) || new Date());
+                  setSelectedCloudCalendarDate(today);
+                }}
+              >
+                오늘
+              </button>
+            </div>
             <button
               type="button"
               className="cloudCalendarIconButton"
@@ -6594,12 +6820,16 @@ useEffect(() => {
                   const record = cloudCalendarRecordMap[day.dateKey];
                   const hasRecord = Boolean(record);
                   const isSelected = day.dateKey === selectedCloudCalendarDate;
+                  const isToday = day.dateKey === getKoreaDateString();
                   const matchedCount = record?.matched_cloud_count || 0;
                   const dayClasses = [
                     "cloudCalendarDay",
                     hasRecord ? "checked" : "unchecked",
+                    hasRecord && matchedCount > 0 ? "matched" : "",
+                    hasRecord && matchedCount === 0 ? "checkedEmpty" : "",
                     day.dayOfWeek === 0 ? "sunday" : "",
                     day.dayOfWeek === 6 ? "saturday" : "",
+                    isToday ? "today" : "",
                     isSelected ? "selected" : "",
                   ]
                     .filter(Boolean)
@@ -6611,26 +6841,35 @@ useEffect(() => {
                       key={day.dateKey}
                       className={dayClasses}
                       onClick={() => setSelectedCloudCalendarDate(day.dateKey)}
+                      aria-label={`${day.dateKey}, ${hasRecord ? `구름 확인 기록 있음, 찾은 구름 ${matchedCount}개` : "구름 확인 기록 없음"}`}
                     >
                       <span className="cloudCalendarDateNumber">{day.day}</span>
-                      <span
-                        className={
-                          matchedCount > 0
-                            ? "cloudCalendarCloudCount"
-                            : "cloudCalendarCloudCount empty"
-                        }
-                        aria-hidden={matchedCount === 0}
-                      >
-                        {matchedCount > 0 ? `☁️ ${matchedCount}` : "0"}
-                      </span>
+                      {hasRecord && (
+                        <span
+                          className={`cloudCalendarCloudCount ${
+                            matchedCount > 0 ? "hasMatches" : "checkedZero"
+                          }`}
+                        >
+                          ☁ {matchedCount}개
+                        </span>
+                      )}
                     </button>
                   );
                 })}
               </div>
 
+              <section className="cloudCalendarAgenda" aria-label={`${selectedCloudCalendarLabel} 기록`}>
               <div className="cloudCalendarSelectedDate">
-                <b>{selectedCloudCalendarLabel}</b>
-                <span>{getKoreanWeekdayLabel(selectedCloudCalendarDate)}요일</span>
+                <div>
+                  <span className="cloudCalendarSelectedLabel">선택한 날짜</span>
+                  <b>{selectedCloudCalendarLabel}</b>
+                </div>
+                <div className="cloudCalendarSelectedMeta">
+                  <span>{getKoreanWeekdayLabel(selectedCloudCalendarDate)}요일</span>
+                  <strong className={selectedCloudCalendarRecord ? "isChecked" : "isUnchecked"}>
+                    {selectedCloudCalendarRecord ? "확인 완료" : "확인 안 함"}
+                  </strong>
+                </div>
               </div>
 
               {selectedCloudCalendarRecord && (
@@ -6638,9 +6877,9 @@ useEffect(() => {
                   <div className="cloudCalendarDetailHeader">
                     <span className="cloudCalendarDetailIcon">☁️</span>
                     <div>
-                      <b>구름 확인 기록</b>
+                      <b>이날 확인한 내용</b>
                       <span>
-                        매칭된 구름 {selectedCloudCalendarRecord.matched_cloud_count || 0}개
+                        나와 맞을 가능성이 있는 구름 {selectedCloudCalendarRecord.matched_cloud_count || 0}개를 찾았어요.
                       </span>
                     </div>
                   </div>
@@ -6657,20 +6896,26 @@ useEffect(() => {
                   </div>
                 </div>
               )}
-            </>
-          )}
 
-          {!selectedCloudCalendarRecord && (
-            <button onClick={openCloudCheckFromCalendar}>
-              이 날의 구름 확인하기
-            </button>
+              {!selectedCloudCalendarRecord && (
+                <div className="cloudCalendarEmptyAction">
+                  <p>이 날짜에는 아직 구름을 확인한 기록이 없어요.</p>
+                  <button onClick={openCloudCheckFromCalendar}>
+                    이 날짜로 구름 확인하기
+                  </button>
+                </div>
+              )}
+              </section>
+            </>
           )}
 	        </div>
 	      )}
 
 	      {page === "sendRoomSelect" && (
         <div className="card roomSelectPage">
+          <p className="pageEyebrow">구름 띄우기</p>
           <h3 className="questionTitle">어떤 방에 구름을 띄울까요?</h3>
+          <p className="roomSelectLead">찾고 싶은 인연과 가장 가까운 방을 하나 골라주세요.</p>
 
           <button
             type="button"
@@ -6746,8 +6991,9 @@ useEffect(() => {
             </div>
           )}
 
+          <p className="pageEyebrow">구름 띄우기</p>
           <p className="stepText">
-            {crushStep} / {["language", "memory", "past_connection"].includes(crushPost.room) ? 1 : 3}
+            {crushStep}단계 / 총 {["language", "memory", "past_connection"].includes(crushPost.room) ? 1 : 3}단계
           </p>
 
           <StepProgress
@@ -6802,7 +7048,7 @@ useEffect(() => {
               <div className="formGroup">
                 <label className="formLabel">장소</label>
                 <SearchableSelect
-                  options={getPlaceOptions(profile.campus)}
+                  options={getLocalizedSelectOptions(getPlaceOptions(profile.campus), language)}
                   value={crushPost.place}
                   placeholder="장소 검색 또는 선택 (예: 도서관)"
                   onChange={(option) =>
@@ -7448,7 +7694,7 @@ useEffect(() => {
               <div className="formGroup">
                 <label className="formLabel">국적</label>
                 <SearchableSelect
-                  options={countryOptions}
+                  options={getLocalizedSelectOptions(countryOptions, language)}
                   value={crushPost.lang_country}
                   placeholder="국가 검색 또는 선택"
                   onChange={(option) =>
@@ -7591,7 +7837,9 @@ useEffect(() => {
 
       {page === "searchRoomSelect" && (
         <div className="card roomSelectPage">
+          <p className="pageEyebrow">구름 확인하기</p>
           <h3 className="questionTitle">어떤 방에서 확인할까요?</h3>
+          <p className="roomSelectLead">시그널은 내 정보로 검색하고, 나머지 방은 게시글을 둘러봐요.</p>
 
           <button
             type="button"
@@ -7698,7 +7946,10 @@ useEffect(() => {
 
                 {post.room === "memory" ? (
                   <>
-                    <p className="communityPostBody">{post.memory_story || post.message}</p>
+                    {renderTranslatedCloudText(post, post.memory_story || post.message, {
+                      field: post.memory_story ? "memory_story" : "message",
+                      className: "communityPostBody",
+                    })}
                     {post.sender_user_id !== currentUser?.id && (
                       <button
                         className="communityResponseButton"
@@ -7743,7 +7994,7 @@ useEffect(() => {
           <h2 className="sendStepTitle">구름 확인하기</h2>
 
           <p className="stepText">
-            {searchStep} / {searchForm.room === "language" ? 1 : 5}
+            {searchStep}단계 / 총 {searchForm.room === "language" ? 1 : 5}단계
           </p>
 
           <StepProgress
@@ -7773,7 +8024,7 @@ useEffect(() => {
           {searchStep === 1 && (
             <>
               <h3 className="questionTitle">
-                구름을 확인하고 싶은 날짜는 언제인가요?
+                어느 날짜의 구름을 확인할까요?
               </h3>
               <div className="formGroup">
                 <label className="formLabel">날짜</label>
@@ -7788,10 +8039,10 @@ useEffect(() => {
 
               <div className="stepActions">
                 <button
-                  onClick={() => leaveCloudCheckFlow("home_exit", "home")}
+                  onClick={goBackSearchStep}
                   className="white"
                 >
-                  홈으로
+                  이전
                 </button>
                 <button
                   onClick={async () => {
@@ -8241,7 +8492,7 @@ useEffect(() => {
               <div className="formGroup">
                 <label className="formLabel">선호하는 상대 국가 (선택)</label>
                 <SearchableSelect
-                  options={["상관없음", ...countryOptions]}
+                  options={getLocalizedSelectOptions(["상관없음", ...countryOptions], language)}
                   value={searchForm.lang_country}
                   placeholder="국가 검색 또는 선택"
                   onChange={(option) =>
@@ -8349,9 +8600,10 @@ useEffect(() => {
 
           {renderSenderIntro(post)}
 
-          <p className="message">
-            “{cleanMessage(post.message) || "남긴 메시지가 없어요."}”
-          </p>
+          {renderTranslatedCloudText(post, post.message, {
+            quote: true,
+            fallback: "남긴 메시지가 없어요.",
+          })}
 
           {renderCloudActionButtons(post)}
 
@@ -8532,9 +8784,10 @@ useEffect(() => {
 
               {renderPostQuestionAnswer(selectedPost)}
 
-              {!["memory", "past_connection"].includes(selectedPost.room) && (
-                <p className="message">“{cleanMessage(selectedPost.message)}”</p>
-              )}
+              {!["memory", "past_connection"].includes(selectedPost.room) &&
+                renderTranslatedCloudText(selectedPost, selectedPost.message, {
+                  quote: true,
+                })}
             </div>
           )}
 
@@ -8659,12 +8912,6 @@ useEffect(() => {
           otherNickname={activeChatRoomNickname}
           onClose={() => setPage("chats")}
           onLeave={() => loadMyActivityData()}
-          onDeleted={() => {
-            setActiveChatRoomId(null);
-            setActiveChatRoomNickname("");
-            setPage("chats");
-            loadMyActivityData();
-          }}
         />
       )}
       {page === "chats" && (
@@ -8673,7 +8920,7 @@ useEffect(() => {
             <div>
               <h2>채팅</h2>
               <p className="subtitle">
-                대화가 수락된 상대와 여기서 이어갈 수 있어요.
+                서로 대화를 수락한 상대와 24시간 동안 메시지를 주고받을 수 있어요.
               </p>
             </div>
           </div>
@@ -8684,45 +8931,44 @@ useEffect(() => {
             <div className="manageSection">
               {myChatRooms.length === 0 && (
                 <p className="noticeBox">
-                  아직 대화 중인 채팅방이 없어요. 대화 요청이 수락되면 여기에
-                  표시돼요.
+                  아직 열린 채팅방이 없어요. 상대가 대화 요청을 수락하면 여기에 표시돼요.
+                </p>
+              )}
+
+              {myChatRooms.some((room) => {
+                const roomStatus = chatRoomStatusMap[room.chatRoomId];
+                return roomStatus
+                  ? isChatRoomExpired(roomStatus.created_at, roomStatus.closed_at, chatListNowTick)
+                  : false;
+              }) && (
+                <p className="chatListSwipeHint">
+                  종료된 채팅방을 오른쪽으로 밀면 내 목록에서 삭제할 수 있어요.
                 </p>
               )}
 
               {myChatRooms.map((room) => {
                 const preview = chatLastMessages[room.chatRoomId];
                 const previewTime = preview?.created_at || room.updatedAt;
-                const initial = (room.otherNickname || "구").trim().charAt(0) || "구";
                 const roomStatus = chatRoomStatusMap[room.chatRoomId];
                 const expired = roomStatus
                   ? isChatRoomExpired(roomStatus.created_at, roomStatus.closed_at, chatListNowTick)
                   : false;
+                const statusText = roomStatus
+                  ? formatChatRoomRemaining(roomStatus.created_at, roomStatus.closed_at, chatListNowTick)
+                  : "채팅 가능 시간을 확인하는 중이에요.";
 
                 return (
-                  <button
-                    type="button"
+                  <SwipeableChatRoomItem
                     key={room.chatRoomId}
-                    className="chatRoomListItem"
-                    onClick={() => openChatRoom(room.chatRoomId, room.otherNickname)}
-                  >
-                    <span className="chatRoomListAvatar">{initial}</span>
-                    <span className="chatRoomListInfo">
-                      <span className="chatRoomListTopRow">
-                        <b>{room.otherNickname}</b>
-                        <span className="chatRoomListTime">
-                          {formatChatListTime(previewTime)}
-                        </span>
-                      </span>
-                      <span className="chatRoomListPreview">
-                        {preview?.body || "대화를 시작해보세요."}
-                      </span>
-                      <span className={expired ? "chatRoomListStatus expired" : "chatRoomListStatus"}>
-                        {roomStatus
-                          ? formatChatRoomRemaining(roomStatus.created_at, roomStatus.closed_at, chatListNowTick)
-                          : ""}
-                      </span>
-                    </span>
-                  </button>
+                    room={room}
+                    preview={preview}
+                    previewTime={previewTime}
+                    expired={expired}
+                    statusText={statusText}
+                    deleting={deletingChatRoomId === room.chatRoomId}
+                    onOpen={() => openChatRoom(room.chatRoomId, room.otherNickname)}
+                    onDelete={deleteChatRoomFromList}
+                  />
                 );
               })}
             </div>
@@ -8745,9 +8991,10 @@ useEffect(() => {
 
               {renderSenderIntro(sharedPost)}
 
-              <p className="message">
-                “{cleanMessage(sharedPost.message) || "남긴 메시지가 없어요."}”
-              </p>
+              {renderTranslatedCloudText(sharedPost, sharedPost.message, {
+                quote: true,
+                fallback: "남긴 메시지가 없어요.",
+              })}
 
               {renderCloudActionButtons(sharedPost)}
             </div>
@@ -8799,11 +9046,11 @@ useEffect(() => {
 	      onClick={() => loadCloudWeather(weatherDate)}
 	      disabled={weatherLoading}
 	    >
-	      {weatherLoading ? "날씨 확인 중..." : "이 날짜 날씨 확인하기"}
+	      {weatherLoading ? "구름을 불러오는 중..." : "이 날짜의 구름 보기"}
 	    </button>
 
     {weatherLoading && (
-      <p className="notice">단국대 하늘을 확인하는 중이에요...</p>
+        <p className="notice">이 날짜에 등록된 구름을 불러오는 중이에요...</p>
     )}
 
     {!weatherLoading && weatherClouds.length === 0 && (
@@ -8822,7 +9069,7 @@ useEffect(() => {
           </div>
 
           <div className="weatherSummaryItem">
-            <span>구름 뜬 장소</span>
+            <span>구름이 등록된 장소</span>
             <b>{weatherPlaceCounts.length}</b>
           </div>
         </div>
@@ -8859,9 +9106,10 @@ useEffect(() => {
   <div className="card cloudBoardCard">
     <div className="cloudBoardHeader">
       <div>
-        <h2>구름 찾아주기</h2>
+        <p className="pageEyebrow">구름 둘러보기</p>
+        <h2>오늘의 구름</h2>
         <p className="subtitle">
-          오늘 뜬 구름을 연애방/글로벌방 구분 없이 한눈에 모아 보여줘요.
+          공개된 구름을 한눈에 살펴보고, 떠오르는 친구에게 알려주세요.
         </p>
       </div>
 
@@ -8918,29 +9166,11 @@ useEffect(() => {
                 onClick={loadMyActivityData}
                 disabled={matchingLoading}
               >
-                응답
+                내 구름
               </button>
               <p className="responseHeaderDescription">
-                띄운 구름과 확인한 구름의 진행 상황을 확인해요.
+                내가 띄운 구름, 받은 응답, 확인한 구름을 한곳에서 관리해요.
               </p>
-            </div>
-            <div className="manageHeaderIcons">
-              <button
-                type="button"
-                className="manageHeaderIconBtn"
-                aria-label="알림"
-                onClick={openNotificationsPage}
-              >
-                {renderBellWithBadge(21)}
-              </button>
-              <button
-                type="button"
-                className="manageHeaderIconBtn"
-                aria-label="구름 달력"
-                onClick={openCloudCalendarPage}
-              >
-                <CalendarIcon size={21} />
-              </button>
             </div>
           </div>
 
@@ -9340,6 +9570,86 @@ useEffect(() => {
             </div>
           )}
 
+	        </div>
+	      )}
+	      {showAppGuide && (
+	        <div
+	          className="appGuideBackdrop"
+	          role="presentation"
+	          onMouseDown={(event) => {
+	            if (event.target === event.currentTarget) setShowAppGuide(false);
+	          }}
+	        >
+	          <section
+	            className="appGuideDialog"
+	            role="dialog"
+	            aria-modal="true"
+	            aria-labelledby="app-guide-title"
+	          >
+	            <header className="appGuideHeader">
+	              <div>
+	                <span>단꿈 사용 안내</span>
+	                <h2 id="app-guide-title">처음이어도 쉽게 시작해요</h2>
+	              </div>
+	              <button
+	                type="button"
+	                className="appGuideClose"
+	                aria-label="사용 안내 닫기"
+	                onClick={() => setShowAppGuide(false)}
+	              >
+	                ×
+	              </button>
+	            </header>
+
+	            <div className="appGuideImageFrame">
+	              <img
+	                src={APP_GUIDE_STEPS[appGuideStep].image}
+	                alt={APP_GUIDE_STEPS[appGuideStep].alt}
+	              />
+	            </div>
+
+	            <div className="appGuideCopy" aria-live="polite">
+	              <span>{appGuideStep + 1} / {APP_GUIDE_STEPS.length}</span>
+	              <h3>{APP_GUIDE_STEPS[appGuideStep].title}</h3>
+	              <p>{APP_GUIDE_STEPS[appGuideStep].description}</p>
+	            </div>
+
+	            <div className="appGuideDots" aria-label="사용 안내 단계">
+	              {APP_GUIDE_STEPS.map((step, index) => (
+	                <button
+	                  type="button"
+	                  key={step.title}
+	                  className={index === appGuideStep ? "active" : ""}
+	                  aria-label={`${index + 1}단계: ${step.title}`}
+	                  aria-current={index === appGuideStep ? "step" : undefined}
+	                  onClick={() => setAppGuideStep(index)}
+	                />
+	              ))}
+	            </div>
+
+	            <div className="appGuideActions">
+	              <button
+	                type="button"
+	                className="white"
+	                disabled={appGuideStep === 0}
+	                onClick={() => setAppGuideStep((step) => Math.max(0, step - 1))}
+	              >
+	                이전
+	              </button>
+	              <button
+	                type="button"
+	                onClick={() => {
+	                  if (appGuideStep === APP_GUIDE_STEPS.length - 1) {
+	                    setShowAppGuide(false);
+	                    return;
+	                  }
+	                  setAppGuideStep((step) => Math.min(APP_GUIDE_STEPS.length - 1, step + 1));
+	                }}
+	              >
+	                {appGuideStep === APP_GUIDE_STEPS.length - 1 ? "확인했어요" : "다음"}
+	              </button>
+	            </div>
+	          </section>
 	        </div>
 	      )}
 	      {page !== "chatRoom" && renderBottomNav()}

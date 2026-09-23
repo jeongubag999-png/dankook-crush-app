@@ -108,6 +108,14 @@ export const BellIcon = ({ size = 22 }) => (
   </svg>
 );
 
+export const HelpCircleIcon = ({ size = 22 }) => (
+  <svg width={size} height={size} {...outlineIconProps}>
+    <circle cx="12" cy="12" r="9" />
+    <path d="M9.7 9a2.5 2.5 0 1 1 3.5 2.3c-.8.4-1.2 1-1.2 1.9" />
+    <path d="M12 17h.01" />
+  </svg>
+);
+
 export const CalendarIcon = ({ size = 22 }) => (
   <svg width={size} height={size} {...outlineIconProps}>
     <rect x="4" y="5.5" width="16" height="14.5" rx="3" />

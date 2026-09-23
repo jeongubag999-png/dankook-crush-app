@@ -1,7 +1,7 @@
 import { useEffect, useRef, useState } from "react";
 import toast from "react-hot-toast";
 import { supabase } from "../supabase";
-import { ChevronLeftIcon, DoorExitIcon, PaperPlaneIcon, TrashIcon } from "./Icons";
+import { ChevronLeftIcon, DoorExitIcon, PaperPlaneIcon } from "./Icons";
 import {
   formatChatBubbleTime,
   formatChatDateDivider,
@@ -10,7 +10,7 @@ import {
   isSameChatDay,
 } from "../utils";
 
-export function ChatRoom({ roomId, currentUserId, otherNickname, onClose, onDeleted, onLeave }) {
+export function ChatRoom({ roomId, currentUserId, otherNickname, onClose, onLeave }) {
   const [messages, setMessages] = useState([]);
   const [input, setInput] = useState("");
   const [loading, setLoading] = useState(true);
@@ -18,7 +18,6 @@ export function ChatRoom({ roomId, currentUserId, otherNickname, onClose, onDele
   const [roomInfo, setRoomInfo] = useState(null);
   const [instagramChoice, setInstagramChoice] = useState(null);
   const [instagramSubmitting, setInstagramSubmitting] = useState(false);
-  const [deletingRoom, setDeletingRoom] = useState(false);
   const [leavingRoom, setLeavingRoom] = useState(false);
   const [now, setNow] = useState(() => Date.now());
   const bottomRef = useRef(null);
@@ -183,27 +182,6 @@ export function ChatRoom({ roomId, currentUserId, otherNickname, onClose, onDele
     setInstagramSubmitting(false);
   };
 
-  const deleteEndedChatRoom = async () => {
-    if (!roomId || deletingRoom) return;
-    const ok = window.confirm("이 종료된 채팅방을 내 목록에서 삭제할까요? 상대방 목록에서는 사라지지 않아요.");
-    if (!ok) return;
-
-    setDeletingRoom(true);
-    const { error } = await supabase.rpc("delete_my_chat_room_view", {
-      p_room_id: roomId,
-    });
-
-    if (error) {
-      console.log(error);
-      toast.error(error.message || "채팅방 삭제에 실패했어요.");
-      setDeletingRoom(false);
-      return;
-    }
-
-    toast.success("내 채팅 목록에서 삭제했어요.");
-    onDeleted?.();
-  };
-
   const leaveChatRoom = async () => {
     if (!roomId || leavingRoom || isExpired) return;
     const ok = window.confirm(
@@ -233,13 +211,13 @@ export function ChatRoom({ roomId, currentUserId, otherNickname, onClose, onDele
   const renderInstagramConsentPanel = () => {
     if (!isExpired || !roomInfo) return null;
 
-    let statusText = "선택 후 확인을 누르면 상대의 선택이 끝날 때까지 기다려요.";
+    let statusText = "공개 여부를 선택해 저장하면, 상대도 선택을 마칠 때 결과를 알려드려요.";
     if (myInstagramConsent !== null && myInstagramConsent !== undefined && !bothChoseInstagram) {
-      statusText = "상대의 선택을 기다리고 있어요.";
+      statusText = "내 선택을 저장했어요. 상대가 선택할 때까지 기다려주세요.";
     } else if (bothChoseInstagram && instagramRevealed) {
-      statusText = "서로의 인스타가 공개됐어요. 아래 메시지에서 확인할 수 있어요.";
+      statusText = "두 사람 모두 동의해 인스타그램 아이디가 공개됐어요. 아래 안내 메시지에서 확인하세요.";
     } else if (bothChoseInstagram) {
-      statusText = "서로의 인스타가 공개되지 않았어요.";
+      statusText = "한 사람이라도 동의하지 않아 인스타그램 아이디는 공개되지 않아요.";
     }
 
     return (
@@ -247,7 +225,7 @@ export function ChatRoom({ roomId, currentUserId, otherNickname, onClose, onDele
         <div className="chatInstagramPanelHeader">
           <span className="chatInstagramCloud" aria-hidden="true">☁️</span>
           <div>
-            <b>서로의 인스타 아이디를 공개하시겠습니까?</b>
+            <b>상대에게 내 인스타그램 아이디를 공개할까요?</b>
             <p>{statusText}</p>
           </div>
         </div>
@@ -260,14 +238,14 @@ export function ChatRoom({ roomId, currentUserId, otherNickname, onClose, onDele
                 className={instagramChoice === true ? "selected" : ""}
                 onClick={() => setInstagramChoice(true)}
               >
-                Yes
+                공개할게요
               </button>
               <button
                 type="button"
                 className={instagramChoice === false ? "selected" : ""}
                 onClick={() => setInstagramChoice(false)}
               >
-                No
+                공개하지 않을게요
               </button>
             </div>
             <button
@@ -276,20 +254,10 @@ export function ChatRoom({ roomId, currentUserId, otherNickname, onClose, onDele
               onClick={submitInstagramConsent}
               disabled={instagramChoice === null || instagramSubmitting}
             >
-              {instagramSubmitting ? "저장 중..." : "확인"}
+              {instagramSubmitting ? "저장 중..." : "선택 저장하기"}
             </button>
           </>
         )}
-
-        <button
-          type="button"
-          className="chatRoomDeleteBtn"
-          onClick={deleteEndedChatRoom}
-          disabled={deletingRoom}
-        >
-          <TrashIcon size={18} />
-          {deletingRoom ? "삭제 중..." : "이 채팅방 삭제하기"}
-        </button>
       </div>
     );
   };
@@ -331,8 +299,8 @@ export function ChatRoom({ roomId, currentUserId, otherNickname, onClose, onDele
         {!loading && messages.length === 0 && (
           <div className="chatEmptyState">
             <span className="chatEmptyIcon">💬</span>
-            <p>아직 메시지가 없어요.</p>
-            <p className="helperText">먼저 인사를 건네보세요!</p>
+            <p>아직 주고받은 메시지가 없어요.</p>
+            <p className="helperText">부담 없이 짧은 인사부터 보내보세요.</p>
           </div>
         )}
 
@@ -364,7 +332,7 @@ export function ChatRoom({ roomId, currentUserId, otherNickname, onClose, onDele
                     ? "chatMessageRow mine"
                     : "chatMessageRow theirs"
                 }
-                style={{ marginTop: isNewGroup ? 14 : 2 }}
+                style={{ marginTop: isNewGroup ? 18 : 6 }}
               >
                 {isMine && showTime && (
                   <span className="chatBubbleTime">{formatChatBubbleTime(m.created_at)}</span>
@@ -390,7 +358,7 @@ export function ChatRoom({ roomId, currentUserId, otherNickname, onClose, onDele
 
       {isExpired ? (
         <div className="chatRoomExpiredNotice">
-          24시간이 지나 채팅방이 종료됐어요. 더 이상 메시지를 보낼 수 없어요.
+          채팅 시작 후 24시간이 지나 대화가 종료됐어요. 채팅 목록에서 이 방을 삭제할 수 있어요.
         </div>
       ) : (
         <div className="chatRoomInputBar">
