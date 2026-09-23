@@ -70,6 +70,28 @@ export const cheonanPlaceOptions = [
 export const getPlaceOptions = (campus) =>
   campus === "천안" ? cheonanPlaceOptions : jukjeonPlaceOptions;
 
+// 택시팟 구름 전용 출발 장소 — 실제 택시 수요가 몰리는 순서대로 위에 오도록 정렬하고,
+// "학교 앞 상권/거리"처럼 애매한 표현 대신 실제 만남 장소로 쓰이는 랜드마크(홍콩반점)를
+// 써서 어디로 모이면 되는지 바로 알 수 있게 한다.
+export const taxiJukjeonPlaceOptions = [
+  "학교 앞 술집거리 (홍콩반점)",
+  "보정동 카페거리",
+  "죽전역",
+  "기숙사",
+  ...jukjeonPlaceOptions.filter(
+    (place) => !["보정동 카페거리", "죽전역", "학교 앞 상권/거리"].includes(place)
+  ),
+];
+
+export const taxiCheonanPlaceOptions = [
+  "기숙사",
+  "학교 앞 상권/거리",
+  ...cheonanPlaceOptions.filter((place) => !["기숙사", "학교 앞 상권/거리"].includes(place)),
+];
+
+export const getTaxiPlaceOptions = (campus) =>
+  campus === "천안" ? taxiCheonanPlaceOptions : taxiJukjeonPlaceOptions;
+
 export const campusOptions = ["죽전", "천안"];
 
 export const timeOptions = [

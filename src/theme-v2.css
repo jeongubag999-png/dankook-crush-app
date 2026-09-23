@@ -1053,6 +1053,16 @@ body {
   border-color: #eecf91;
 }
 
+.app button.white.roomCardTaxi {
+  background: #fffbe8;
+  border: 1px solid #ffe58a;
+}
+
+.app button.white.roomCardTaxi:hover {
+  background: #fff6cf;
+  border-color: #ffd952;
+}
+
 .app .homeV2ActionIcon.roomIconCrush {
   background: #ffdce8;
 }
@@ -1067,6 +1077,10 @@ body {
 
 .app .homeV2ActionIcon.roomIconPastConnection {
   background: #ffedc8;
+}
+
+.app .homeV2ActionIcon.roomIconTaxi {
+  background: #fff1b8;
 }
 
 .app .communityNestedQuestion {

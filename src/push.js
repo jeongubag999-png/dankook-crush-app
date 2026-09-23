@@ -29,6 +29,14 @@ const ensureInit = () => {
         }
         OneSignal.initialize(ONESIGNAL_APP_ID);
         await OneSignal.Notifications.requestPermission(true);
+        // 택시팟 구름의 반경 알림(OneSignal 위치 필터)에 필요. 유저가 위치 권한을
+        // 거부해도 나머지 푸시 기능(구름 응답/매칭/채팅)은 정상 동작한다.
+        try {
+          OneSignal.Location.requestPermission();
+          OneSignal.Location.setShared(true);
+        } catch (locationErr) {
+          console.log("[push] 위치 공유 설정 중 에러:", locationErr?.message || locationErr);
+        }
         return true;
       } catch (err) {
         console.log("[push] 초기화 중 에러:", err?.message || err);

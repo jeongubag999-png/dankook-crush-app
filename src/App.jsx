@@ -59,6 +59,7 @@ function LocalizedDateInput({ language, value, onChange }) {
 
 import {
   getPlaceOptions,
+  getTaxiPlaceOptions,
   campusOptions,
   timeOptions,
   genderOptions,
@@ -107,6 +108,7 @@ import {
   getWeatherComment,
   isNativeApp,
   pickImageFromLibrary,
+  getCurrentCoords,
 } from "./utils";
 import { submitDkuVerification } from "./dkuVerification";
 import { getAppLanguage, LANGUAGE_OPTIONS, setAppLanguage, translateText } from "./i18n";
@@ -2551,7 +2553,7 @@ const hideSearchResult = (postId) => {
   };
 
   const chooseSearchRoom = async (room) => {
-    if (room === "memory" || room === "past_connection") {
+    if (room === "memory" || room === "past_connection" || room === "taxi") {
       await openCommunityCloudRoom(room);
       return;
     }
@@ -3042,6 +3044,72 @@ const hideSearchResult = (postId) => {
     }
   };
 
+  const saveTaxiPost = async () => {
+    if (postSubmitting || !checkProfileRequired()) return;
+
+    if (!crushPost.place) {
+      toast.error("출발 장소를 선택해주세요.");
+      return;
+    }
+    if (!crushPost.time_period) {
+      toast.error("출발 예정 시각을 입력해주세요.");
+      return;
+    }
+
+    setPostSubmitting(true);
+    try {
+      const coords = await getCurrentCoords();
+
+      const postData = {
+        room: "taxi",
+        seen_date: getKoreaDateString(),
+        time_period: crushPost.time_period,
+        place: crushPost.place,
+        main_place: crushPost.place,
+        detail_place: "",
+        hair_feature: "",
+        clothes_style: "",
+        accessory: "",
+        message: crushPost.message.trim(),
+        sender_nickname: profile.nickname,
+        sender_instagram: cleanInstagram(profile.instagram_id),
+        sender_gender: profile.gender,
+        sender_department: profile.department,
+        sender_mbti: profile.mbti,
+        sender_bio: profile.bio,
+        target_gender: "상관없음",
+        campus: profile.campus,
+        lat: coords?.lat ?? null,
+        lng: coords?.lng ?? null,
+      };
+
+      const { data: savedPost, error } = await supabase
+        .from("crush_posts")
+        .insert([{ ...postData, sender_user_id: currentUser.id }])
+        .select()
+        .maybeSingle();
+
+      if (error) {
+        toast.error("택시팟 구름 띄우기에 실패했어요: " + error.message);
+        console.log(error);
+        return;
+      }
+
+      toast.success(
+        coords
+          ? "택시팟 구름을 띄웠어요! 근처 사용자에게 알림이 갔어요."
+          : "택시팟 구름을 띄웠어요! (위치 권한이 없어 주변 알림은 못 보냈어요)"
+      );
+      await finishCloudSendFlowLog({ exitType: "submit", completed: true, targetGender: "상관없음" });
+      resetCrushPost();
+      setSentResultPost(savedPost);
+      setSentCheckResults([]);
+      setPage("sentResult");
+    } finally {
+      setPostSubmitting(false);
+    }
+  };
+
   const saveCrushPost = async () => {
     if (crushPost.room === "language") {
       await saveLanguagePost();
@@ -3049,6 +3117,10 @@ const hideSearchResult = (postId) => {
     }
     if (crushPost.room === "memory" || crushPost.room === "past_connection") {
       await saveCommunityCloudPost();
+      return;
+    }
+    if (crushPost.room === "taxi") {
+      await saveTaxiPost();
       return;
     }
 
@@ -6983,6 +7055,21 @@ useEffect(() => {
             </span>
           </button>
 
+          <button
+            type="button"
+            onClick={() => chooseSendRoom("taxi")}
+            className="homeV2ActionCard white roomCardTaxi"
+          >
+            <span className="homeV2ActionIcon roomIconTaxi">🚕</span>
+            <span className="homeV2ActionText">
+              <b>택시팟 구름</b>
+              <small>심야에 학교·보정동·죽전역에서 택시 같이 탈 사람을 구해요.</small>
+            </span>
+            <span className="homeV2ActionChevron">
+              <ChevronRightIcon />
+            </span>
+          </button>
+
           <button onClick={() => setPage("home")} className="white roomSelectHomeButton">
             🏠 홈으로
           </button>
@@ -6999,11 +7086,11 @@ useEffect(() => {
 
           <p className="pageEyebrow">구름 띄우기</p>
           <p className="stepText">
-            {crushStep}단계 / 총 {["language", "memory", "past_connection"].includes(crushPost.room) ? 1 : 3}단계
+            {crushStep}단계 / 총 {["language", "memory", "past_connection", "taxi"].includes(crushPost.room) ? 1 : 3}단계
           </p>
 
           <StepProgress
-            total={["language", "memory", "past_connection"].includes(crushPost.room) ? 1 : 3}
+            total={["language", "memory", "past_connection", "taxi"].includes(crushPost.room) ? 1 : 3}
             current={crushStep}
           />
 
@@ -7788,6 +7875,51 @@ useEffect(() => {
           )}
           </>
           )}
+
+          {crushPost.room === "taxi" && (
+            <>
+              <h3 className="questionTitle">택시팟 구름을 띄워볼까요?</h3>
+              <p className="subtitle communityWriteGuide">
+                출발 장소와 대략적인 시각을 남기면, 근처에 있는 단꿈 사용자에게 알림이 가요.
+              </p>
+              <div className="communityPostEditor">
+                <div className="formGroup">
+                  <label className="formLabel">출발 장소</label>
+                  <SearchableSelect
+                    options={getLocalizedSelectOptions(getTaxiPlaceOptions(profile.campus), language)}
+                    value={crushPost.place}
+                    placeholder="장소 검색 또는 선택 (예: 죽전역)"
+                    onChange={(option) => updateCrushPost("place", option)}
+                  />
+                </div>
+                <div className="formGroup">
+                  <label className="formLabel">출발 예정 시각</label>
+                  <input
+                    type="time"
+                    value={crushPost.time_period}
+                    onChange={(e) => updateCrushPost("time_period", e.target.value)}
+                  />
+                </div>
+                <div className="formGroup">
+                  <label className="formLabel">한마디 (인원, 목적지 등)</label>
+                  <textarea
+                    className="communityPostTextarea"
+                    value={crushPost.message}
+                    maxLength={300}
+                    placeholder="예: 기숙사까지 같이 타실 분 2명 구해요! 죽전역 1번 출구 앞에서 만나요."
+                    onChange={(e) => updateCrushPost("message", e.target.value)}
+                  />
+                  <small className="fieldCounter">{crushPost.message.length}/300</small>
+                </div>
+              </div>
+              <div className="stepActions">
+                <button onClick={goBackStep} className="white">이전</button>
+                <button onClick={saveCrushPost} disabled={postSubmitting}>
+                  {postSubmitting ? "구름 띄우는 중..." : "택시팟 구름 띄우기"}
+                </button>
+              </div>
+            </>
+          )}
         </div>
       )}
 
@@ -7903,6 +8035,21 @@ useEffect(() => {
             </span>
           </button>
 
+          <button
+            type="button"
+            onClick={() => chooseSearchRoom("taxi")}
+            className="homeV2ActionCard white roomCardTaxi"
+          >
+            <span className="homeV2ActionIcon roomIconTaxi">🚕</span>
+            <span className="homeV2ActionText">
+              <b>택시팟 구름</b>
+              <small>지금 뜬 택시팟 구름을 확인해요.</small>
+            </span>
+            <span className="homeV2ActionChevron">
+              <ChevronRightIcon />
+            </span>
+          </button>
+
           <button onClick={() => setPage("home")} className="white roomSelectHomeButton">
             🏠 홈으로
           </button>
@@ -7911,11 +8058,19 @@ useEffect(() => {
 
       {page === "communityClouds" && (
         <div className="card communityCloudListPage">
-          <h2>{communityCloudRoom === "memory" ? "게시판 구름" : "고향 구름"}</h2>
+          <h2>
+            {communityCloudRoom === "memory"
+              ? "게시판 구름"
+              : communityCloudRoom === "taxi"
+                ? "택시팟 구름"
+                : "고향 구름"}
+          </h2>
           <p className="subtitle">
             {communityCloudRoom === "memory"
               ? "단국대 학생이 남긴 기억 속 인연의 이야기를 확인해보세요."
-              : "같은 지역이나 학교를 나온 단국대 학생과 다시 연결되어 보세요."}
+              : communityCloudRoom === "taxi"
+                ? "지금 뜬 택시팟 구름을 확인하고 같이 탈 사람에게 요청해보세요."
+                : "같은 지역이나 학교를 나온 단국대 학생과 다시 연결되어 보세요."}
           </p>
 
           {communityCloudRoom === "past_connection" && (
@@ -7943,9 +8098,15 @@ useEffect(() => {
             {filteredCommunityClouds.map((post) => (
               <article className="communityCloudCard" key={post.id}>
                 <div className="communityCloudCardTop">
-                  <span>{post.room === "memory" ? "📖" : "🏡"}</span>
+                  <span>{post.room === "memory" ? "📖" : post.room === "taxi" ? "🚕" : "🏡"}</span>
                   <div>
-                    <b>{post.room === "memory" ? post.memory_title || "게시판 구름" : [post.past_region, post.past_subregion].filter(Boolean).join(" ") || post.past_kind || "고향 구름"}</b>
+                    <b>
+                      {post.room === "memory"
+                        ? post.memory_title || "게시판 구름"
+                        : post.room === "taxi"
+                          ? `${post.place || "출발지 미정"} · ${post.time_period || "시각 미정"} 출발`
+                          : [post.past_region, post.past_subregion].filter(Boolean).join(" ") || post.past_kind || "고향 구름"}
+                    </b>
                     <small><span data-i18n-ignore>{post.sender_nickname || "단꿈 사용자"}</span> · {post.campus || "단국대"}</small>
                   </div>
                 </div>
@@ -7965,6 +8126,23 @@ useEffect(() => {
                         }}
                       >
                         이거 저예요!
+                      </button>
+                    )}
+                  </>
+                ) : post.room === "taxi" ? (
+                  <>
+                    {renderTranslatedCloudText(post, post.message, {
+                      className: "communityPostBody",
+                    })}
+                    {post.sender_user_id !== currentUser?.id && (
+                      <button
+                        className="communityResponseButton"
+                        onClick={() => {
+                          setSelectedPost(post);
+                          setPage("claimForm");
+                        }}
+                      >
+                        같이 탈게요!
                       </button>
                     )}
                   </>
@@ -8708,6 +8886,19 @@ useEffect(() => {
         </div>
       )}
 
+      {page === "sentResult" && sentResultPost?.room === "taxi" && (
+        <div className="card">
+          <h2>택시팟 구름을 띄웠어요 🚕</h2>
+          <p className="subtitle">근처에 있는 단꿈 사용자에게 알림이 갔어요. 응답이 오면 채팅으로 이어져요.</p>
+          <div className="noticeBox">
+            <p><b>{sentResultPost.place} · {sentResultPost.time_period} 출발</b></p>
+            <p>{sentResultPost.message}</p>
+          </div>
+          <button onClick={() => openCommunityCloudRoom("taxi")}>지금 확인하러 가기</button>
+          <button onClick={() => setPage("home")} className="white">홈으로</button>
+        </div>
+      )}
+
       {page === "sentResult" && sentResultPost?.room === "crush" && (
         <div className="card">
           <h2>구름 확인 내역 {sentCheckResults.length}개</h2>
@@ -8822,6 +9013,8 @@ useEffect(() => {
                   ? "예: 그때 그 이야기, 저인 것 같아요!"
                 : selectedPost?.room === "past_connection"
                   ? "예: 저도 거기 살았어요! 반가워요."
+                : selectedPost?.room === "taxi"
+                  ? "예: 저도 같이 탈게요! 지금 출발하시나요?"
                 : "상대에게 남길 말 예: 저 맞는 것 같아요!"
             }
             value={claimForm.claimer_message}
@@ -8838,7 +9031,7 @@ useEffect(() => {
 	          </button>
 
           <button
-            onClick={() => ["memory", "past_connection"].includes(selectedPost?.room) ? openCommunityCloudRoom(selectedPost.room) : setPage("result")}
+            onClick={() => ["memory", "past_connection", "taxi"].includes(selectedPost?.room) ? openCommunityCloudRoom(selectedPost.room) : setPage("result")}
             className="white"
           >
             뒤로가기

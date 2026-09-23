@@ -1,8 +1,31 @@
 import { Camera, CameraResultType, CameraSource } from "@capacitor/camera";
 import { Capacitor } from "@capacitor/core";
+import { Geolocation } from "@capacitor/geolocation";
 import { KOREA_TIME_ZONE, IMAGE_EXTENSIONS, MAX_IMAGE_SIZE } from "./constants";
 
 export const isNativeApp = () => Capacitor.isNativePlatform();
+
+// 택시팟 구름 등록 시 좌표를 한 번 찍어서 반경 알림에 쓴다. 권한을 안 줬거나
+// 실패하면 null을 돌려주고, 호출부는 좌표 없이 그냥 글만 올리도록 처리한다.
+export const getCurrentCoords = async () => {
+  try {
+    const permission = await Geolocation.checkPermissions();
+    if (permission.location !== "granted" && permission.coarseLocation !== "granted") {
+      const requested = await Geolocation.requestPermissions();
+      if (requested.location !== "granted" && requested.coarseLocation !== "granted") {
+        return null;
+      }
+    }
+    const position = await Geolocation.getCurrentPosition({
+      enableHighAccuracy: false,
+      timeout: 8000,
+    });
+    return { lat: position.coords.latitude, lng: position.coords.longitude };
+  } catch (error) {
+    console.log("위치 가져오기 실패:", error);
+    return null;
+  }
+};
 
 export const pickImageFromLibrary = async () => {
   const photo = await Camera.getPhoto({

@@ -50,6 +50,46 @@ const sendOneSignalPush = async (externalUserId: string, title: string, body: st
   return { oneSignalStatus: res.status, oneSignalResponse: resBody };
 };
 
+// 택시팟 구름 전용: 특정 유저가 아니라 좌표 반경 안의 모든 구독 기기에 브로드캐스트한다.
+// OneSignal이 기기별 위치(유저가 위치 공유에 동의한 경우)를 기준으로 알아서 걸러준다 —
+// 우리 쪽 DB에는 그 어떤 유저의 실시간 위치도 저장하지 않는다.
+const sendOneSignalLocationPush = async (
+  lat: number,
+  lng: number,
+  radiusMeters: number,
+  title: string,
+  body: string
+) => {
+  const appId = Deno.env.get("ONESIGNAL_APP_ID");
+  const apiKey = Deno.env.get("ONESIGNAL_REST_API_KEY");
+
+  if (!appId || !apiKey) {
+    console.log("OneSignal 시크릿이 설정되지 않아 푸시를 건너뜁니다.");
+    return { skipped: "no_secrets" };
+  }
+
+  const res = await fetch("https://onesignal.com/api/v1/notifications", {
+    method: "POST",
+    headers: {
+      "Content-Type": "application/json",
+      Authorization: `Key ${apiKey}`,
+    },
+    body: JSON.stringify({
+      app_id: appId,
+      filters: [{ field: "location", radius: radiusMeters, lat, long: lng }],
+      target_channel: "push",
+      headings: { en: title, ko: title },
+      contents: { en: body, ko: body },
+    }),
+  });
+
+  const resBody = await res.text();
+  if (!res.ok) {
+    console.log("OneSignal 위치 기반 요청 실패", res.status, resBody);
+  }
+  return { oneSignalStatus: res.status, oneSignalResponse: resBody };
+};
+
 Deno.serve(async (req) => {
   if (req.method === "OPTIONS") {
     return new Response("ok", { headers: corsHeaders });
@@ -144,6 +184,18 @@ Deno.serve(async (req) => {
         }
       } else {
         pushResult = { skipped: "chat_room_not_found" };
+      }
+    } else if (type === "new_taxi_post") {
+      if (typeof record.lat === "number" && typeof record.lng === "number") {
+        pushResult = await sendOneSignalLocationPush(
+          record.lat,
+          record.lng,
+          3000,
+          "택시팟 구름이 떴어요 🚕",
+          `${record.place || "학교 근처"} · ${record.time_period || ""} 출발 — 확인해보세요!`
+        );
+      } else {
+        pushResult = { skipped: "no_coordinates" };
       }
     }
 

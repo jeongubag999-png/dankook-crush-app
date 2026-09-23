@@ -619,6 +619,7 @@ body {
 .app .roomSelectPage .roomCardLanguage::before { background: #168466; }
 .app .roomSelectPage .roomCardMemory::before { background: #6f5acb; }
 .app .roomSelectPage .roomCardPastConnection::before { background: #a56613; }
+.app .roomSelectPage .roomCardTaxi::before { background: #c99a00; }
 
 .app .roomSelectPage .roomSelectHomeButton {
   margin-top: 12px;
