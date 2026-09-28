@@ -53,6 +53,7 @@ export function SearchableSelect({ options, value, onChange, placeholder }) {
               }}
             >
               {option.label}
+              {option.badge && <span className="searchableSelectBadge">{option.badge}</span>}
             </button>
           ))}
         </div>

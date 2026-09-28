@@ -7,6 +7,7 @@ import "./ux-overhaul.css";
 import { supabase } from "./supabase";
 import { initPush, linkPushUser, unlinkPushUser } from "./push";
 import { OptionButton } from "./components/OptionButton";
+import { LibrarySeatMap } from "./components/LibrarySeatMap";
 import { SearchableSelect } from "./components/SearchableSelect";
 import { ChatRoom } from "./components/ChatRoom";
 import {
@@ -47,6 +48,21 @@ const getLocalizedSelectOptions = (options, language) =>
     label: language === "en" ? translateText(value, "en") : value,
   }));
 
+// 시그널 구름 장소 목록: 시험기간에는 좌석 쪽지가 되는 도서관을 맨 위로 올리고 배지를 단다.
+const getSignalPlaceSelectOptions = (campus, language) => {
+  const options = getLocalizedSelectOptions(getPlaceOptions(campus), language);
+  if (!LIBRARY_EXAM_EVENT_ACTIVE) return options;
+
+  const libraries = getCampusLibraries(campus);
+  const badge = language === "en" ? "📝 Exam season" : "📝 시험기간 EVENT";
+  return [
+    ...options
+      .filter((option) => libraries.includes(option.value))
+      .map((option) => ({ ...option, badge })),
+    ...options.filter((option) => !libraries.includes(option.value)),
+  ];
+};
+
 function LocalizedDateInput({ language, value, onChange }) {
   const showEnglishFormat = language === "en" && !value;
   return (
@@ -85,6 +101,7 @@ import {
   languageExchangeInterestOptions,
   getLibraryReadingRooms,
   getCampusLibraries,
+  LIBRARY_EXAM_EVENT_ACTIVE,
 } from "./constants";
 import {
   getKoreaDateString,
@@ -3412,7 +3429,8 @@ const hideSearchResult = (postId) => {
 
       localStorage.removeItem(getDraftKey());
 
-      if (savedPost && (librarySeat || (editingPost && libraryRoom))) {
+      // 수정할 때는 좌석을 지운 경우(열람실 밖·다른 장소로 변경)도 반영해야 해서 항상 맞춘다.
+      if (savedPost && (librarySeat || editingPost)) {
         const { error: seatSaveError } = await supabase.rpc("set_crush_post_seat", {
           p_post_id: savedPost.id,
           p_library: crushPost.place,
@@ -7406,7 +7424,7 @@ useEffect(() => {
               <div className="formGroup">
                 <label className="formLabel">장소</label>
                 <SearchableSelect
-                  options={getLocalizedSelectOptions(getPlaceOptions(profile.campus), language)}
+                  options={getSignalPlaceSelectOptions(profile.campus, language)}
                   value={crushPost.place}
                   placeholder="장소 검색 또는 선택 (예: 도서관)"
                   onChange={(option) =>
@@ -7451,6 +7469,14 @@ useEffect(() => {
                       <option value={LIBRARY_OUTSIDE_ROOM}>열람실 밖 (로비·자료실 등)</option>
                     </select>
                   </div>
+                  {getSelectedLibraryRoom(crushPost) && (
+                    <LibrarySeatMap
+                      library={crushPost.place}
+                      roomName={crushPost.library_room}
+                      value={crushPost.library_seat}
+                      onChange={(seat) => updateCrushPost("library_seat", seat)}
+                    />
+                  )}
                   {getSelectedLibraryRoom(crushPost) && (
                     <div className="formGroup">
                       <label className="formLabel">
@@ -8623,6 +8649,14 @@ useEffect(() => {
                         }
                       />
                     </div>
+                    {seatRoom && (
+                      <LibrarySeatMap
+                        library={seatLibrary}
+                        roomName={seatRoom.name}
+                        value={seatSearch.seat}
+                        onChange={(seat) => setSeatSearch((prev) => ({ ...prev, seat }))}
+                      />
+                    )}
                     <button
                       type="button"
                       className="white"

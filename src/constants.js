@@ -105,6 +105,10 @@ export const LIBRARY_READING_ROOMS = {
   ],
 };
 
+// 시험기간 동안 시그널 구름 장소 목록에서 좌석 쪽지가 되는 도서관을 맨 위로 올리고
+// 배지를 붙인다. 시험기간이 끝나면 false로 바꾸면 원래 순서로 돌아간다.
+export const LIBRARY_EXAM_EVENT_ACTIVE = true;
+
 export const getLibraryReadingRooms = (place) => LIBRARY_READING_ROOMS[place] || [];
 
 export const getCampusLibraries = (campus) =>

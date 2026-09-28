@@ -2028,3 +2028,93 @@ body {
 .app .librarySeatSearch button {
   width: 100%;
 }
+
+.app .searchableSelectBadge {
+  display: inline-block;
+  margin-left: 8px;
+  padding: 2px 8px;
+  border-radius: 999px;
+  background: #fff1c7;
+  color: #a15c00;
+  font-size: 11.5px;
+  font-weight: 800;
+  vertical-align: 1px;
+  white-space: nowrap;
+}
+
+/* 도서관 좌석 배치도 */
+.app .seatMap {
+  margin: 4px 0 14px;
+}
+
+.app .seatMapScroll {
+  max-height: 340px;
+  overflow: auto;
+  border-radius: var(--v2-radius-sm);
+  background: #f3f0e8;
+  border: 1px solid #e6dfcf;
+  -webkit-overflow-scrolling: touch;
+  overscroll-behavior: contain;
+}
+
+.app .seatMapCanvas {
+  position: relative;
+}
+
+.app .seatMap .seatMapSeat {
+  position: absolute;
+  width: 28px;
+  height: 28px;
+  min-height: 0;
+  margin: 0;
+  padding: 0;
+  border: none;
+  border-radius: 6px;
+  background: #f5b82e;
+  box-shadow: 0 2px 0 #c98c12;
+  color: #3b2a00;
+  font-size: 10.5px;
+  font-weight: 800;
+  line-height: 28px;
+  text-align: center;
+  cursor: pointer;
+}
+
+.app .seatMap .seatMapSeat.accessible {
+  background: #f2a37f;
+  box-shadow: 0 2px 0 #c9714a;
+}
+
+.app .seatMap .seatMapSeat.selected {
+  background: var(--v2-pink);
+  box-shadow: 0 0 0 3px rgba(241, 107, 147, 0.35);
+  color: #fff;
+  transform: scale(1.12);
+  z-index: 1;
+}
+
+.app .seatMapEntrance {
+  position: absolute;
+  width: 60px;
+  height: 28px;
+  border-radius: 6px;
+  background: #e5484d;
+  color: #fff;
+  font-size: 11px;
+  font-weight: 800;
+  line-height: 28px;
+  text-align: center;
+  pointer-events: none;
+}
+
+.app .seatMapHint,
+.app .seatMapNote {
+  margin: 6px 2px 0;
+  font-size: 12.5px;
+  line-height: 1.5;
+  color: var(--v2-ink-soft);
+}
+
+.app .seatMapHint b {
+  color: var(--v2-pink);
+}
