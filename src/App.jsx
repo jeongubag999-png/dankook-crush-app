@@ -135,6 +135,12 @@ const getKoreaMonthRange = () => {
     monthLabel: `${month}월`,
   };
 };
+// 택시팟은 그때그때 쓰는 글이라 월간 목록에서는 최근 글만 남긴다. 자정을 넘기는
+// 심야 합승도 있어서 "오늘"이 아니라 작성 후 12시간을 기준으로 한다.
+const TAXI_POST_VISIBLE_MS = 12 * 60 * 60 * 1000;
+const isStaleTaxiPost = (post) =>
+  post.room === "taxi" &&
+  Date.now() - new Date(post.created_at).getTime() > TAXI_POST_VISIBLE_MS;
 const HOME_BANNER_SLIDE_COUNT = 5;
 const APP_GUIDE_STEPS = [
   {
@@ -918,6 +924,7 @@ const [verificationFile, setVerificationFile] = useState(null);
       .gte("seen_date", monthStart)
       .lt("seen_date", nextMonthStart)
       .eq("campus", profile.campus)
+      .eq("room", "crush")
       .order("seen_date", { ascending: false })
       .order("created_at", { ascending: false });
 
@@ -4400,7 +4407,8 @@ const hideSearchResult = (postId) => {
   let query = supabase
     .from("crush_posts")
     .select("*")
-    .eq("campus", profile.campus);
+    .eq("campus", profile.campus)
+    .eq("room", "crush");
 
   query = targetDate
     ? query.eq("seen_date", targetDate)
@@ -4489,7 +4497,9 @@ const loadFindOwnerClouds = async (
     return false;
   }
 
-  setFindOwnerClouds(data || []);
+  setFindOwnerClouds(
+    targetDate ? data || [] : (data || []).filter((post) => !isStaleTaxiPost(post))
+  );
   setFindOwnerLoading(false);
   return true;
 };
