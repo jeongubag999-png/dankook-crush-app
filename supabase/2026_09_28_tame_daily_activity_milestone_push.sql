@@ -18,16 +18,17 @@ set search_path = public
 as $$
   -- 시드 스크립트의 makeAuthEmail(loginId)와 같은 규칙: user-<base64url(loginId)>@dankum.app
   -- auth.users.email은 사용자가 임의로 바꿀 수 없어 user_metadata보다 안전하다.
+  -- Supabase Auth는 이메일을 소문자로 저장하므로 소문자로 비교한다.
   select exists (
     select 1
     from auth.users u
     where u.id = p_user_id
-      and u.email in (
-        'user-dGVzdDEy@dankum.app', 'user-dGVzdDEz@dankum.app', 'user-dGVzdDE0@dankum.app',
-        'user-dGVzdDE1@dankum.app', 'user-dGVzdDE2@dankum.app', 'user-dGVzdDE3@dankum.app',
-        'user-dGVzdDE4@dankum.app', 'user-dGVzdDE5@dankum.app', 'user-dGVzdDIw@dankum.app',
-        'user-dGVzdDIx@dankum.app', 'user-dGVzdDIy@dankum.app', 'user-dGVzdDIz@dankum.app',
-        'user-dGVzdDI0@dankum.app', 'user-dGVzdDI1@dankum.app', 'user-dGVzdDI2@dankum.app'
+      and lower(u.email) in (
+        'user-dgvzddey@dankum.app', 'user-dgvzddez@dankum.app', 'user-dgvzdde0@dankum.app',
+        'user-dgvzdde1@dankum.app', 'user-dgvzdde2@dankum.app', 'user-dgvzdde3@dankum.app',
+        'user-dgvzdde4@dankum.app', 'user-dgvzdde5@dankum.app', 'user-dgvzddiw@dankum.app',
+        'user-dgvzddix@dankum.app', 'user-dgvzddiy@dankum.app', 'user-dgvzddiz@dankum.app',
+        'user-dgvzddi0@dankum.app', 'user-dgvzddi1@dankum.app', 'user-dgvzddi2@dankum.app'
       )
   );
 $$;
