@@ -83,6 +83,8 @@ import {
   countryOptions,
   languageOptions,
   languageExchangeInterestOptions,
+  getLibraryReadingRooms,
+  getCampusLibraries,
 } from "./constants";
 import {
   getKoreaDateString,
@@ -141,6 +143,15 @@ const TAXI_POST_VISIBLE_MS = 12 * 60 * 60 * 1000;
 const isStaleTaxiPost = (post) =>
   post.room === "taxi" &&
   Date.now() - new Date(post.created_at).getTime() > TAXI_POST_VISIBLE_MS;
+const LIBRARY_OUTSIDE_ROOM = "__outside__";
+const LIBRARY_SEAT_ERROR_MESSAGES = {
+  seat_daily_limit: "자리 번호를 남긴 쪽지는 하루 3개까지 보낼 수 있어요.",
+  seat_lookup_limit: "자리 번호 검색은 하루 20번까지 할 수 있어요. 내일 다시 확인해주세요.",
+};
+const getLibrarySeatErrorMessage = (error, fallback) =>
+  Object.entries(LIBRARY_SEAT_ERROR_MESSAGES).find(([code]) =>
+    error?.message?.includes(code)
+  )?.[1] || fallback;
 const HOME_BANNER_SLIDE_COUNT = 5;
 const APP_GUIDE_STEPS = [
   {
@@ -474,6 +485,8 @@ const [verificationFile, setVerificationFile] = useState(null);
     seen_date: "",
     place: "",
     custom_place: "",
+    library_room: "",
+    library_seat: "",
     time_period: "",
     hair_feature: "",
     female_hair_style: "",
@@ -559,6 +572,8 @@ const [verificationFile, setVerificationFile] = useState(null);
   });
 
   const [searchResults, setSearchResults] = useState([]);
+  const [seatSearch, setSeatSearch] = useState({ library: "", room: "", seat: "" });
+  const [seatSearchSubmitting, setSeatSearchSubmitting] = useState(false);
   const [hiddenResultIds, setHiddenResultIds] = useState([]);
   const [selectedPost, setSelectedPost] = useState(null);
   const [sentResultPost, setSentResultPost] = useState(null);
@@ -975,6 +990,19 @@ const [verificationFile, setVerificationFile] = useState(null);
       todayChecks: Number(row.today_checks) || 0,
     });
   }, []);
+
+  const getSelectedLibraryRoom = (post) =>
+    getLibraryReadingRooms(post.place).find((room) => room.name === post.library_room) || null;
+
+  const getLibrarySeatError = (post) => {
+    const room = getSelectedLibraryRoom(post);
+    if (!room || !post.library_seat) return "";
+    const seat = Number(post.library_seat);
+    if (!Number.isInteger(seat) || seat < 1 || seat > room.seats) {
+      return `${room.name} 자리 번호는 1~${room.seats}번 사이로 입력해주세요.`;
+    }
+    return "";
+  };
 
   const getFinalPlace = () => {
     const mainPlace = crushPost.place;
@@ -2607,6 +2635,28 @@ const hideSearchResult = (postId) => {
     setOutfitConfirmErrors({});
     setAdditionalConfirmErrors({});
 
+    const editDetailPlace = post.place && post.place.includes(" - ") ? post.place.split(" - ")[1] : "";
+    const editMainPlace = post.place ? post.place.split(" - ")[0] : "";
+    const editLibraryRoom = getLibraryReadingRooms(editMainPlace).some(
+      (room) => room.name === editDetailPlace
+    )
+      ? editDetailPlace
+      : getLibraryReadingRooms(editMainPlace).length > 0 && editDetailPlace
+      ? LIBRARY_OUTSIDE_ROOM
+      : "";
+    if (editLibraryRoom) {
+      const { data: seatRow } = await supabase
+        .from("crush_post_seats")
+        .select("seat_number")
+        .eq("post_id", post.id)
+        .maybeSingle();
+      setCrushPost((prev) => ({
+        ...prev,
+        library_room: editLibraryRoom,
+        library_seat: seatRow?.seat_number ? String(seatRow.seat_number) : "",
+      }));
+    }
+
     setEditingPost(post);
     setCrushStep(1);
     await startCloudSendFlowLog({ targetGender: post.target_gender || "" });
@@ -3261,9 +3311,29 @@ const hideSearchResult = (postId) => {
       .filter(Boolean)
       .join(" / ");
 
+    const libraryRoom = getSelectedLibraryRoom(crushPost);
+    const librarySeat = libraryRoom && crushPost.library_seat ? Number(crushPost.library_seat) : null;
+    const seatError = getLibrarySeatError(crushPost);
+    if (seatError) {
+      toast.error(seatError);
+      setCrushStep(2);
+      return;
+    }
+
     setPostSubmitting(true);
 
     try {
+      if (librarySeat && !editingPost) {
+        const { data: quotaLeft, error: quotaError } = await supabase.rpc("library_seat_quota_left");
+        if (quotaError) {
+          console.log(quotaError);
+        } else if (quotaLeft <= 0) {
+          toast.error(LIBRARY_SEAT_ERROR_MESSAGES.seat_daily_limit);
+          setCrushStep(2);
+          return;
+        }
+      }
+
       const pickedColor =
         confirmedOutfitParts.map((part) => confirmedOutfit[part].color).find(Boolean) || "";
       const postData = {
@@ -3341,6 +3411,24 @@ const hideSearchResult = (postId) => {
       }
 
       localStorage.removeItem(getDraftKey());
+
+      if (savedPost && (librarySeat || (editingPost && libraryRoom))) {
+        const { error: seatSaveError } = await supabase.rpc("set_crush_post_seat", {
+          p_post_id: savedPost.id,
+          p_library: crushPost.place,
+          p_reading_room: libraryRoom?.name || "",
+          p_seat_number: librarySeat,
+        });
+        if (seatSaveError) {
+          console.log(seatSaveError);
+          toast.error(
+            getLibrarySeatErrorMessage(
+              seatSaveError,
+              "구름은 올라갔지만 자리 번호를 저장하지 못했어요."
+            )
+          );
+        }
+      }
 
       toast.success(editingPost ? "구름을 자세하게 업데이트했어요!" : "구름을 남겼어요!");
       await finishCloudSendFlowLog({
@@ -3768,6 +3856,93 @@ const hideSearchResult = (postId) => {
     setSearchSubmitting(false);
   }
 };
+
+  const searchLibrarySeatPosts = async () => {
+    if (seatSearchSubmitting || !checkProfileRequired()) return;
+
+    const library = seatSearch.library || getCampusLibraries(profile.campus)[0] || "";
+    const room = getLibraryReadingRooms(library).find((item) => item.name === seatSearch.room);
+    const seat = Number(seatSearch.seat);
+
+    if (!searchForm.seen_date) {
+      toast.error("날짜를 먼저 선택해주세요.");
+      return;
+    }
+    if (!room) {
+      toast.error("열람실을 선택해주세요.");
+      return;
+    }
+    if (!Number.isInteger(seat) || seat < 1 || seat > room.seats) {
+      toast.error(`${room.name} 자리 번호는 1~${room.seats}번 사이로 입력해주세요.`);
+      return;
+    }
+
+    setSeatSearchSubmitting(true);
+    try {
+      const { data: postIds, error: lookupError } = await supabase.rpc("find_library_seat_posts", {
+        p_library: library,
+        p_reading_room: room.name,
+        p_seat_number: seat,
+        p_seen_date: searchForm.seen_date,
+      });
+
+      if (lookupError) {
+        console.log(lookupError);
+        toast.error(getLibrarySeatErrorMessage(lookupError, "자리 쪽지를 찾지 못했어요: " + lookupError.message));
+        return;
+      }
+
+      let finalResults = [];
+      if (postIds?.length) {
+        const { data, error } = await supabase
+          .from("crush_posts")
+          .select("*")
+          .in("id", postIds)
+          .eq("target_gender", profile.gender)
+          .order("created_at", { ascending: false });
+
+        if (error) {
+          console.log(error);
+          toast.error("자리 쪽지를 불러오지 못했어요: " + error.message);
+          return;
+        }
+
+        finalResults = (data || []).map((post) => ({
+          ...post,
+          match_score: 100,
+          match_reasons: [`${room.name} ${seat}번 자리`],
+        }));
+      }
+
+      if (finalResults.length > 0) {
+        const viewedAt = new Date().toISOString();
+        const { error: viewError } = await supabase.from("cloud_views").upsert(
+          finalResults.map((post) => ({
+            crush_post_id: String(post.id),
+            viewer_user_id: currentUser.id,
+            viewer_nickname: profile.nickname,
+            viewer_instagram: cleanInstagram(profile.instagram_id),
+            viewed_at: viewedAt,
+            match_score: post.match_score,
+          })),
+          { onConflict: "crush_post_id,viewer_user_id", ignoreDuplicates: true }
+        );
+        if (viewError) console.log(viewError);
+      }
+
+      await finishCloudCheckFlowLog({
+        exitType: "submit",
+        completed: true,
+        resultCount: finalResults.length,
+      });
+
+      setSearchResults(finalResults);
+      setHiddenResultIds([]);
+      setPage("result");
+    } finally {
+      setSeatSearchSubmitting(false);
+    }
+  };
 
   const searchLanguagePosts = async () => {
     if (searchSubmitting) return;
@@ -7239,11 +7414,66 @@ useEffect(() => {
                       ...crushPost,
                       place: option,
                       custom_place: "",
+                      library_room: "",
+                      library_seat: "",
                     })
                   }
                 />
               </div>
 
+              {getLibraryReadingRooms(crushPost.place).length > 0 && (
+                <div className="libraryNoteBox">
+                  <p className="libraryNoteTitle">📝 도서관 쪽지</p>
+                  <p className="libraryNoteDesc">
+                    열람실과 자리 번호를 남기면, 그 자리에 앉았던 사람이 자리 번호로 이 구름을 찾을 수 있어요.
+                    자리 번호는 공개 목록에 보이지 않아요.
+                  </p>
+                  <div className="formGroup">
+                    <label className="formLabel">열람실</label>
+                    <select
+                      value={crushPost.library_room}
+                      onChange={(e) => {
+                        const room = e.target.value;
+                        setCrushPost((prev) => ({
+                          ...prev,
+                          library_room: room,
+                          library_seat: "",
+                          custom_place: room === LIBRARY_OUTSIDE_ROOM ? "" : room,
+                        }));
+                      }}
+                    >
+                      <option value="">열람실 선택</option>
+                      {getLibraryReadingRooms(crushPost.place).map((room) => (
+                        <option key={room.name} value={room.name}>
+                          {room.name}
+                        </option>
+                      ))}
+                      <option value={LIBRARY_OUTSIDE_ROOM}>열람실 밖 (로비·자료실 등)</option>
+                    </select>
+                  </div>
+                  {getSelectedLibraryRoom(crushPost) && (
+                    <div className="formGroup">
+                      <label className="formLabel">
+                        자리 번호 (선택 · 1~{getSelectedLibraryRoom(crushPost).seats}번)
+                      </label>
+                      <input
+                        type="number"
+                        inputMode="numeric"
+                        min={1}
+                        max={getSelectedLibraryRoom(crushPost).seats}
+                        placeholder="기억나면 적어주세요 (예: 112)"
+                        value={crushPost.library_seat}
+                        onChange={(e) =>
+                          updateCrushPost("library_seat", e.target.value.replace(/[^0-9]/g, ""))
+                        }
+                      />
+                    </div>
+                  )}
+                </div>
+              )}
+
+              {(getLibraryReadingRooms(crushPost.place).length === 0 ||
+                crushPost.library_room === LIBRARY_OUTSIDE_ROOM) && (
               <div className="formGroup">
                 <label className="formLabel">구체적인 위치</label>
                 <input
@@ -7258,6 +7488,7 @@ useEffect(() => {
                   onChange={(e) => updateCrushPost("custom_place", e.target.value)}
                 />
               </div>
+              )}
 
               <div className="stepActions">
                 <button onClick={goBackStep} className="white">
@@ -7271,6 +7502,11 @@ useEffect(() => {
                     }
                     if (!getFinalPlace()) {
                       toast.error("장소를 선택하거나 직접 입력해주세요.");
+                      return;
+                    }
+                    const seatError = getLibrarySeatError(crushPost);
+                    if (seatError) {
+                      toast.error(seatError);
                       return;
                     }
                     await moveCloudSendStep(3, "next");
@@ -8330,6 +8566,74 @@ useEffect(() => {
                   다음
                 </button>
               </div>
+
+              {getCampusLibraries(profile.campus).length > 0 && (() => {
+                const libraries = getCampusLibraries(profile.campus);
+                const seatLibrary = seatSearch.library || libraries[0];
+                const seatRooms = getLibraryReadingRooms(seatLibrary);
+                const seatRoom = seatRooms.find((room) => room.name === seatSearch.room);
+
+                return (
+                  <div className="libraryNoteBox librarySeatSearch">
+                    <p className="libraryNoteTitle">📝 도서관에 있었나요?</p>
+                    <p className="libraryNoteDesc">
+                      그날 앉았던 자리 번호로 내 자리에 남겨진 쪽지를 바로 찾아볼 수 있어요.
+                    </p>
+                    {libraries.length > 1 && (
+                      <div className="formGroup">
+                        <label className="formLabel">도서관</label>
+                        <select
+                          value={seatLibrary}
+                          onChange={(e) =>
+                            setSeatSearch({ library: e.target.value, room: "", seat: "" })
+                          }
+                        >
+                          {libraries.map((library) => (
+                            <option key={library}>{library}</option>
+                          ))}
+                        </select>
+                      </div>
+                    )}
+                    <div className="librarySeatRow">
+                      <select
+                        value={seatSearch.room}
+                        onChange={(e) =>
+                          setSeatSearch((prev) => ({ ...prev, room: e.target.value, seat: "" }))
+                        }
+                      >
+                        <option value="">열람실 선택</option>
+                        {seatRooms.map((room) => (
+                          <option key={room.name} value={room.name}>
+                            {room.name}
+                          </option>
+                        ))}
+                      </select>
+                      <input
+                        type="number"
+                        inputMode="numeric"
+                        min={1}
+                        max={seatRoom?.seats}
+                        placeholder={seatRoom ? `1~${seatRoom.seats}번` : "자리 번호"}
+                        value={seatSearch.seat}
+                        onChange={(e) =>
+                          setSeatSearch((prev) => ({
+                            ...prev,
+                            seat: e.target.value.replace(/[^0-9]/g, ""),
+                          }))
+                        }
+                      />
+                    </div>
+                    <button
+                      type="button"
+                      className="white"
+                      onClick={searchLibrarySeatPosts}
+                      disabled={seatSearchSubmitting}
+                    >
+                      {seatSearchSubmitting ? "쪽지 찾는 중..." : "내 자리 쪽지 찾기"}
+                    </button>
+                  </div>
+                );
+              })()}
             </>
           )}
 

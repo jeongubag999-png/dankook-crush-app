@@ -1979,3 +1979,52 @@ body {
     font-size: 8.5px;
   }
 }
+
+/* 도서관 좌석 쪽지 (시그널 구름) */
+.app .libraryNoteBox {
+  margin: 16px 0;
+  padding: 16px;
+  border-radius: var(--v2-radius-md);
+  background: #fffaf0;
+  border: 1px dashed #f0c96a;
+  text-align: left;
+}
+
+.app .libraryNoteTitle {
+  margin: 0 0 4px;
+  font-weight: 800;
+  color: var(--v2-ink);
+}
+
+.app .libraryNoteDesc {
+  margin: 0 0 12px;
+  font-size: 13px;
+  line-height: 1.55;
+  color: var(--v2-ink-soft);
+}
+
+.app .libraryNoteBox .formGroup:last-child {
+  margin-bottom: 0;
+}
+
+.app .librarySeatSearch {
+  margin-top: 22px;
+}
+
+.app .librarySeatRow {
+  display: grid;
+  grid-template-columns: minmax(0, 1.4fr) minmax(0, 1fr);
+  gap: 8px;
+  margin-bottom: 10px;
+}
+
+.app .librarySeatRow select,
+.app .librarySeatRow input {
+  width: 100%;
+  min-width: 0;
+  margin: 0;
+}
+
+.app .librarySeatSearch button {
+  width: 100%;
+}

@@ -92,6 +92,24 @@ export const taxiCheonanPlaceOptions = [
 export const getTaxiPlaceOptions = (campus) =>
   campus === "천안" ? taxiCheonanPlaceOptions : taxiJukjeonPlaceOptions;
 
+// 도서관 좌석 쪽지: 시그널 구름에서 도서관을 고르면 열람실·좌석 번호를 받는다.
+// 좌석 수는 도서관 좌석배정 앱 기준(2026-09-28 확인). 천안 율곡도서관은 자료를 받으면 추가.
+export const LIBRARY_READING_ROOMS = {
+  퇴계기념중앙도서관: [
+    { name: "1층 제1열람실", seats: 344 },
+    { name: "1층 제6열람실", seats: 54 },
+    { name: "2층 제2열람실", seats: 176 },
+    { name: "2층 제3열람실", seats: 148 },
+    { name: "2층 제4열람실", seats: 278 },
+    { name: "2층 집중학습실", seats: 70 },
+  ],
+};
+
+export const getLibraryReadingRooms = (place) => LIBRARY_READING_ROOMS[place] || [];
+
+export const getCampusLibraries = (campus) =>
+  getPlaceOptions(campus).filter((place) => getLibraryReadingRooms(place).length > 0);
+
 export const campusOptions = ["죽전", "천안"];
 
 export const timeOptions = [
