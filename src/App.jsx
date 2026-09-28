@@ -48,7 +48,7 @@ const getLocalizedSelectOptions = (options, language) =>
     label: language === "en" ? translateText(value, "en") : value,
   }));
 
-// 시그널 구름 장소 목록: 시험기간에는 좌석 쪽지가 되는 도서관을 맨 위로 올리고 배지를 단다.
+// 시그널 구름 장소 목록: 시험기간에는 좌석 구름을 쓸 수 있는 도서관을 맨 위로 올리고 배지를 단다.
 const getSignalPlaceSelectOptions = (campus, language) => {
   const options = getLocalizedSelectOptions(getPlaceOptions(campus), language);
   if (!LIBRARY_EXAM_EVENT_ACTIVE) return options;
@@ -162,7 +162,7 @@ const isStaleTaxiPost = (post) =>
   Date.now() - new Date(post.created_at).getTime() > TAXI_POST_VISIBLE_MS;
 const LIBRARY_OUTSIDE_ROOM = "__outside__";
 const LIBRARY_SEAT_ERROR_MESSAGES = {
-  seat_daily_limit: "자리 번호를 남긴 쪽지는 하루 3개까지 보낼 수 있어요.",
+  seat_daily_limit: "자리 번호를 남긴 구름은 하루 3개까지 띄울 수 있어요.",
   seat_lookup_limit: "자리 번호 검색은 하루 20번까지 할 수 있어요. 내일 다시 확인해주세요.",
 };
 const getLibrarySeatErrorMessage = (error, fallback) =>
@@ -2744,6 +2744,18 @@ const hideSearchResult = (postId) => {
     }
   };
 
+  // 시험기간 배너 "도서관 구름 띄우기": 시그널 구름 작성으로 가면서 장소를 도서관으로 미리 골라둔다.
+  const openLibraryNotePage = async () => {
+    if (!checkProfileRequired()) return;
+
+    const library = getCampusLibraries(profile.campus)[0];
+    resetCrushPost();
+    setCrushPost((prev) => ({ ...prev, room: "crush", place: library || "" }));
+    setCrushStep(1);
+    await startCloudSendFlowLog({ targetGender: "" });
+    setPage("send");
+  };
+
   const openNewCloudPage = async () => {
     if (!checkProfileRequired()) return;
 
@@ -3906,7 +3918,7 @@ const hideSearchResult = (postId) => {
 
       if (lookupError) {
         console.log(lookupError);
-        toast.error(getLibrarySeatErrorMessage(lookupError, "자리 쪽지를 찾지 못했어요: " + lookupError.message));
+        toast.error(getLibrarySeatErrorMessage(lookupError, "자리 구름을 찾지 못했어요: " + lookupError.message));
         return;
       }
 
@@ -3921,7 +3933,7 @@ const hideSearchResult = (postId) => {
 
         if (error) {
           console.log(error);
-          toast.error("자리 쪽지를 불러오지 못했어요: " + error.message);
+          toast.error("자리 구름을 불러오지 못했어요: " + error.message);
           return;
         }
 
@@ -6788,6 +6800,26 @@ useEffect(() => {
             </span>
           </div>
 
+          {LIBRARY_EXAM_EVENT_ACTIVE && getCampusLibraries(profile.campus).length > 0 && (
+            <section className="libraryEventBanner" aria-labelledby="library-event-title">
+              <span className="libraryEventBadge">📝 시험기간 EVENT</span>
+              <h2 id="library-event-title">
+                도서관에서 눈에 띈 그 사람,
+                <br />
+                이제 구름으로 마음을 전해요
+              </h2>
+              <p>{getCampusLibraries(profile.campus)[0]} 열람실 · 좌석으로 찾아요.</p>
+              <div className="libraryEventActions">
+                <button type="button" onClick={openLibraryNotePage}>
+                  도서관 구름 띄우기
+                </button>
+                <button type="button" className="white" onClick={() => openSearchPage("crush")}>
+                  내 자리 구름 찾기
+                </button>
+              </div>
+            </section>
+          )}
+
           <section className="homeTaskSection" aria-labelledby="home-task-title">
             <div className="homeSectionHeading">
               <span>바로 시작하기</span>
@@ -7441,7 +7473,7 @@ useEffect(() => {
 
               {getLibraryReadingRooms(crushPost.place).length > 0 && (
                 <div className="libraryNoteBox">
-                  <p className="libraryNoteTitle">📝 도서관 쪽지</p>
+                  <p className="libraryNoteTitle">📝 도서관 구름</p>
                   <p className="libraryNoteDesc">
                     열람실과 자리 번호를 남기면, 그 자리에 앉았던 사람이 자리 번호로 이 구름을 찾을 수 있어요.
                     자리 번호는 공개 목록에 보이지 않아요.
@@ -8603,7 +8635,7 @@ useEffect(() => {
                   <div className="libraryNoteBox librarySeatSearch">
                     <p className="libraryNoteTitle">📝 도서관에 있었나요?</p>
                     <p className="libraryNoteDesc">
-                      그날 앉았던 자리 번호로 내 자리에 남겨진 쪽지를 바로 찾아볼 수 있어요.
+                      그날 앉았던 자리 번호로 내 자리에 남겨진 구름을 바로 찾아볼 수 있어요.
                     </p>
                     {libraries.length > 1 && (
                       <div className="formGroup">
@@ -8663,7 +8695,7 @@ useEffect(() => {
                       onClick={searchLibrarySeatPosts}
                       disabled={seatSearchSubmitting}
                     >
-                      {seatSearchSubmitting ? "쪽지 찾는 중..." : "내 자리 쪽지 찾기"}
+                      {seatSearchSubmitting ? "구름 찾는 중..." : "내 자리 구름 찾기"}
                     </button>
                   </div>
                 );

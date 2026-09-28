@@ -92,7 +92,7 @@ export const taxiCheonanPlaceOptions = [
 export const getTaxiPlaceOptions = (campus) =>
   campus === "천안" ? taxiCheonanPlaceOptions : taxiJukjeonPlaceOptions;
 
-// 도서관 좌석 쪽지: 시그널 구름에서 도서관을 고르면 열람실·좌석 번호를 받는다.
+// 도서관 좌석 구름: 시그널 구름에서 도서관을 고르면 열람실·좌석 번호를 받는다.
 // 좌석 수는 도서관 좌석배정 앱 기준(2026-09-28 확인). 천안 율곡도서관은 자료를 받으면 추가.
 export const LIBRARY_READING_ROOMS = {
   퇴계기념중앙도서관: [
@@ -105,7 +105,7 @@ export const LIBRARY_READING_ROOMS = {
   ],
 };
 
-// 시험기간 동안 시그널 구름 장소 목록에서 좌석 쪽지가 되는 도서관을 맨 위로 올리고
+// 시험기간 동안 시그널 구름 장소 목록에서 좌석 구름을 쓸 수 있는 도서관을 맨 위로 올리고
 // 배지를 붙인다. 시험기간이 끝나면 false로 바꾸면 원래 순서로 돌아간다.
 export const LIBRARY_EXAM_EVENT_ACTIVE = true;
 
