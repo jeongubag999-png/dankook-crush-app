@@ -50,7 +50,8 @@ body {
   min-height: 100svh;
   box-sizing: border-box;
   align-items: center;
-  padding: 22px 16px calc(104px + env(safe-area-inset-bottom));
+  /* 아이폰 상태바·다이내믹 아일랜드 아래에서 시작하도록 위쪽 안전 영역을 더한다. */
+  padding: calc(22px + env(safe-area-inset-top)) 16px calc(104px + env(safe-area-inset-bottom));
   background: transparent;
   color: var(--ux-text);
 }
@@ -1537,7 +1538,7 @@ body {
 
 @media (min-width: 760px) {
   .app {
-    padding-top: 36px;
+    padding-top: calc(36px + env(safe-area-inset-top));
   }
 
   .app .homeV2 {
@@ -1547,7 +1548,7 @@ body {
 
 @media (max-width: 540px) {
   .app {
-    padding: 14px 12px calc(96px + env(safe-area-inset-bottom));
+    padding: calc(18px + env(safe-area-inset-top)) 12px calc(96px + env(safe-area-inset-bottom));
   }
 
   .app .card,
@@ -2197,4 +2198,19 @@ body {
   font-size: 13.5px;
   font-weight: 700;
   text-align: center;
+}
+
+/* 택시팟 출발 시각 */
+.app .communityPostEditor select,
+.app .communityPostEditor input {
+  width: 100%;
+  max-width: 100%;
+  min-width: 0;
+}
+
+.app .fieldHint {
+  margin: 6px 2px 0;
+  font-size: 12.5px;
+  line-height: 1.5;
+  color: var(--v2-muted);
 }

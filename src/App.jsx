@@ -154,12 +154,45 @@ const getKoreaMonthRange = () => {
     monthLabel: `${month}월`,
   };
 };
-// 택시팟은 그때그때 쓰는 글이라 월간 목록에서는 최근 글만 남긴다. 자정을 넘기는
-// 심야 합승도 있어서 "오늘"이 아니라 작성 후 12시간을 기준으로 한다.
+// 택시팟은 그때그때 쓰는 글이라 출발 시각이 지나면 목록에서 숨긴다.
+// 출발 시각은 "HH:MM"만 저장되므로 작성 날짜(seen_date, KST)와 합쳐서 계산하고,
+// 작성 시각보다 1시간 넘게 이르면 자정을 넘긴 다음 날 출발로 본다(23:50에 00:30 출발 등).
+// 출발 후 30분까지는 늦게 확인하는 사람을 위해 남겨둔다.
 const TAXI_POST_VISIBLE_MS = 12 * 60 * 60 * 1000;
-const isStaleTaxiPost = (post) =>
-  post.room === "taxi" &&
-  Date.now() - new Date(post.created_at).getTime() > TAXI_POST_VISIBLE_MS;
+const TAXI_DEPARTURE_GRACE_MS = 30 * 60 * 1000;
+const TAXI_TIME_STEP_MINUTES = 10;
+const getTaxiDepartureTime = (post) => {
+  if (!post.seen_date || !/^\d{2}:\d{2}$/.test(post.time_period || "")) return null;
+  const departure = new Date(`${post.seen_date}T${post.time_period}:00+09:00`);
+  const createdAt = new Date(post.created_at);
+  if (Number.isNaN(departure.getTime())) return null;
+  if (!Number.isNaN(createdAt.getTime()) && departure.getTime() < createdAt.getTime() - 60 * 60 * 1000) {
+    departure.setDate(departure.getDate() + 1);
+  }
+  return departure;
+};
+const isStaleTaxiPost = (post) => {
+  if (post.room !== "taxi") return false;
+  const departure = getTaxiDepartureTime(post);
+  // 예전 글처럼 출발 시각을 알 수 없으면 작성 후 12시간 기준으로 숨긴다.
+  if (!departure) return Date.now() - new Date(post.created_at).getTime() > TAXI_POST_VISIBLE_MS;
+  return Date.now() > departure.getTime() + TAXI_DEPARTURE_GRACE_MS;
+};
+// 출발 시각 선택지: 지금부터 12시간 동안 10분 단위. 자정을 넘기면 "(내일)"을 붙인다.
+const getTaxiTimeOptions = () => {
+  // KST 벽시계 시각을 UTC 필드로 다룬다(기기 시간대·Safari 날짜 파싱과 무관하게).
+  const stepMs = TAXI_TIME_STEP_MINUTES * 60 * 1000;
+  const kstNowMs = Date.now() + 9 * 60 * 60 * 1000;
+  const startMs = Math.ceil(kstNowMs / stepMs) * stepMs;
+  const today = new Date(kstNowMs).getUTCDate();
+  const options = [];
+  for (let i = 0; i < (12 * 60) / TAXI_TIME_STEP_MINUTES; i += 1) {
+    const slot = new Date(startMs + i * stepMs);
+    const value = `${String(slot.getUTCHours()).padStart(2, "0")}:${String(slot.getUTCMinutes()).padStart(2, "0")}`;
+    options.push({ value, label: slot.getUTCDate() !== today ? `${value} (내일)` : value });
+  }
+  return options;
+};
 const LIBRARY_OUTSIDE_ROOM = "__outside__";
 const LIBRARY_SEAT_ERROR_MESSAGES = {
   seat_daily_limit: "자리 번호를 남긴 구름은 하루 3개까지 띄울 수 있어요.",
@@ -2742,7 +2775,9 @@ const hideSearchResult = (postId) => {
         console.log(error);
         return;
       }
-      setCommunityClouds(data || []);
+      setCommunityClouds(
+        room === "taxi" ? (data || []).filter((post) => !isStaleTaxiPost(post)) : data || []
+      );
     } finally {
       setCommunityCloudLoading(false);
     }
@@ -7388,7 +7423,7 @@ useEffect(() => {
             <span className="homeV2ActionIcon roomIconTaxi">🚕</span>
             <span className="homeV2ActionText">
               <b>택시팟 구름</b>
-              <small>심야에 학교·보정동·죽전역에서 택시 같이 탈 사람을 구해요.</small>
+              <small>학교·보정동·죽전역에서 택시 같이 탈 사람을 구해요.</small>
             </span>
             <span className="homeV2ActionChevron">
               <ChevronRightIcon />
@@ -8288,11 +8323,18 @@ useEffect(() => {
                 </div>
                 <div className="formGroup">
                   <label className="formLabel">출발 예정 시각</label>
-                  <input
-                    type="time"
+                  <select
                     value={crushPost.time_period}
                     onChange={(e) => updateCrushPost("time_period", e.target.value)}
-                  />
+                  >
+                    <option value="">출발 시각 선택 (10분 단위)</option>
+                    {getTaxiTimeOptions().map((option) => (
+                      <option key={option.label} value={option.value}>
+                        {option.label}
+                      </option>
+                    ))}
+                  </select>
+                  <p className="fieldHint">출발 시각이 지나고 30분 뒤에는 목록에서 자동으로 사라져요.</p>
                 </div>
                 <div className="formGroup">
                   <label className="formLabel">한마디 (인원, 목적지 등)</label>
