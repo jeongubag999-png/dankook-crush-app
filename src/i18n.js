@@ -211,6 +211,7 @@ const rows = [
   ["그날 앉았던 자리 번호로 내 자리에 남겨진 구름을 바로 찾아볼 수 있어요.","Enter the seat you sat in that day to find clouds left for your seat."],
   ["도서관","Library"],
   ["내 자리 구름 찾기","Find clouds for my seat"],
+  ["📝 도서관에 있었나요? 자리 번호로 찾기 ›","📝 Were you at the library? Search by seat ›"],
   ["구름 찾는 중...","Looking for clouds..."],
   ["1층 제1열람실","1F Reading Room 1"],
   ["1층 제6열람실","1F Reading Room 6"],

@@ -2184,3 +2184,17 @@ body {
   padding: 11px 8px;
   font-size: 14px;
 }
+
+.app .seatSearchModeLink {
+  display: block;
+  width: 100%;
+  margin: 14px 0 0;
+  padding: 10px;
+  border: none;
+  background: transparent;
+  box-shadow: none;
+  color: #a15c00;
+  font-size: 13.5px;
+  font-weight: 700;
+  text-align: center;
+}

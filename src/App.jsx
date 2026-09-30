@@ -591,6 +591,8 @@ const [verificationFile, setVerificationFile] = useState(null);
   const [searchResults, setSearchResults] = useState([]);
   const [seatSearch, setSeatSearch] = useState({ library: "", room: "", seat: "" });
   const [seatSearchSubmitting, setSeatSearchSubmitting] = useState(false);
+  // 자리 검색 전용 모드: 날짜 + 열람실·자리만 받고 이전/다음(인상착의 단계)은 숨긴다.
+  const [seatSearchMode, setSeatSearchMode] = useState(false);
   const [hiddenResultIds, setHiddenResultIds] = useState([]);
   const [selectedPost, setSelectedPost] = useState(null);
   const [sentResultPost, setSentResultPost] = useState(null);
@@ -2693,6 +2695,7 @@ const hideSearchResult = (postId) => {
     }
 
     if (room) {
+      setSeatSearchMode(false);
       setSearchReturnPage(page === "cloudCalendar" ? "cloudCalendar" : "searchRoomSelect");
       setSearchForm((prev) => ({ ...prev, room }));
       setSearchStep(1);
@@ -2711,6 +2714,7 @@ const hideSearchResult = (postId) => {
       return;
     }
     setSearchReturnPage("searchRoomSelect");
+    setSeatSearchMode(false);
     setSearchForm((prev) => ({ ...prev, room }));
     setSearchStep(1);
     await startCloudCheckFlowLog();
@@ -2754,6 +2758,12 @@ const hideSearchResult = (postId) => {
     setCrushStep(1);
     await startCloudSendFlowLog({ targetGender: "" });
     setPage("send");
+  };
+
+  // 시험기간 배너 "내 자리 구름 찾기": 시그널 구름 확인을 자리 검색 전용 모드로 연다.
+  const openSeatSearchPage = async () => {
+    await openSearchPage("crush");
+    setSeatSearchMode(true);
   };
 
   const openNewCloudPage = async () => {
@@ -6813,7 +6823,7 @@ useEffect(() => {
                 <button type="button" onClick={openLibraryNotePage}>
                   도서관 구름 띄우기
                 </button>
-                <button type="button" className="white" onClick={() => openSearchPage("crush")}>
+                <button type="button" className="white" onClick={openSeatSearchPage}>
                   내 자리 구름 찾기
                 </button>
               </div>
@@ -8559,16 +8569,22 @@ useEffect(() => {
 
       {page === "search" && (
         <div className="card">
-          <h2 className="sendStepTitle">구름 확인하기</h2>
+          <h2 className="sendStepTitle">
+            {seatSearchMode && searchForm.room === "crush" ? "내 자리 구름 찾기" : "구름 확인하기"}
+          </h2>
 
-          <p className="stepText">
-            {searchStep}단계 / 총 {searchForm.room === "language" ? 1 : 5}단계
-          </p>
+          {!(seatSearchMode && searchForm.room === "crush") && (
+            <>
+              <p className="stepText">
+                {searchStep}단계 / 총 {searchForm.room === "language" ? 1 : 5}단계
+              </p>
 
-          <StepProgress
-            total={searchForm.room === "language" ? 1 : 5}
-            current={searchStep}
-          />
+              <StepProgress
+                total={searchForm.room === "language" ? 1 : 5}
+                current={searchStep}
+              />
+            </>
+          )}
 
           {searchForm.room === "crush" && (
           <>
@@ -8605,6 +8621,7 @@ useEffect(() => {
                 />
               </div>
 
+              {!seatSearchMode && (
               <div className="stepActions">
                 <button
                   onClick={goBackSearchStep}
@@ -8624,8 +8641,19 @@ useEffect(() => {
                   다음
                 </button>
               </div>
+              )}
 
-              {getCampusLibraries(profile.campus).length > 0 && (() => {
+              {!seatSearchMode && getCampusLibraries(profile.campus).length > 0 && (
+                <button
+                  type="button"
+                  className="seatSearchModeLink"
+                  onClick={() => setSeatSearchMode(true)}
+                >
+                  📝 도서관에 있었나요? 자리 번호로 찾기 ›
+                </button>
+              )}
+
+              {seatSearchMode && getCampusLibraries(profile.campus).length > 0 && (() => {
                 const libraries = getCampusLibraries(profile.campus);
                 const seatLibrary = seatSearch.library || libraries[0];
                 const seatRooms = getLibraryReadingRooms(seatLibrary);
