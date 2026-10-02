@@ -63,11 +63,11 @@ const getSignalPlaceSelectOptions = (campus, language) => {
   ];
 };
 
-function LocalizedDateInput({ language, value, onChange }) {
+function LocalizedDateInput({ language, value, onChange, min }) {
   const showEnglishFormat = language === "en" && !value;
   return (
     <div className={`localizedDateInput${showEnglishFormat ? " showEnglishFormat" : ""}`}>
-      <input type="date" lang={language} value={value} onChange={onChange} />
+      <input type="date" lang={language} value={value} min={min} onChange={onChange} />
       {showEnglishFormat && <span className="localizedDateFormat" aria-hidden="true">YYYY-MM-DD</span>}
     </div>
   );
@@ -75,7 +75,6 @@ function LocalizedDateInput({ language, value, onChange }) {
 
 import {
   getPlaceOptions,
-  getTaxiPlaceOptions,
   campusOptions,
   timeOptions,
   genderOptions,
@@ -155,20 +154,14 @@ const getKoreaMonthRange = () => {
   };
 };
 // 택시팟은 그때그때 쓰는 글이라 출발 시각이 지나면 목록에서 숨긴다.
-// 출발 시각은 "HH:MM"만 저장되므로 작성 날짜(seen_date, KST)와 합쳐서 계산하고,
-// 작성 시각보다 1시간 넘게 이르면 자정을 넘긴 다음 날 출발로 본다(23:50에 00:30 출발 등).
+// 사용자가 고른 출발 일자(seen_date)와 시각(time_period)을 합쳐 계산한다.
 // 출발 후 30분까지는 늦게 확인하는 사람을 위해 남겨둔다.
 const TAXI_POST_VISIBLE_MS = 12 * 60 * 60 * 1000;
 const TAXI_DEPARTURE_GRACE_MS = 30 * 60 * 1000;
-const TAXI_TIME_STEP_MINUTES = 10;
 const getTaxiDepartureTime = (post) => {
   if (!post.seen_date || !/^\d{2}:\d{2}$/.test(post.time_period || "")) return null;
   const departure = new Date(`${post.seen_date}T${post.time_period}:00+09:00`);
-  const createdAt = new Date(post.created_at);
   if (Number.isNaN(departure.getTime())) return null;
-  if (!Number.isNaN(createdAt.getTime()) && departure.getTime() < createdAt.getTime() - 60 * 60 * 1000) {
-    departure.setDate(departure.getDate() + 1);
-  }
   return departure;
 };
 const isStaleTaxiPost = (post) => {
@@ -177,21 +170,6 @@ const isStaleTaxiPost = (post) => {
   // 예전 글처럼 출발 시각을 알 수 없으면 작성 후 12시간 기준으로 숨긴다.
   if (!departure) return Date.now() - new Date(post.created_at).getTime() > TAXI_POST_VISIBLE_MS;
   return Date.now() > departure.getTime() + TAXI_DEPARTURE_GRACE_MS;
-};
-// 출발 시각 선택지: 지금부터 12시간 동안 10분 단위. 자정을 넘기면 "(내일)"을 붙인다.
-const getTaxiTimeOptions = () => {
-  // KST 벽시계 시각을 UTC 필드로 다룬다(기기 시간대·Safari 날짜 파싱과 무관하게).
-  const stepMs = TAXI_TIME_STEP_MINUTES * 60 * 1000;
-  const kstNowMs = Date.now() + 9 * 60 * 60 * 1000;
-  const startMs = Math.ceil(kstNowMs / stepMs) * stepMs;
-  const today = new Date(kstNowMs).getUTCDate();
-  const options = [];
-  for (let i = 0; i < (12 * 60) / TAXI_TIME_STEP_MINUTES; i += 1) {
-    const slot = new Date(startMs + i * stepMs);
-    const value = `${String(slot.getUTCHours()).padStart(2, "0")}:${String(slot.getUTCMinutes()).padStart(2, "0")}`;
-    options.push({ value, label: slot.getUTCDate() !== today ? `${value} (내일)` : value });
-  }
-  return options;
 };
 const LIBRARY_OUTSIDE_ROOM = "__outside__";
 const LIBRARY_SEAT_ERROR_MESSAGES = {
@@ -534,6 +512,7 @@ const [verificationFile, setVerificationFile] = useState(null);
     target_gender: "",
     seen_date: "",
     place: "",
+    taxi_destination: "",
     custom_place: "",
     library_room: "",
     library_seat: "",
@@ -640,6 +619,8 @@ const [verificationFile, setVerificationFile] = useState(null);
   const [communityClouds, setCommunityClouds] = useState([]);
   const [communityCloudLoading, setCommunityCloudLoading] = useState(false);
   const [communityRegionFilter, setCommunityRegionFilter] = useState("");
+  const [taxiGroupChats, setTaxiGroupChats] = useState([]);
+  const [joiningTaxiPostId, setJoiningTaxiPostId] = useState(null);
 
   const [claimForm, setClaimForm] = useState({
     claimer_nickname: "",
@@ -706,6 +687,7 @@ const [verificationFile, setVerificationFile] = useState(null);
   const [chatActionSubmitting, setChatActionSubmitting] = useState(false);
   const [activeChatRoomId, setActiveChatRoomId] = useState(null);
   const [activeChatRoomNickname, setActiveChatRoomNickname] = useState("");
+  const [activeChatRoomIsGroup, setActiveChatRoomIsGroup] = useState(false);
   const [deletingChatRoomId, setDeletingChatRoomId] = useState(null);
   const [chatLastMessages, setChatLastMessages] = useState({});
   const [chatRoomStatusMap, setChatRoomStatusMap] = useState({});
@@ -3257,12 +3239,26 @@ const hideSearchResult = (postId) => {
   const saveTaxiPost = async () => {
     if (postSubmitting || !checkProfileRequired()) return;
 
-    if (!crushPost.place) {
-      toast.error("출발 장소를 선택해주세요.");
+    if (!crushPost.place.trim()) {
+      toast.error("출발 장소를 입력해주세요.");
+      return;
+    }
+    if (!crushPost.seen_date) {
+      toast.error("출발 일자를 선택해주세요.");
       return;
     }
     if (!crushPost.time_period) {
       toast.error("출발 예정 시각을 입력해주세요.");
+      return;
+    }
+    if (!crushPost.taxi_destination.trim()) {
+      toast.error("목적지를 입력해주세요.");
+      return;
+    }
+
+    const departure = new Date(`${crushPost.seen_date}T${crushPost.time_period}:00+09:00`);
+    if (Number.isNaN(departure.getTime()) || departure.getTime() <= Date.now()) {
+      toast.error("현재보다 이후의 출발 일시를 입력해주세요.");
       return;
     }
 
@@ -3272,11 +3268,11 @@ const hideSearchResult = (postId) => {
 
       const postData = {
         room: "taxi",
-        seen_date: getKoreaDateString(),
+        seen_date: crushPost.seen_date,
         time_period: crushPost.time_period,
-        place: crushPost.place,
-        main_place: crushPost.place,
-        detail_place: "",
+        place: crushPost.place.trim(),
+        main_place: crushPost.place.trim(),
+        detail_place: crushPost.taxi_destination.trim(),
         hair_feature: "",
         clothes_style: "",
         accessory: "",
@@ -3303,6 +3299,16 @@ const hideSearchResult = (postId) => {
         toast.error("택시팟 구름 띄우기에 실패했어요: " + error.message);
         console.log(error);
         return;
+      }
+
+      // 작성자도 같은 택시팟 단체방의 첫 참여자로 등록한다.
+      const { error: groupChatError } = await supabase.rpc("join_taxi_group_chat", {
+        p_post_id: savedPost.id,
+        p_nickname: profile.nickname,
+      });
+      if (groupChatError) {
+        console.log(groupChatError);
+        toast.error("구름은 등록됐지만 단체 채팅방을 열지 못했어요. 관리자에게 알려주세요.");
       }
 
       toast.success(
@@ -4261,6 +4267,31 @@ const hideSearchResult = (postId) => {
     setChatLastMessages(map);
   };
 
+  const loadTaxiGroupChats = async () => {
+    if (!currentUser) {
+      setTaxiGroupChats([]);
+      return [];
+    }
+
+    const { data, error } = await supabase.rpc("get_my_taxi_group_chats");
+    if (error) {
+      // 마이그레이션 적용 전에도 기존 1:1 채팅 목록은 정상적으로 열리게 한다.
+      console.log(error);
+      setTaxiGroupChats([]);
+      return [];
+    }
+
+    const rooms = (data || []).map((room) => ({
+      chatRoomId: room.chat_room_id,
+      otherNickname: `${room.place || "출발지"} → ${room.destination || "목적지"}`,
+      updatedAt: room.joined_at,
+      role: "group",
+      isGroup: true,
+    }));
+    setTaxiGroupChats(rooms);
+    return rooms;
+  };
+
   const loadCloudCalendarRecords = async () => {
     if (!currentUser) return false;
 
@@ -4608,7 +4639,12 @@ const hideSearchResult = (postId) => {
       .filter((claim) => claim.status === "chat_accepted" && claim.chat_room_id)
       .map((claim) => claim.chat_room_id);
 
-    loadChatPreviews([...new Set(chatRoomIds)]);
+    const taxiRooms = await loadTaxiGroupChats();
+    const allChatRoomIds = [
+      ...chatRoomIds,
+      ...taxiRooms.map((room) => room.chatRoomId),
+    ];
+    loadChatPreviews([...new Set(allChatRoomIds)]);
 
     activityLoadedUserIdRef.current = activityUserId;
     setMatchingLoading(false);
@@ -4939,12 +4975,40 @@ useEffect(() => {
     }
   };
 
-  const openChatRoom = (roomId, nickname = "") => {
+  const openChatRoom = (roomId, nickname = "", isGroup = false) => {
     if (!roomId) return;
     pendingChatRequestClaimIdRef.current = null;
     setActiveChatRoomId(roomId);
     setActiveChatRoomNickname(nickname);
+    setActiveChatRoomIsGroup(isGroup);
     setPage("chatRoom");
+  };
+
+  const joinTaxiGroupChat = async (post) => {
+    if (!post?.id || joiningTaxiPostId || !checkProfileRequired()) return;
+
+    setJoiningTaxiPostId(post.id);
+    try {
+      const { data: roomId, error } = await supabase.rpc("join_taxi_group_chat", {
+        p_post_id: post.id,
+        p_nickname: profile.nickname,
+      });
+
+      if (error) {
+        console.log(error);
+        toast.error("택시팟 단체 채팅방에 들어가지 못했어요: " + error.message);
+        return;
+      }
+
+      toast.success(post.sender_user_id === currentUser.id ? "내 택시팟 단체방을 열었어요." : "택시팟에 참여했어요!");
+      openChatRoom(
+        roomId,
+        `${post.place || "출발지"} → ${post.detail_place || "목적지"}`,
+        true
+      );
+    } finally {
+      setJoiningTaxiPostId(null);
+    }
   };
 
   const deleteChatRoomFromList = async (roomId) => {
@@ -5560,10 +5624,12 @@ useEffect(() => {
         updatedAt: claim.responded_at || claim.created_at,
         role: "claimer",
       })),
+    ...taxiGroupChats,
   ]
     .filter((room) => {
       const roomStatus = chatRoomStatusMap[room.chatRoomId];
       if (!roomStatus) return true;
+      if (room.isGroup) return true;
       return room.role === "sender"
         ? !roomStatus.sender_deleted_at
         : !roomStatus.claimer_deleted_at;
@@ -8309,40 +8375,53 @@ useEffect(() => {
             <>
               <h3 className="questionTitle">택시팟 구름을 띄워볼까요?</h3>
               <p className="subtitle communityWriteGuide">
-                출발 장소와 대략적인 시각을 남기면, 근처에 있는 단꿈 사용자에게 알림이 가요.
+                출발 정보를 남기면, 참여자들이 한 단체 채팅방에서 만날 장소와 시간을 정할 수 있어요.
               </p>
               <div className="communityPostEditor">
                 <div className="formGroup">
                   <label className="formLabel">출발 장소</label>
-                  <SearchableSelect
-                    options={getLocalizedSelectOptions(getTaxiPlaceOptions(profile.campus), language)}
+                  <input
+                    type="text"
                     value={crushPost.place}
-                    placeholder="장소 검색 또는 선택 (예: 죽전역)"
-                    onChange={(option) => updateCrushPost("place", option)}
+                    maxLength={80}
+                    placeholder="예: 죽전역 1번 출구"
+                    onChange={(e) => updateCrushPost("place", e.target.value)}
                   />
                 </div>
                 <div className="formGroup">
-                  <label className="formLabel">출발 예정 시각</label>
-                  <select
-                    value={crushPost.time_period}
-                    onChange={(e) => updateCrushPost("time_period", e.target.value)}
-                  >
-                    <option value="">출발 시각 선택 (10분 단위)</option>
-                    {getTaxiTimeOptions().map((option) => (
-                      <option key={option.label} value={option.value}>
-                        {option.label}
-                      </option>
-                    ))}
-                  </select>
+                  <label className="formLabel">일자 및 출발 시각</label>
+                  <div className="taxiDateTimeFields">
+                    <LocalizedDateInput
+                      language={language}
+                      value={crushPost.seen_date}
+                      min={getKoreaDateString()}
+                      onChange={(e) => updateCrushPost("seen_date", e.target.value)}
+                    />
+                    <input
+                      type="time"
+                      value={crushPost.time_period}
+                      onChange={(e) => updateCrushPost("time_period", e.target.value)}
+                    />
+                  </div>
                   <p className="fieldHint">출발 시각이 지나고 30분 뒤에는 목록에서 자동으로 사라져요.</p>
                 </div>
                 <div className="formGroup">
-                  <label className="formLabel">한마디 (인원, 목적지 등)</label>
+                  <label className="formLabel">목적지</label>
+                  <input
+                    type="text"
+                    value={crushPost.taxi_destination}
+                    maxLength={80}
+                    placeholder="예: 단국대학교 정문"
+                    onChange={(e) => updateCrushPost("taxi_destination", e.target.value)}
+                  />
+                </div>
+                <div className="formGroup">
+                  <label className="formLabel">세부 내용</label>
                   <textarea
                     className="communityPostTextarea"
                     value={crushPost.message}
                     maxLength={300}
-                    placeholder="예: 기숙사까지 같이 타실 분 2명 구해요! 죽전역 1번 출구 앞에서 만나요."
+                    placeholder="예: 2명 더 구해요. 짐이 많아서 큰 택시면 좋겠어요."
                     onChange={(e) => updateCrushPost("message", e.target.value)}
                   />
                   <small className="fieldCounter">{crushPost.message.length}/300</small>
@@ -8505,7 +8584,7 @@ useEffect(() => {
             {communityCloudRoom === "memory"
               ? "단국대 학생이 남긴 기억 속 인연의 이야기를 확인해보세요."
               : communityCloudRoom === "taxi"
-                ? "지금 뜬 택시팟 구름을 확인하고 같이 탈 사람에게 요청해보세요."
+                ? "일정이 맞는 택시팟을 골라 같은 단체 채팅방에서 이야기해보세요."
                 : "같은 지역이나 학교를 나온 단국대 학생과 다시 연결되어 보세요."}
           </p>
 
@@ -8532,7 +8611,7 @@ useEffect(() => {
 
           <div className="communityCloudList">
             {filteredCommunityClouds.map((post) => (
-              <article className="communityCloudCard" key={post.id}>
+              <article className={`communityCloudCard${post.room === "taxi" ? " taxiGroupCloudCard" : ""}`} key={post.id}>
                 <div className="communityCloudCardTop">
                   <span>{post.room === "memory" ? "📖" : post.room === "taxi" ? "🚕" : "🏡"}</span>
                   <div>
@@ -8540,10 +8619,12 @@ useEffect(() => {
                       {post.room === "memory"
                         ? post.memory_title || "게시판 구름"
                         : post.room === "taxi"
-                          ? `${post.place || "출발지 미정"} · ${post.time_period || "시각 미정"} 출발`
+                          ? "택시팟 단체 구름"
                           : [post.past_region, post.past_subregion].filter(Boolean).join(" ") || post.past_kind || "고향 구름"}
                     </b>
-                    <small><span data-i18n-ignore>{post.sender_nickname || "단꿈 사용자"}</span> · {post.campus || "단국대"}</small>
+                    {post.room !== "taxi" && (
+                      <small><span data-i18n-ignore>{post.sender_nickname || "단꿈 사용자"}</span> · {post.campus || "단국대"}</small>
+                    )}
                   </div>
                 </div>
 
@@ -8567,20 +8648,22 @@ useEffect(() => {
                   </>
                 ) : post.room === "taxi" ? (
                   <>
-                    {renderTranslatedCloudText(post, post.message, {
-                      className: "communityPostBody",
-                    })}
-                    {post.sender_user_id !== currentUser?.id && (
-                      <button
-                        className="communityResponseButton"
-                        onClick={() => {
-                          setSelectedPost(post);
-                          setPage("claimForm");
-                        }}
-                      >
-                        같이 탈게요!
-                      </button>
-                    )}
+                    <div className="taxiCloudSummary">
+                      <p><span>일자 및 출발 시각</span><b>{post.seen_date || "일자 미정"} · {post.time_period || "시각 미정"}</b></p>
+                      <p><span>출발 장소</span><b>{post.place || "미정"}</b></p>
+                      <p><span>목적지</span><b>{post.detail_place || "미정"}</b></p>
+                    </div>
+                    <button
+                      className="communityResponseButton taxiGroupJoinButton"
+                      onClick={() => joinTaxiGroupChat(post)}
+                      disabled={joiningTaxiPostId === post.id}
+                    >
+                      {joiningTaxiPostId === post.id
+                        ? "단체방 여는 중..."
+                        : post.sender_user_id === currentUser?.id
+                          ? "내 단체 채팅방 열기"
+                          : "같이 타고 단체방 참여하기"}
+                    </button>
                   </>
                 ) : (
                   <>
@@ -9639,6 +9722,7 @@ useEffect(() => {
           roomId={activeChatRoomId}
           currentUserId={currentUser.id}
           otherNickname={activeChatRoomNickname}
+          isGroup={activeChatRoomIsGroup}
           onClose={() => setPage("chats")}
           onLeave={() => loadMyActivityData()}
         />
@@ -9649,7 +9733,7 @@ useEffect(() => {
             <div>
               <h2>채팅</h2>
               <p className="subtitle">
-                서로 대화를 수락한 상대와 24시간 동안 메시지를 주고받을 수 있어요.
+                1:1로 연결된 상대와 대화하거나, 참여 중인 택시팟 단체방을 확인할 수 있어요.
               </p>
             </div>
           </div>
@@ -9679,10 +9763,14 @@ useEffect(() => {
                 const preview = chatLastMessages[room.chatRoomId];
                 const previewTime = preview?.created_at || room.updatedAt;
                 const roomStatus = chatRoomStatusMap[room.chatRoomId];
-                const expired = roomStatus
+                const expired = room.isGroup
+                  ? false
+                  : roomStatus
                   ? isChatRoomExpired(roomStatus.created_at, roomStatus.closed_at, chatListNowTick)
                   : false;
-                const statusText = roomStatus
+                const statusText = room.isGroup
+                  ? "택시팟 단체 채팅"
+                  : roomStatus
                   ? formatChatRoomRemaining(roomStatus.created_at, roomStatus.closed_at, chatListNowTick)
                   : "채팅 가능 시간을 확인하는 중이에요.";
 
@@ -9695,7 +9783,7 @@ useEffect(() => {
                     expired={expired}
                     statusText={statusText}
                     deleting={deletingChatRoomId === room.chatRoomId}
-                    onOpen={() => openChatRoom(room.chatRoomId, room.otherNickname)}
+                    onOpen={() => openChatRoom(room.chatRoomId, room.otherNickname, room.isGroup)}
                     onDelete={deleteChatRoomFromList}
                   />
                 );

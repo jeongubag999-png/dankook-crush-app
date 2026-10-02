@@ -10,7 +10,7 @@ import {
   isSameChatDay,
 } from "../utils";
 
-export function ChatRoom({ roomId, currentUserId, otherNickname, onClose, onLeave }) {
+export function ChatRoom({ roomId, currentUserId, otherNickname, isGroup = false, onClose, onLeave }) {
   const [messages, setMessages] = useState([]);
   const [input, setInput] = useState("");
   const [loading, setLoading] = useState(true);
@@ -19,6 +19,7 @@ export function ChatRoom({ roomId, currentUserId, otherNickname, onClose, onLeav
   const [instagramChoice, setInstagramChoice] = useState(null);
   const [instagramSubmitting, setInstagramSubmitting] = useState(false);
   const [leavingRoom, setLeavingRoom] = useState(false);
+  const [groupMemberNames, setGroupMemberNames] = useState({});
   const [now, setNow] = useState(() => Date.now());
   const bottomRef = useRef(null);
 
@@ -40,7 +41,7 @@ export function ChatRoom({ roomId, currentUserId, otherNickname, onClose, onLeav
 
     const load = async () => {
       setLoading(true);
-      const [{ data: room, error: roomError }, { data, error }] = await Promise.all([
+      const [{ data: room, error: roomError }, { data, error }, memberResult] = await Promise.all([
         supabase
           .from("chat_rooms")
           .select(
@@ -53,6 +54,13 @@ export function ChatRoom({ roomId, currentUserId, otherNickname, onClose, onLeav
           .select("*")
           .eq("chat_room_id", roomId)
           .order("created_at", { ascending: true }),
+        isGroup
+          ? supabase
+              .from("taxi_chat_members")
+              .select("user_id, nickname")
+              .eq("chat_room_id", roomId)
+              .is("left_at", null)
+          : Promise.resolve({ data: [], error: null }),
       ]);
 
       if (!mounted) return;
@@ -68,6 +76,16 @@ export function ChatRoom({ roomId, currentUserId, otherNickname, onClose, onLeav
         console.log(error);
       } else {
         setMessages(data || []);
+      }
+      if (memberResult.error) {
+        console.log(memberResult.error);
+      } else {
+        setGroupMemberNames(
+          (memberResult.data || []).reduce((names, member) => {
+            names[member.user_id] = member.nickname || "참여자";
+            return names;
+          }, {})
+        );
       }
       setLoading(false);
     };
@@ -87,8 +105,10 @@ export function ChatRoom({ roomId, currentUserId, otherNickname, onClose, onLeav
         (payload) => {
           setMessages((prev) => [...prev, payload.new]);
         }
-      )
-      .on(
+      );
+
+    if (isGroup) {
+      channel = channel.on(
         "postgres_changes",
         {
           event: "UPDATE",
@@ -100,13 +120,34 @@ export function ChatRoom({ roomId, currentUserId, otherNickname, onClose, onLeav
           setRoomInfo(payload.new);
         }
       )
-      .subscribe();
+      .on(
+        "postgres_changes",
+        {
+          event: "*",
+          schema: "public",
+          table: "taxi_chat_members",
+          filter: `chat_room_id=eq.${roomId}`,
+        },
+        (payload) => {
+          const member = payload.new;
+          if (!member?.user_id) return;
+          setGroupMemberNames((names) => {
+            const next = { ...names };
+            if (member.left_at) delete next[member.user_id];
+            else next[member.user_id] = member.nickname || "참여자";
+            return next;
+          });
+        }
+      );
+    }
+
+    channel.subscribe();
 
     return () => {
       mounted = false;
       if (channel) supabase.removeChannel(channel);
     };
-  }, [roomId]);
+  }, [roomId, isGroup]);
 
   useEffect(() => {
     if (messages.length === 0) return;
@@ -125,7 +166,9 @@ export function ChatRoom({ roomId, currentUserId, otherNickname, onClose, onLeav
     return () => viewport.removeEventListener("resize", scrollToBottom);
   }, []);
 
-  const isExpired = isChatRoomExpired(roomInfo?.created_at, roomInfo?.closed_at, now);
+  const isExpired = isGroup
+    ? Boolean(roomInfo?.closed_at)
+    : isChatRoomExpired(roomInfo?.created_at, roomInfo?.closed_at, now);
   const isSender = roomInfo?.sender_user_id === currentUserId;
   const myInstagramConsent = isSender
     ? roomInfo?.sender_instagram_consent
@@ -145,7 +188,10 @@ export function ChatRoom({ roomId, currentUserId, otherNickname, onClose, onLeav
     const body = input.trim();
     // 방금 만료됐을 수 있으니 60초 주기로만 갱신되는 `isExpired`가 아니라
     // 전송 시점 기준으로 다시 계산해 확인한다.
-    if (!body || sending || isChatRoomExpired(roomInfo?.created_at, roomInfo?.closed_at, Date.now())) return;
+    const roomClosed = isGroup
+      ? Boolean(roomInfo?.closed_at)
+      : isChatRoomExpired(roomInfo?.created_at, roomInfo?.closed_at, Date.now());
+    if (!body || sending || roomClosed) return;
 
     setSending(true);
 
@@ -185,14 +231,16 @@ export function ChatRoom({ roomId, currentUserId, otherNickname, onClose, onLeav
   const leaveChatRoom = async () => {
     if (!roomId || leavingRoom || isExpired) return;
     const ok = window.confirm(
-      "채팅방을 나가시겠어요? 나가면 채팅방이 바로 종료되고 더 이상 메시지를 보낼 수 없어요."
+      isGroup
+        ? "택시팟 단체 채팅방에서 나가시겠어요?"
+        : "채팅방을 나가시겠어요? 나가면 채팅방이 바로 종료되고 더 이상 메시지를 보낼 수 없어요."
     );
     if (!ok) return;
 
     setLeavingRoom(true);
-    const { data, error } = await supabase.rpc("close_chat_room", {
-      p_room_id: roomId,
-    });
+    const { data, error } = isGroup
+      ? await supabase.rpc("leave_taxi_group_chat", { p_room_id: roomId })
+      : await supabase.rpc("close_chat_room", { p_room_id: roomId });
 
     if (error) {
       console.log(error);
@@ -201,7 +249,7 @@ export function ChatRoom({ roomId, currentUserId, otherNickname, onClose, onLeav
       return;
     }
 
-    if (data) setRoomInfo(data);
+    if (data && !isGroup) setRoomInfo(data);
     toast.success("채팅방을 나갔어요.");
     setLeavingRoom(false);
     onLeave?.();
@@ -209,7 +257,7 @@ export function ChatRoom({ roomId, currentUserId, otherNickname, onClose, onLeav
   };
 
   const renderInstagramConsentPanel = () => {
-    if (!isExpired || !roomInfo) return null;
+    if (isGroup || !isExpired || !roomInfo) return null;
 
     let statusText = "공개 여부를 선택해 저장하면, 상대도 선택을 마칠 때 결과를 알려드려요.";
     if (myInstagramConsent !== null && myInstagramConsent !== undefined && !bothChoseInstagram) {
@@ -271,10 +319,12 @@ export function ChatRoom({ roomId, currentUserId, otherNickname, onClose, onLeav
           <ChevronLeftIcon size={22} />
         </button>
         <div className="chatRoomHeaderInfo">
-          <span className="chatRoomHeaderName" data-i18n-ignore>{otherNickname || "상대"}</span>
+          <span className="chatRoomHeaderName" data-i18n-ignore>{otherNickname || (isGroup ? "택시팟 단체방" : "상대")}</span>
           {roomInfo && (
             <span className="chatRoomHeaderStatus">
-              {formatChatRoomRemaining(roomInfo.created_at, roomInfo.closed_at, now)}
+              {isGroup
+                ? `단체 채팅 · 참여자 ${Object.keys(groupMemberNames).length}명`
+                : formatChatRoomRemaining(roomInfo.created_at, roomInfo.closed_at, now)}
             </span>
           )}
         </div>
@@ -308,6 +358,7 @@ export function ChatRoom({ roomId, currentUserId, otherNickname, onClose, onLeav
           const prev = messages[index - 1];
           const next = messages[index + 1];
           const isMine = m.sender_user_id === currentUserId;
+          const senderNickname = groupMemberNames[m.sender_user_id] || "참여자";
 
           const showDateDivider = !prev || !isSameChatDay(prev.created_at, m.created_at);
 
@@ -339,11 +390,16 @@ export function ChatRoom({ roomId, currentUserId, otherNickname, onClose, onLeav
                 )}
                 {!isMine && (
                   <div className="chatAvatar" aria-hidden="true">
-                    {isNewGroup ? nicknameInitial : ""}
+                    {isNewGroup ? (isGroup ? senderNickname.charAt(0) : nicknameInitial) : ""}
                   </div>
                 )}
-                <div className={isMine ? "chatBubble mine" : "chatBubble theirs"}>
-                  {m.body}
+                <div className="chatBubbleStack">
+                  {!isMine && isGroup && isNewGroup && (
+                    <span className="chatSenderName" data-i18n-ignore>{senderNickname}</span>
+                  )}
+                  <div className={isMine ? "chatBubble mine" : "chatBubble theirs"}>
+                    {m.body}
+                  </div>
                 </div>
                 {!isMine && showTime && (
                   <span className="chatBubbleTime">{formatChatBubbleTime(m.created_at)}</span>

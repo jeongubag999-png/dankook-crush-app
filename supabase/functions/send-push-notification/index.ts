@@ -178,40 +178,68 @@ Deno.serve(async (req) => {
       }
     } else if (type === "new_message") {
       const roomRes = await fetch(
-        `${supabaseUrl}/rest/v1/chat_rooms?id=eq.${record.chat_room_id}&select=sender_user_id,claimer_user_id,crush_post_id,claim_id`,
+        `${supabaseUrl}/rest/v1/chat_rooms?id=eq.${record.chat_room_id}&select=sender_user_id,claimer_user_id,crush_post_id,claim_id,room_kind`,
         { headers: restHeaders }
       );
       const [room] = await roomRes.json();
       if (room) {
-        const targetUserId =
-          room.sender_user_id === record.sender_user_id
-            ? room.claimer_user_id
-            : room.sender_user_id;
-        if (targetUserId) {
-          let senderNickname = "새 메시지가 도착했어요 💬";
-          if (record.sender_user_id === room.sender_user_id) {
-            const postRes = await fetch(
-              `${supabaseUrl}/rest/v1/crush_posts?id=eq.${room.crush_post_id}&select=sender_nickname`,
-              { headers: restHeaders }
-            );
-            const [post] = await postRes.json();
-            if (post?.sender_nickname) senderNickname = post.sender_nickname;
-          } else {
-            const claimRes = await fetch(
-              `${supabaseUrl}/rest/v1/claims?id=eq.${room.claim_id}&select=claimer_nickname`,
-              { headers: restHeaders }
-            );
-            const [claim] = await claimRes.json();
-            if (claim?.claimer_nickname) senderNickname = claim.claimer_nickname;
-          }
+        const preview =
+          typeof record.body === "string" && record.body.length > 60
+            ? `${record.body.slice(0, 60)}...`
+            : record.body;
 
-          const preview =
-            typeof record.body === "string" && record.body.length > 60
-              ? `${record.body.slice(0, 60)}...`
-              : record.body;
-          pushResult = await sendOneSignalPush(targetUserId, senderNickname, preview || "");
+        if (room.room_kind === "taxi_group") {
+          const membersRes = await fetch(
+            `${supabaseUrl}/rest/v1/taxi_chat_members?chat_room_id=eq.${record.chat_room_id}&left_at=is.null&select=user_id,nickname`,
+            { headers: restHeaders }
+          );
+          const members = await membersRes.json();
+          const sender = Array.isArray(members)
+            ? members.find((member: { user_id?: string }) => member.user_id === record.sender_user_id)
+            : null;
+          const recipients = Array.isArray(members)
+            ? members.filter((member: { user_id?: string }) =>
+                member.user_id && member.user_id !== record.sender_user_id
+              )
+            : [];
+
+          const results = await Promise.all(
+            recipients.map((member: { user_id: string }) =>
+              sendOneSignalPush(
+                member.user_id,
+                `${sender?.nickname || "참여자"} · 택시팟 단체방 🚕`,
+                preview || ""
+              )
+            )
+          );
+          pushResult = { recipients: recipients.length, results };
         } else {
-          pushResult = { skipped: "no_target_user_id" };
+          const targetUserId =
+            room.sender_user_id === record.sender_user_id
+              ? room.claimer_user_id
+              : room.sender_user_id;
+          if (targetUserId) {
+            let senderNickname = "새 메시지가 도착했어요 💬";
+            if (record.sender_user_id === room.sender_user_id) {
+              const postRes = await fetch(
+                `${supabaseUrl}/rest/v1/crush_posts?id=eq.${room.crush_post_id}&select=sender_nickname`,
+                { headers: restHeaders }
+              );
+              const [post] = await postRes.json();
+              if (post?.sender_nickname) senderNickname = post.sender_nickname;
+            } else {
+              const claimRes = await fetch(
+                `${supabaseUrl}/rest/v1/claims?id=eq.${room.claim_id}&select=claimer_nickname`,
+                { headers: restHeaders }
+              );
+              const [claim] = await claimRes.json();
+              if (claim?.claimer_nickname) senderNickname = claim.claimer_nickname;
+            }
+
+            pushResult = await sendOneSignalPush(targetUserId, senderNickname, preview || "");
+          } else {
+            pushResult = { skipped: "no_target_user_id" };
+          }
         }
       } else {
         pushResult = { skipped: "chat_room_not_found" };
