@@ -2214,3 +2214,25 @@ body {
   line-height: 1.5;
   color: var(--v2-muted);
 }
+
+/* In-app update prompt (reuses the app guide dialog shell) */
+@media (min-width: 541px) {
+  .updatePromptDialog {
+    width: min(100%, 420px);
+  }
+}
+
+.updatePromptDialog .appGuideCopy {
+  min-height: 0;
+  padding-bottom: 18px;
+}
+
+.updatePromptForced {
+  margin-top: 10px !important;
+  color: var(--ux-text-soft) !important;
+  font-size: 13px !important;
+}
+
+.appGuideActions.single {
+  grid-template-columns: minmax(0, 1fr);
+}

@@ -10,6 +10,7 @@ import { OptionButton } from "./components/OptionButton";
 import { LibrarySeatMap } from "./components/LibrarySeatMap";
 import { SearchableSelect } from "./components/SearchableSelect";
 import { ChatRoom } from "./components/ChatRoom";
+import { UpdatePrompt } from "./components/UpdatePrompt";
 import {
   GenderFemaleIcon,
   GenderMaleIcon,
@@ -10554,6 +10555,7 @@ useEffect(() => {
 	          </section>
 	        </div>
 	      )}
+	      <UpdatePrompt />
 	      {page !== "chatRoom" && renderBottomNav()}
 	    </div>
 	  );
