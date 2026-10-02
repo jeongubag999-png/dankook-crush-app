@@ -2212,6 +2212,16 @@ const hideSearchResult = (postId) => {
 
   const renderPostQuestionAnswer = (post) => {
     if (post.room === "language") return renderLanguagePostQA(post);
+    if (post.room === "taxi") {
+      return (
+        <div className="qaBox">
+          <p className="qaTitle">택시팟 일정</p>
+          <p><strong>일자 및 출발 시각:</strong> {post.seen_date || "-"} · {post.time_period || "-"}</p>
+          <p><strong>출발 장소:</strong> {post.place || "-"}</p>
+          <p><strong>목적지:</strong> {post.detail_place || "-"}</p>
+        </div>
+      );
+    }
     if (post.room === "memory") {
       return (
         <div className="qaBox">
@@ -5893,6 +5903,9 @@ useEffect(() => {
   };
 
   const formatCloudListSummary = (post) => {
+    if (post?.room === "taxi") {
+      return `🚕 ${formatCloudSummaryDate(post.seen_date)} · ${post.time_period || "시각 미정"} · ${post.place || "출발지 미정"} → ${post.detail_place || "목적지 미정"}`;
+    }
     if (post?.room === "memory") {
       return `📖 ${post.memory_title || "게시판 구름"}`;
     }
@@ -6100,15 +6113,16 @@ useEffect(() => {
 };
 
   const renderSentPostCard = (post, mode, defaultOpen = false) => {
-    const claims = sentClaimsByPostId[post.id] || [];
+    const isTaxiGroup = post.room === "taxi";
+    const claims = isTaxiGroup ? [] : sentClaimsByPostId[post.id] || [];
     const checkCandidates = getSenderCheckCandidatesForPost(post.id);
     const detailsProps = defaultOpen ? { open: true } : {};
 
     return (
       <details className="post postCollapsible" key={post.id} {...detailsProps}>
         <summary className="postSummary">
-          <span className={claims.length > 0 ? "statusPill active" : "statusPill"}>
-            {claims.length > 0 ? `응답 ${claims.length}개` : "응답 없음"}
+          <span className={isTaxiGroup || claims.length > 0 ? "statusPill active" : "statusPill"}>
+            {isTaxiGroup ? "택시팟 단체방" : claims.length > 0 ? `응답 ${claims.length}개` : "응답 없음"}
           </span>
           <span className="postSummaryText">
             {formatCloudListSummary(post)}
@@ -6125,14 +6139,27 @@ useEffect(() => {
               fallback: "남긴 메시지가 없어요.",
             })}
 
-          {mode === "empty" && (
+          {isTaxiGroup && (
+            <div className="noticeBox">
+              <p>택시팟은 수락 과정 없이 참여자가 같은 단체 채팅방에 바로 들어와요.</p>
+              <button
+                type="button"
+                onClick={() => joinTaxiGroupChat(post)}
+                disabled={joiningTaxiPostId === post.id}
+              >
+                {joiningTaxiPostId === post.id ? "단체방 여는 중..." : "택시팟 단체 채팅방 열기"}
+              </button>
+            </div>
+          )}
+
+          {!isTaxiGroup && mode === "empty" && (
     <div className="noticeBox">
       <p>아직 이 구름에 채팅방을 요청한 사람이 없어요.</p>
       <p>상대가 구름 게시판에서 이 구름을 발견하면 여기에 표시돼요.</p>
     </div>
   )}
 
-          {mode === "answered" && claims.map((claim) => renderSentClaimCard(claim))}
+          {!isTaxiGroup && mode === "answered" && claims.map((claim) => renderSentClaimCard(claim))}
 
           {post.room === "crush" && (
           <div className="senderCheckSection">
@@ -6183,6 +6210,32 @@ useEffect(() => {
 
 	  const renderReceivedClaimCard = (claim) => {
     const post = claim.post;
+
+    if (post?.room === "taxi") {
+      return (
+        <details className="post postCollapsible" key={claim.id}>
+          <summary className="postSummary">
+            <span className="statusPill active">택시팟 단체방</span>
+            <span className="postSummaryText">{formatCloudListSummary(post)}</span>
+            <span className="postSummaryArrow" aria-hidden="true">›</span>
+          </summary>
+
+          <div className="postBody">
+            {renderPostQuestionAnswer(post)}
+            <div className="noticeBox">
+              <p>택시팟은 상대의 수락을 기다리지 않고 단체 채팅방에 바로 참여해요.</p>
+              <button
+                type="button"
+                onClick={() => joinTaxiGroupChat(post)}
+                disabled={joiningTaxiPostId === post.id}
+              >
+                {joiningTaxiPostId === post.id ? "단체방 여는 중..." : "택시팟 단체 채팅방 열기"}
+              </button>
+            </div>
+          </div>
+        </details>
+      );
+    }
 
     return (
       <details className="post postCollapsible" key={claim.id}>
