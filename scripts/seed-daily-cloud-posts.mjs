@@ -1,15 +1,19 @@
 // Internal growth-seeding script — NOT part of the app.
 // Meant to run once per hour (cron fires hourly). Each run looks up the
-// current Asia/Seoul hour in HOURLY_PLAN and posts only the seed accounts
-// scheduled for that hour, so the 25 fake "crush cloud" posts trickle in
-// across the day instead of appearing all at once:
-//   - 09~14시: 15 posts, "seen" sometime in the 08:00~14:00 window
-//   - 15~17시: 5 posts, "seen" sometime in the 14:00~18:00 window
-//   - 22~23시: 5 posts at 학교 앞 상권 bars/편의점 (볶신/곰포차/혜자/낭만단대/세븐일레븐),
-//     "seen" in the 22:00~24:00 window
+// current Asia/Seoul day/hour and posts only the clouds scheduled for that
+// hour, so the day's fake "crush cloud" posts trickle in instead of
+// appearing all at once.
+//
+// 하루 분량 (캠퍼스별 시드 계정이 따로 올린다. 글의 campus는 계정 프로필에서 가져온다):
+//   - 죽전 (test12~test26): 평일 25개, 주말 15개
+//   - 천안 (test27~test31, 프로필 캠퍼스 = 천안): 평일 10개, 주말 6개
+// 평일은 오전에 몰리고, 주말은 늦게 시작해서 적게 올린다. 23시 글은 학교 앞 술집·편의점이다.
+// EXAM_SEASON이 true면 낮 시간 글의 대부분을 도서관 열람실에서 본 것으로 올린다.
+// 시험기간이 끝나면 false로 바꾼다.
 // Hours with no plan entry are a no-op.
 //
 // Run: node scripts/seed-daily-cloud-posts.mjs
+// Preview: node scripts/seed-daily-cloud-posts.mjs --dry-run [YYYY-MM-DD]
 import { createClient } from "@supabase/supabase-js";
 
 // Public anon key (same one shipped in the client bundle) — safe to embed,
@@ -41,35 +45,69 @@ const nowInSeoul = () => {
   return { date: `${get("year")}-${get("month")}-${get("day")}`, hour: Number(get("hour")) };
 };
 
-// Morning window (09~14시 KST): 15 posts, one per seed account.
-const MORNING_TIME_SLOTS = ["08:00~10:00", "10:00~12:00", "12:00~14:00"];
-// Afternoon window (15~17시 KST): 5 posts.
-const AFTERNOON_TIME_SLOTS = ["14:00~16:00", "16:00~18:00"];
-// Night window (22~23시 KST): fixed, matches the 10pm~midnight ask exactly.
-const NIGHT_TIME_SLOT = "22:00~24:00";
+// 시험기간: 낮 시간 글 중 LIBRARY_SHARE 비율을 도서관 열람실 글로 올린다.
+const EXAM_SEASON = true;
+const LIBRARY_SHARE = 0.85;
 
 const NIGHT_VENUES = ["볶신", "곰포차", "혜자", "낭만단대", "세븐일레븐"];
+// 천안 안서동 상권은 가게 이름 대신 일반 명칭을 쓴다. 실제 가게 이름을 알게 되면 바꾼다.
+const CHEONAN_NIGHT_VENUES = ["술집", "포차", "편의점"];
 
-// hour (KST, 0~23) -> list of { loginId, kind }. kind: "morning" | "afternoon" | { venue }
-const HOURLY_PLAN = {
-  9: [{ loginId: "test12", kind: "morning" }, { loginId: "test13", kind: "morning" }, { loginId: "test14", kind: "morning" }],
-  10: [{ loginId: "test15", kind: "morning" }, { loginId: "test16", kind: "morning" }],
-  11: [{ loginId: "test17", kind: "morning" }, { loginId: "test18", kind: "morning" }, { loginId: "test19", kind: "morning" }],
-  12: [{ loginId: "test20", kind: "morning" }, { loginId: "test21", kind: "morning" }],
-  13: [{ loginId: "test22", kind: "morning" }, { loginId: "test23", kind: "morning" }, { loginId: "test24", kind: "morning" }],
-  14: [{ loginId: "test25", kind: "morning" }, { loginId: "test26", kind: "morning" }],
-  15: [{ loginId: "test12", kind: "afternoon" }, { loginId: "test16", kind: "afternoon" }],
-  16: [{ loginId: "test20", kind: "afternoon" }, { loginId: "test24", kind: "afternoon" }],
-  17: [{ loginId: "test26", kind: "afternoon" }],
-  22: [
-    { loginId: "test13", kind: "night", venue: "볶신" },
-    { loginId: "test17", kind: "night", venue: "곰포차" },
-    { loginId: "test21", kind: "night", venue: "혜자" },
-  ],
-  23: [
-    { loginId: "test25", kind: "night", venue: "낭만단대" },
-    { loginId: "test14", kind: "night", venue: "세븐일레븐" },
-  ],
+const CAMPUS_ACCOUNTS = {
+  죽전: Array.from({ length: 15 }, (_, i) => `test${12 + i}`),
+  천안: ["test27", "test28", "test29", "test30", "test31"],
+};
+
+// 게시 시각(KST hour) -> 그 시간에 올릴 개수. 23시 글은 술집·편의점(night) 글이다.
+const DAILY_SCHEDULE = {
+  weekday: {
+    죽전: { 9: 3, 10: 4, 11: 4, 12: 3, 14: 2, 15: 2, 16: 2, 19: 2, 21: 2, 23: 1 }, // 25
+    천안: { 9: 1, 10: 2, 11: 2, 14: 1, 15: 1, 19: 1, 21: 1, 23: 1 }, // 10
+  },
+  weekend: {
+    죽전: { 11: 2, 12: 2, 13: 2, 14: 2, 15: 2, 17: 2, 20: 2, 23: 1 }, // 15
+    천안: { 11: 1, 13: 1, 15: 1, 17: 1, 20: 1, 23: 1 }, // 6
+  },
+};
+const NIGHT_HOUR = 23;
+
+// 게시 시각 직전 2시간 안에서 "본 시간대"를 고른다. 0시부터 2시간 단위 슬롯.
+const slotForHour = (hour) => {
+  // 08시 이전에 본 것으로 쓰지 않는다(도서관·강의 시작 전이라 어색함).
+  const seenHour = Math.max(8, hour - 1 - Math.floor(Math.random() * 2));
+  const start = seenHour - (seenHour % 2);
+  const pad = (n) => String(n).padStart(2, "0");
+  return `${pad(start)}:00~${pad(start + 2)}:00`;
+};
+
+// 그날의 이 시간 게시 목록. 계정은 날짜마다 시작점을 바꿔 돌아가며 쓴다(하루 최대 2회).
+const buildEntriesForHour = (date, hour) => {
+  // KST 정오는 UTC로도 같은 날짜라서 getUTCDay()가 서울 기준 요일이 된다.
+  const isWeekend = [0, 6].includes(new Date(`${date}T12:00:00+09:00`).getUTCDay());
+  const schedule = DAILY_SCHEDULE[isWeekend ? "weekend" : "weekday"];
+  const dayIndex = Math.floor(Date.parse(`${date}T00:00:00Z`) / 86400000);
+  const entries = [];
+  for (const [campus, perHour] of Object.entries(schedule)) {
+    const accounts = CAMPUS_ACCOUNTS[campus];
+    const hours = Object.keys(perHour).map(Number).sort((a, b) => a - b);
+    let slotIndex = 0;
+    for (const h of hours) {
+      for (let k = 0; k < perHour[h]; k += 1) {
+        if (h === hour) {
+          entries.push({
+            loginId: accounts[(dayIndex * 3 + slotIndex) % accounts.length],
+            campus,
+            kind: h === NIGHT_HOUR ? "night" : "day",
+            hour,
+            // 하루 안에서 문구가 겹치지 않도록 그날의 순번으로 문구를 고른다.
+            order: dayIndex * 5 + slotIndex,
+          });
+        }
+        slotIndex += 1;
+      }
+    }
+  }
+  return entries;
 };
 
 const PLACES = [
@@ -79,6 +117,41 @@ const PLACES = [
   "소프트웨어ICT관", "웅비홀", "인문관", "제1공학관", "제2공학관", "제3공학관",
   "종합실험동", "죽전역", "집현재1", "집현재2", "체육관", "퇴계기념중앙도서관",
   "학교 앞 상권/거리", "학생식당", "혜당관",
+];
+
+// src/constants.js의 LIBRARY_READING_ROOMS와 같은 열람실·좌석 수.
+const LIBRARY_ROOMS = {
+  죽전: {
+    library: "퇴계기념중앙도서관",
+    rooms: [
+      { name: "1층 제1열람실", seats: 344 },
+      { name: "1층 제6열람실", seats: 54 },
+      { name: "2층 제2열람실", seats: 176 },
+      { name: "2층 제3열람실", seats: 148 },
+      { name: "2층 제4열람실", seats: 278 },
+      { name: "2층 집중학습실", seats: 70 },
+    ],
+  },
+  천안: {
+    library: "율곡기념도서관",
+    rooms: [
+      { name: "1층 1열람실 A", seats: 120 },
+      { name: "1층 1열람실 B", seats: 56 },
+      { name: "1층 1열람실 C", seats: 60 },
+      { name: "1층 1열람실 D", seats: 48 },
+      { name: "1층 1열람실 E", seats: 30 },
+      { name: "1층 1열람실 F", seats: 32 },
+    ],
+  },
+};
+
+// src/constants.js의 cheonanPlaceOptions에서 "잘 모르겠음"/"기타"를 뺀 목록.
+const CHEONAN_PLACES = [
+  "인문과학관", "사회과학관", "자연과학1관", "자연과학2관", "공학관(융합기술대학관)",
+  "보건과학관", "생명자원과학관", "간호대 별관", "예술관 A/B동", "예술관 C/D동",
+  "학생회관(웅무관)", "산학협력관", "율곡기념도서관", "체육관", "치의학관", "약학관",
+  "의학관", "대운동장", "베어토피아", "단대호수(안서호/천호지)", "기숙사",
+  "학교 앞 상권/거리", "버스정류장",
 ];
 
 const TOP_TYPES = [
@@ -126,6 +199,32 @@ const MESSAGES = [
   "정류장에서 폰 보고 계셨는데 그 모습도 예뻤어요",
 ];
 
+// 시험기간 도서관 글. 열람실에서 실제로 마주칠 법한 순간들.
+const LIBRARY_MESSAGES = [
+  "앞자리에서 공부하시던 분, 집중하는 모습이 너무 멋있어서 저는 공부를 못 했어요",
+  "열람실 나가실 때 눈 마주쳤는데 계속 생각나요",
+  "정수기 앞에서 잠깐 마주쳤는데 그 뒤로 한 글자도 안 읽혀요",
+  "옆자리에서 조용히 공부하시던 분, 시험 끝나면 밥 한번 어때요",
+  "자판기 앞에서 뭐 마실지 고민하시던 모습이 귀여웠어요",
+  "늦게까지 남아서 공부하시던데 시험 잘 보세요 그리고 연락주세요",
+  "휴게실에서 커피 드시던 분 계속 눈이 갔어요",
+  "노트북으로 열심히 과제하시던 분 너무 멋있었어요",
+  "열람실 들어오실 때마다 시선이 가서 집중이 안 됐어요",
+  "포스트잇 붙일까 하다가 용기 내서 구름 띄워요",
+  "졸다가 깨셨을 때 눈 마주쳤는데 잊혀지지가 않아요",
+  "이어폰 끼고 공부하시던 옆모습이 너무 예뻤어요",
+  "자리 정리하고 나가시는 뒷모습 보고 말 걸걸 후회했어요",
+  "시험 끝나고 꼭 한번 얘기해보고 싶어요",
+  "계단에서 책 들고 내려가시던 분 혹시 이 글 보시면 연락주세요",
+  "열람실 출입구에서 자리 찍으시는데 순간 눈이 멈췄어요",
+  "공부하다 기지개 켜시는 모습 보고 웃음이 나왔어요 귀여우셨어요",
+  "제 대각선 자리에 앉으셨던 분 하루 종일 신경 쓰였어요",
+  "필기하시는 글씨가 너무 예뻐서 계속 봤어요 죄송해요",
+  "도서관 앞 벤치에서 쉬시던 분 다시 보고 싶어요",
+  "시험기간이라 다들 힘든데 그 와중에 너무 빛나셨어요",
+  "같은 열람실에서 며칠째 마주치는데 오늘은 용기 내볼게요",
+];
+
 const NIGHT_MESSAGES = [
   "술집에서 친구들이랑 계셨는데 너무 예뻐서 계속 쳐다봤어요",
   "혼자 계산하러 나오셨는데 그 잠깐 사이에 반했어요",
@@ -135,6 +234,7 @@ const NIGHT_MESSAGES = [
 ];
 
 const pick = (arr) => arr[Math.floor(Math.random() * arr.length)];
+const pickInOrder = (arr, order) => arr[order % arr.length];
 
 const OUTFIT_PART_LABELS = { top: "상의", outer: "아우터", bottom: "하의" };
 
@@ -146,20 +246,42 @@ const buildRandomLook = () => {
   return { top, outer, bottom };
 };
 
+// 열람실은 좌석 수에 비례해 고른다(큰 열람실일수록 사람이 많으니까).
+const pickLibraryRoom = (campus) => {
+  const { library, rooms } = LIBRARY_ROOMS[campus];
+  const total = rooms.reduce((sum, room) => sum + room.seats, 0);
+  let roll = Math.random() * total;
+  const room = rooms.find((item) => (roll -= item.seats) < 0) || rooms[0];
+  return { library, room: room.name };
+};
+
 const buildPlanForEntry = (entry) => {
-  if (entry.kind === "morning") {
-    return { timePeriod: pick(MORNING_TIME_SLOTS), place: pick(PLACES), mainPlace: null, detailPlace: "", message: pick(MESSAGES) };
-  }
-  if (entry.kind === "afternoon") {
-    return { timePeriod: pick(AFTERNOON_TIME_SLOTS), place: pick(PLACES), mainPlace: null, detailPlace: "", message: pick(MESSAGES) };
+  if (entry.kind === "day") {
+    const timePeriod = slotForHour(entry.hour);
+    if (EXAM_SEASON && Math.random() < LIBRARY_SHARE) {
+      // 앱에서 열람실을 고른 글과 같은 형식: place = "도서관 - 열람실"
+      const { library, room } = pickLibraryRoom(entry.campus);
+      return {
+        timePeriod,
+        place: `${library} - ${room}`,
+        mainPlace: library,
+        detailPlace: room,
+        message: pickInOrder(LIBRARY_MESSAGES, entry.order),
+      };
+    }
+    const places = (entry.campus === "천안" ? CHEONAN_PLACES : PLACES).filter(
+      (place) => !EXAM_SEASON || !place.includes("도서관")
+    );
+    return { timePeriod, place: pick(places), mainPlace: null, detailPlace: "", message: pickInOrder(MESSAGES, entry.order) };
   }
   // night
   const mainPlace = "학교 앞 상권/거리";
+  const venue = pick(entry.campus === "천안" ? CHEONAN_NIGHT_VENUES : NIGHT_VENUES);
   return {
-    timePeriod: NIGHT_TIME_SLOT,
-    place: `${mainPlace} - ${entry.venue}`,
+    timePeriod: "22:00~24:00",
+    place: `${mainPlace} - ${venue}`,
     mainPlace,
-    detailPlace: entry.venue,
+    detailPlace: venue,
     message: pick(NIGHT_MESSAGES),
   };
 };
@@ -181,6 +303,10 @@ async function postOne(entry) {
     .eq("user_id", user.id)
     .single();
   if (profileFetchError) return { ...entry, ok: false, step: "profileFetch", error: profileFetchError.message };
+  // 천안 장소 글이 죽전 게시판에 섞이지 않도록, 계정 캠퍼스가 계획과 다르면 올리지 않는다.
+  if (entry.campus !== profileRow.campus) {
+    return { ...entry, ok: false, step: "campusCheck", error: `프로필 캠퍼스가 ${profileRow.campus}임` };
+  }
 
   const { date: seenDate } = nowInSeoul();
   const look = buildRandomLook();
@@ -250,9 +376,9 @@ async function postOne(entry) {
 
 async function main() {
   const { date, hour } = nowInSeoul();
-  const entries = HOURLY_PLAN[hour];
+  const entries = buildEntriesForHour(date, hour);
 
-  if (!entries) {
+  if (entries.length === 0) {
     console.log(`${date} ${hour}시 KST — 이 시간대에는 예정된 게시가 없습니다.`);
     return;
   }
@@ -280,4 +406,21 @@ async function main() {
   console.log(`\n${okCount}/${entries.length} 완료`);
 }
 
-main();
+// --dry-run [YYYY-MM-DD]: 그날 올릴 글을 시간순으로 출력만 한다(로그인·게시 안 함).
+function dryRun(date) {
+  let total = 0;
+  for (let hour = 0; hour < 24; hour += 1) {
+    for (const entry of buildEntriesForHour(date, hour)) {
+      const { timePeriod, place, message } = buildPlanForEntry(entry);
+      console.log(`${String(hour).padStart(2, "0")}시 ${entry.campus} ${entry.loginId} | ${timePeriod} | ${place} | ${message}`);
+      total += 1;
+    }
+  }
+  console.log(`총 ${total}개`);
+}
+
+if (process.argv.includes("--dry-run")) {
+  dryRun(process.argv.find((arg) => /^\d{4}-\d{2}-\d{2}$/.test(arg)) || nowInSeoul().date);
+} else {
+  main();
+}
