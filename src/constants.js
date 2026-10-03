@@ -93,7 +93,8 @@ export const getTaxiPlaceOptions = (campus) =>
   campus === "천안" ? taxiCheonanPlaceOptions : taxiJukjeonPlaceOptions;
 
 // 도서관 좌석 구름: 시그널 구름에서 도서관을 고르면 열람실·좌석 번호를 받는다.
-// 좌석 수는 도서관 좌석배정 앱 기준(2026-09-28 확인). 천안 율곡도서관은 자료를 받으면 추가.
+// 좌석 수는 도서관 좌석배정 앱 기준(퇴계 2026-09-28, 율곡 2026-10-03 확인).
+// 율곡은 열람실마다 1번부터가 아니라 A~F에 걸쳐 번호가 이어지므로 firstSeat로 시작 번호를 적는다.
 export const LIBRARY_READING_ROOMS = {
   퇴계기념중앙도서관: [
     { name: "1층 제1열람실", seats: 344 },
@@ -103,6 +104,20 @@ export const LIBRARY_READING_ROOMS = {
     { name: "2층 제4열람실", seats: 278 },
     { name: "2층 집중학습실", seats: 70 },
   ],
+  율곡기념도서관: [
+    { name: "1층 1열람실 A", seats: 120 },
+    { name: "1층 1열람실 B", seats: 56, firstSeat: 121 },
+    { name: "1층 1열람실 C", seats: 60, firstSeat: 177 },
+    { name: "1층 1열람실 D", seats: 48, firstSeat: 237 },
+    { name: "1층 1열람실 E", seats: 30, firstSeat: 285 },
+    { name: "1층 1열람실 F", seats: 32, firstSeat: 317 },
+  ],
+};
+
+// 열람실 자리 번호 범위. firstSeat가 없으면 1번부터 시작한다.
+export const getRoomSeatRange = (room) => {
+  const min = room.firstSeat || 1;
+  return { min, max: min + room.seats - 1 };
 };
 
 // 시험기간 동안 시그널 구름 장소 목록에서 좌석 구름을 쓸 수 있는 도서관을 맨 위로 올리고

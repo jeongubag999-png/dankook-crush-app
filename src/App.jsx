@@ -101,6 +101,7 @@ import {
   languageExchangeInterestOptions,
   getLibraryReadingRooms,
   getCampusLibraries,
+  getRoomSeatRange,
   LIBRARY_EXAM_EVENT_ACTIVE,
 } from "./constants";
 import {
@@ -1033,8 +1034,9 @@ const [verificationFile, setVerificationFile] = useState(null);
     const room = getSelectedLibraryRoom(post);
     if (!room || !post.library_seat) return "";
     const seat = Number(post.library_seat);
-    if (!Number.isInteger(seat) || seat < 1 || seat > room.seats) {
-      return `${room.name} 자리 번호는 1~${room.seats}번 사이로 입력해주세요.`;
+    const { min, max } = getRoomSeatRange(room);
+    if (!Number.isInteger(seat) || seat < min || seat > max) {
+      return `${room.name} 자리 번호는 ${min}~${max}번 사이로 입력해주세요.`;
     }
     return "";
   };
@@ -3964,8 +3966,9 @@ const hideSearchResult = (postId) => {
       toast.error("열람실을 선택해주세요.");
       return;
     }
-    if (!Number.isInteger(seat) || seat < 1 || seat > room.seats) {
-      toast.error(`${room.name} 자리 번호는 1~${room.seats}번 사이로 입력해주세요.`);
+    const seatRange = getRoomSeatRange(room);
+    if (!Number.isInteger(seat) || seat < seatRange.min || seat > seatRange.max) {
+      toast.error(`${room.name} 자리 번호는 ${seatRange.min}~${seatRange.max}번 사이로 입력해주세요.`);
       return;
     }
 
@@ -7677,13 +7680,14 @@ useEffect(() => {
                   {getSelectedLibraryRoom(crushPost) && (
                     <div className="formGroup">
                       <label className="formLabel">
-                        자리 번호 (선택 · 1~{getSelectedLibraryRoom(crushPost).seats}번)
+                        자리 번호 (선택 · {getRoomSeatRange(getSelectedLibraryRoom(crushPost)).min}~
+                        {getRoomSeatRange(getSelectedLibraryRoom(crushPost)).max}번)
                       </label>
                       <input
                         type="number"
                         inputMode="numeric"
-                        min={1}
-                        max={getSelectedLibraryRoom(crushPost).seats}
+                        min={getRoomSeatRange(getSelectedLibraryRoom(crushPost)).min}
+                        max={getRoomSeatRange(getSelectedLibraryRoom(crushPost)).max}
                         placeholder="기억나면 적어주세요 (예: 112)"
                         value={crushPost.library_seat}
                         onChange={(e) =>
@@ -8876,9 +8880,13 @@ useEffect(() => {
                       <input
                         type="number"
                         inputMode="numeric"
-                        min={1}
-                        max={seatRoom?.seats}
-                        placeholder={seatRoom ? `1~${seatRoom.seats}번` : "자리 번호"}
+                        min={seatRoom ? getRoomSeatRange(seatRoom).min : 1}
+                        max={seatRoom ? getRoomSeatRange(seatRoom).max : undefined}
+                        placeholder={
+                          seatRoom
+                            ? `${getRoomSeatRange(seatRoom).min}~${getRoomSeatRange(seatRoom).max}번`
+                            : "자리 번호"
+                        }
                         value={seatSearch.seat}
                         onChange={(e) =>
                           setSeatSearch((prev) => ({

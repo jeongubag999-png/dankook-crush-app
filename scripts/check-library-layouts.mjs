@@ -1,6 +1,6 @@
 // 좌석 배치도 검사: 번호 1~N이 빠짐·중복 없이 있고, 두 좌석이 같은 칸에 겹치지 않는지.
 // Run: node scripts/check-library-layouts.mjs
-import { LIBRARY_READING_ROOMS } from "../src/constants.js";
+import { LIBRARY_READING_ROOMS, getRoomSeatRange } from "../src/constants.js";
 import { LIBRARY_SEAT_LAYOUTS } from "../src/libraryLayouts.js";
 
 let failed = false;
@@ -15,8 +15,9 @@ for (const [library, rooms] of Object.entries(LIBRARY_READING_ROOMS)) {
       const seen = new Set();
       const dupes = numbers.filter((n) => (seen.has(n) ? true : (seen.add(n), false)));
       const missing = [];
-      for (let n = 1; n <= room.seats; n += 1) if (!seen.has(n)) missing.push(n);
-      const extra = numbers.filter((n) => n < 1 || n > room.seats);
+      const { min, max } = getRoomSeatRange(room);
+      for (let n = min; n <= max; n += 1) if (!seen.has(n)) missing.push(n);
+      const extra = numbers.filter((n) => n < min || n > max);
       const cells = new Map();
       const overlaps = [];
       for (const seat of layout.seats) {
