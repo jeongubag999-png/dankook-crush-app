@@ -7546,7 +7546,11 @@ useEffect(() => {
             <span className="homeV2ActionIcon roomIconTaxi">🚕</span>
             <span className="homeV2ActionText">
               <b>택시팟 구름</b>
-              <small>학교·보정동·죽전역에서 택시 같이 탈 사람을 구해요.</small>
+              <small>
+                {profile.campus === "천안"
+                  ? "학교·안서동·천안터미널에서 택시 같이 탈 사람을 구해요."
+                  : "학교·보정동·죽전역에서 택시 같이 탈 사람을 구해요."}
+              </small>
             </span>
             <span className="homeV2ActionChevron">
               <ChevronRightIcon />
@@ -8442,7 +8446,7 @@ useEffect(() => {
                     type="text"
                     value={crushPost.place}
                     maxLength={80}
-                    placeholder="예: 죽전역 1번 출구"
+                    placeholder={profile.campus === "천안" ? "예: 단국대 정문" : "예: 죽전역 1번 출구"}
                     onChange={(e) => updateCrushPost("place", e.target.value)}
                   />
                 </div>

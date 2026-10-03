@@ -236,6 +236,7 @@ const rows = [
   ["출발 시각이 지나고 30분 뒤에는 목록에서 자동으로 사라져요.","Posts disappear from the list 30 minutes after the departure time."],
   ["지금 뜬 택시팟 구름을 확인해요.","Check active taxi-pool clouds."],
   ["학교·보정동·죽전역에서 택시 같이 탈 사람을 구해요.","Find someone to share a taxi from campus, Bojeong-dong, or Jukjeon Station."],
+  ["학교·안서동·천안터미널에서 택시 같이 탈 사람을 구해요.","Find someone to share a taxi from campus, Anseo-dong, or Cheonan Bus Terminal."],
   ["외국인 친구와 언어교환, 문화교류를 해요.","Meet international friends for language and cultural exchange."],
   ["스쳐간 마음을 구름으로 남겨요.","Leave a passing feeling as a cloud."],
   ["구름 확인하기","Check Clouds"],
