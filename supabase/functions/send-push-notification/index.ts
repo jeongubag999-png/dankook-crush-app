@@ -220,7 +220,15 @@ Deno.serve(async (req) => {
               : room.sender_user_id;
           if (targetUserId) {
             let senderNickname = "새 메시지가 도착했어요 💬";
-            if (record.sender_user_id === room.sender_user_id) {
+            if (room.room_kind === "booth_match") {
+              // 부스 소개팅 방은 구름/응답 없이 만들어지므로 프로필 닉네임을 쓴다.
+              const profileRes = await fetch(
+                `${supabaseUrl}/rest/v1/profiles?user_id=eq.${record.sender_user_id}&select=nickname`,
+                { headers: restHeaders }
+              );
+              const [senderProfile] = await profileRes.json();
+              if (senderProfile?.nickname) senderNickname = senderProfile.nickname;
+            } else if (record.sender_user_id === room.sender_user_id) {
               const postRes = await fetch(
                 `${supabaseUrl}/rest/v1/crush_posts?id=eq.${room.crush_post_id}&select=sender_nickname`,
                 { headers: restHeaders }
@@ -243,6 +251,16 @@ Deno.serve(async (req) => {
         }
       } else {
         pushResult = { skipped: "chat_room_not_found" };
+      }
+    } else if (type === "booth_match_opened") {
+      if (record.user_id) {
+        pushResult = await sendOneSignalPush(
+          record.user_id,
+          "☁️ 부스 소개팅 상대가 도착했어요!",
+          "상대도 단꿈에 들어왔어요. 채팅방이 열렸으니 먼저 인사해보세요!"
+        );
+      } else {
+        pushResult = { skipped: "no_user_id" };
       }
     } else if (type === "daily_cloud_milestone") {
       const milestone = Number(record.milestone);

@@ -622,6 +622,8 @@ const [verificationFile, setVerificationFile] = useState(null);
   const [communityCloudLoading, setCommunityCloudLoading] = useState(false);
   const [communityRegionFilter, setCommunityRegionFilter] = useState("");
   const [taxiGroupChats, setTaxiGroupChats] = useState([]);
+  const [boothMatchChats, setBoothMatchChats] = useState([]);
+  const [boothMatchNotice, setBoothMatchNotice] = useState(null);
   const [joiningTaxiPostId, setJoiningTaxiPostId] = useState(null);
 
   const [claimForm, setClaimForm] = useState({
@@ -3244,6 +3246,8 @@ const hideSearchResult = (postId) => {
 
       toast.success("프로필이 저장됐어요!");
       setPage("home");
+      // 프로필 저장 트리거가 부스 소개팅 채팅방을 방금 열었을 수 있다.
+      loadBoothMatchChats({ showNotice: true });
     } finally {
       setProfileSubmitting(false);
     }
@@ -4306,6 +4310,113 @@ const hideSearchResult = (postId) => {
     return rooms;
   };
 
+  // 오프라인 부스 소개팅 매칭. 둘 다 가입·인증하면 DB 트리거가 채팅방을 열어 두고,
+  // 여기서는 그 방을 채팅 목록에 붙이고 처음 한 번 안내 팝업을 띄운다.
+  const readBoothNoticeSeen = (key) => {
+    try {
+      return localStorage.getItem(key) === "1";
+    } catch {
+      return false;
+    }
+  };
+
+  const markBoothNoticeSeen = (key) => {
+    try {
+      localStorage.setItem(key, "1");
+    } catch {
+      // 저장이 안 되면 다음에 한 번 더 보일 뿐이라 무시한다.
+    }
+  };
+
+  const loadBoothMatchChats = async ({ showNotice = false } = {}) => {
+    if (!currentUser) {
+      setBoothMatchChats([]);
+      return [];
+    }
+
+    const { data, error } = await supabase.rpc("get_my_booth_matches");
+    if (error) {
+      // 마이그레이션 적용 전에도 나머지 채팅 목록은 정상적으로 열리게 한다.
+      console.log(error);
+      setBoothMatchChats([]);
+      return [];
+    }
+
+    const matches = data || [];
+    const rooms = matches
+      .filter((match) => match.chat_room_id)
+      .map((match) => ({
+        chatRoomId: match.chat_room_id,
+        otherNickname: match.other_nickname || "부스 소개팅 상대",
+        updatedAt: match.opened_at,
+        role: match.my_role,
+        isBoothMatch: true,
+      }));
+    setBoothMatchChats(rooms);
+
+    if (showNotice) {
+      const openedMatch = matches.find(
+        (match) =>
+          match.chat_room_id &&
+          !readBoothNoticeSeen(`dankum:booth-match-opened:${currentUser.id}:${match.chat_room_id}`)
+      );
+      const waitingMatch = matches.find(
+        (match) =>
+          !match.chat_room_id &&
+          !readBoothNoticeSeen(`dankum:booth-match-waiting:${currentUser.id}:${match.match_id}`)
+      );
+
+      if (openedMatch) {
+        setBoothMatchNotice({
+          type: "opened",
+          key: `dankum:booth-match-opened:${currentUser.id}:${openedMatch.chat_room_id}`,
+          chatRoomId: openedMatch.chat_room_id,
+          nickname: openedMatch.other_nickname || "부스 소개팅 상대",
+          department: openedMatch.other_department || "",
+        });
+      } else if (waitingMatch) {
+        setBoothMatchNotice({
+          type: "waiting",
+          key: `dankum:booth-match-waiting:${currentUser.id}:${waitingMatch.match_id}`,
+        });
+      }
+    }
+
+    return rooms;
+  };
+
+  useEffect(() => {
+    if (!currentUser?.id) {
+      setBoothMatchChats([]);
+      setBoothMatchNotice(null);
+      return undefined;
+    }
+
+    loadBoothMatchChats({ showNotice: true });
+
+    // 푸시를 눌러 앱으로 돌아왔을 때도 새로 열린 방을 바로 안내한다.
+    const handleVisibility = () => {
+      if (document.visibilityState === "visible") {
+        loadBoothMatchChats({ showNotice: true });
+      }
+    };
+    document.addEventListener("visibilitychange", handleVisibility);
+    return () => document.removeEventListener("visibilitychange", handleVisibility);
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [currentUser?.id]);
+
+  const closeBoothMatchNotice = () => {
+    if (boothMatchNotice?.key) markBoothNoticeSeen(boothMatchNotice.key);
+    setBoothMatchNotice(null);
+  };
+
+  const openBoothMatchChatFromNotice = () => {
+    if (!boothMatchNotice?.chatRoomId) return;
+    const { chatRoomId, nickname } = boothMatchNotice;
+    closeBoothMatchNotice();
+    openChatRoom(chatRoomId, nickname, false);
+  };
+
   const loadCloudCalendarRecords = async () => {
     if (!currentUser) return false;
 
@@ -4653,10 +4764,14 @@ const hideSearchResult = (postId) => {
       .filter((claim) => claim.status === "chat_accepted" && claim.chat_room_id)
       .map((claim) => claim.chat_room_id);
 
-    const taxiRooms = await loadTaxiGroupChats();
+    const [taxiRooms, boothRooms] = await Promise.all([
+      loadTaxiGroupChats(),
+      loadBoothMatchChats(),
+    ]);
     const allChatRoomIds = [
       ...chatRoomIds,
       ...taxiRooms.map((room) => room.chatRoomId),
+      ...boothRooms.map((room) => room.chatRoomId),
     ];
     loadChatPreviews([...new Set(allChatRoomIds)]);
 
@@ -5639,6 +5754,7 @@ useEffect(() => {
         role: "claimer",
       })),
     ...taxiGroupChats,
+    ...boothMatchChats,
   ]
     .filter((room) => {
       const roomStatus = chatRoomStatusMap[room.chatRoomId];
@@ -9834,11 +9950,14 @@ useEffect(() => {
                   : roomStatus
                   ? isChatRoomExpired(roomStatus.created_at, roomStatus.closed_at, chatListNowTick)
                   : false;
-                const statusText = room.isGroup
-                  ? "택시팟 단체 채팅"
-                  : roomStatus
+                const remainingText = roomStatus
                   ? formatChatRoomRemaining(roomStatus.created_at, roomStatus.closed_at, chatListNowTick)
                   : "채팅 가능 시간을 확인하는 중이에요.";
+                const statusText = room.isGroup
+                  ? "택시팟 단체 채팅"
+                  : room.isBoothMatch
+                  ? `부스 소개팅 · ${remainingText}`
+                  : remainingText;
 
                 return (
                   <SwipeableChatRoomItem
@@ -10563,6 +10682,59 @@ useEffect(() => {
 	              >
 	                {appGuideStep === APP_GUIDE_STEPS.length - 1 ? "확인했어요" : "다음"}
 	              </button>
+	            </div>
+	          </section>
+	        </div>
+	      )}
+	      {boothMatchNotice && page !== "chatRoom" && (
+	        <div className="appGuideBackdrop" role="presentation">
+	          <section
+	            className="appGuideDialog updatePromptDialog"
+	            role="dialog"
+	            aria-modal="true"
+	            aria-labelledby="booth-match-notice-title"
+	          >
+	            <header className="appGuideHeader">
+	              <div>
+	                <span>부스 소개팅</span>
+	                <h2 id="booth-match-notice-title">
+	                  {boothMatchNotice.type === "opened"
+	                    ? "☁️ 소개팅 상대와 채팅방이 열렸어요!"
+	                    : "☁️ 부스 소개팅 상대를 기다리고 있어요"}
+	                </h2>
+	              </div>
+	            </header>
+
+	            <div className="appGuideCopy">
+	              {boothMatchNotice.type === "opened" ? (
+	                <p>
+	                  <b data-i18n-ignore>{boothMatchNotice.nickname}</b>
+	                  {boothMatchNotice.department ? ` (${boothMatchNotice.department})` : ""}님과 연결됐어요.
+	                  채팅방은 열린 뒤 24시간 동안 대화할 수 있어요. 먼저 인사해보세요!
+	                </p>
+	              ) : (
+	                <p>
+	                  상대가 아직 단꿈에 가입하지 않았어요. 상대가 들어오는 순간 채팅방이 자동으로 열리고
+	                  알림으로 알려드릴게요.
+	                </p>
+	              )}
+	            </div>
+
+	            <div className={`appGuideActions${boothMatchNotice.type === "opened" ? "" : " single"}`}>
+	              {boothMatchNotice.type === "opened" ? (
+	                <>
+	                  <button type="button" className="white" onClick={closeBoothMatchNotice}>
+	                    나중에
+	                  </button>
+	                  <button type="button" onClick={openBoothMatchChatFromNotice}>
+	                    채팅방 가기
+	                  </button>
+	                </>
+	              ) : (
+	                <button type="button" onClick={closeBoothMatchNotice}>
+	                  알겠어요
+	                </button>
+	              )}
 	            </div>
 	          </section>
 	        </div>
