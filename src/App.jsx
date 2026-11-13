@@ -173,6 +173,13 @@ const isStaleTaxiPost = (post) => {
   if (!departure) return Date.now() - new Date(post.created_at).getTime() > TAXI_POST_VISIBLE_MS;
   return Date.now() > departure.getTime() + TAXI_DEPARTURE_GRACE_MS;
 };
+// 게시판 탭에 모아 보여주는 구름 종류(시그널 구름은 제외).
+const BOARD_ROOMS = [
+  { key: "memory", label: "게시판", icon: "📖", writeHint: "기억 속 인연의 이야기를 남겨요" },
+  { key: "past_connection", label: "고향", icon: "🏡", writeHint: "같은 고향·학교 인연을 찾아요" },
+  { key: "language", label: "글로벌", icon: "🌏", writeHint: "외국인 친구와 언어교환해요" },
+  { key: "taxi", label: "택시팟", icon: "🚕", writeHint: "택시 같이 탈 사람을 구해요" },
+];
 const LIBRARY_OUTSIDE_ROOM = "__outside__";
 const LIBRARY_SEAT_ERROR_MESSAGES = {
   seat_daily_limit: "자리 번호를 남긴 구름은 하루 3개까지 띄울 수 있어요.",
@@ -622,6 +629,12 @@ const [verificationFile, setVerificationFile] = useState(null);
   const [communityCloudLoading, setCommunityCloudLoading] = useState(false);
   const [communityRegionFilter, setCommunityRegionFilter] = useState("");
   const [taxiGroupChats, setTaxiGroupChats] = useState([]);
+  const [boardFilter, setBoardFilter] = useState("all");
+  const [boardPosts, setBoardPosts] = useState([]);
+  const [boardLoading, setBoardLoading] = useState(false);
+  const [boardWritePickerOpen, setBoardWritePickerOpen] = useState(false);
+  const sendFromBoardRef = useRef(false);
+  const claimFromBoardRef = useRef(false);
   const [boothMatchChats, setBoothMatchChats] = useState([]);
   const [boothMatchNotice, setBoothMatchNotice] = useState(null);
   const [joiningTaxiPostId, setJoiningTaxiPostId] = useState(null);
@@ -2580,10 +2593,11 @@ const hideSearchResult = (postId) => {
   const goBackStep = async () => {
     if (crushStep === 1) {
       const isEditing = !!editingPost;
+      const fromBoard = sendFromBoardRef.current;
       setEditingPost(null);
       await leaveCloudSendFlow(
         "home_exit",
-        isEditing ? "home" : "sendRoomSelect"
+        isEditing ? "home" : fromBoard ? "board" : "sendRoomSelect"
       );
       return;
     }
@@ -2779,6 +2793,79 @@ const hideSearchResult = (postId) => {
       setCommunityCloudLoading(false);
     }
   };
+
+  // 게시판 탭: 커뮤니티형 구름(게시판·고향·글로벌·택시팟)을 최신순으로 한 화면에 모아 보여준다.
+  // 시그널 구름은 인상착의로 찾는 글이라 여기 섞지 않고 기존 "구름 확인하기"에만 둔다.
+  const loadBoardPosts = async () => {
+    if (!currentUser) return;
+    setBoardLoading(true);
+    try {
+      const { data, error } = await supabase
+        .from("crush_posts")
+        .select("*")
+        .in("room", BOARD_ROOMS.map((room) => room.key))
+        .order("created_at", { ascending: false })
+        .limit(200);
+
+      if (error) {
+        toast.error("게시판을 불러오지 못했어요: " + error.message);
+        console.log(error);
+        return;
+      }
+
+      setBoardPosts(
+        (data || []).filter((post) => {
+          if (blockedUserIds.includes(post.sender_user_id)) return false;
+          if (post.room === "taxi" && isStaleTaxiPost(post)) return false;
+          // 글로벌·택시팟은 캠퍼스가 다르면 의미가 없어서 내 캠퍼스 글만 보여준다.
+          if ((post.room === "language" || post.room === "taxi") && profile.campus && post.campus && post.campus !== profile.campus) {
+            return false;
+          }
+          return true;
+        })
+      );
+    } finally {
+      setBoardLoading(false);
+    }
+  };
+
+  const openBoardPage = async () => {
+    if (!checkProfileRequired()) return;
+    sendFromBoardRef.current = false;
+    setBoardWritePickerOpen(false);
+    await leaveActiveFlow("bottom_board", "board");
+    loadBoardPosts();
+  };
+
+  const startBoardWrite = async (room) => {
+    setBoardWritePickerOpen(false);
+    resetCrushPost();
+    sendFromBoardRef.current = true;
+    await chooseSendRoom(room);
+  };
+
+  const handleBoardWriteButton = () => {
+    if (boardFilter === "all") {
+      setBoardWritePickerOpen(true);
+      return;
+    }
+    startBoardWrite(boardFilter);
+  };
+
+  // 게시판에서 시작한 글쓰기를 마치면 결과 화면 대신 게시판으로 돌아와 방금 쓴 글을 보여준다.
+  useEffect(() => {
+    if (page === "sentResult" && sendFromBoardRef.current) {
+      sendFromBoardRef.current = false;
+      toast.success("게시판에 글을 올렸어요!");
+      setPage("board");
+      loadBoardPosts();
+      return;
+    }
+    if (page !== "send" && page !== "sentResult") {
+      sendFromBoardRef.current = false;
+    }
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [page]);
 
   // 시험기간 배너 "도서관 구름 띄우기": 시그널 구름 작성으로 가면서 장소를 도서관으로 미리 골라둔다.
   const openLibraryNotePage = async () => {
@@ -6572,6 +6659,107 @@ useEffect(() => {
     );
   };
 
+  // 커뮤니티형 구름(게시판·고향·글로벌·택시팟) 카드. 방별 목록 화면과 게시판 탭이 함께 쓴다.
+  // 커뮤니티 카드에서 응답 화면으로 갈 때 어디서 왔는지 기억해 뒤로가기가 그 화면으로 돌아가게 한다.
+  const openClaimFromCommunityCard = (post) => {
+    claimFromBoardRef.current = page === "board";
+    setSelectedPost(post);
+    setPage("claimForm");
+  };
+
+  const renderCommunityCloudCard = (post) => (
+        <article className={`communityCloudCard${post.room === "taxi" ? " taxiGroupCloudCard" : ""}`} key={post.id}>
+          <div className="communityCloudCardTop">
+            <span>{post.room === "memory" ? "📖" : post.room === "taxi" ? "🚕" : post.room === "language" ? "🌏" : "🏡"}</span>
+            <div>
+              <b>
+                {post.room === "memory"
+                  ? post.memory_title || "게시판 구름"
+                  : post.room === "taxi"
+                    ? "택시팟 단체 구름"
+                    : post.room === "language"
+                      ? `${post.lang_country || "글로벌"} · ${(post.lang_spoken || []).join(", ") || "언어교환"}`
+                    : [post.past_region, post.past_subregion].filter(Boolean).join(" ") || post.past_kind || "고향 구름"}
+              </b>
+              {post.room !== "taxi" && (
+                <small><span data-i18n-ignore>{post.sender_nickname || "단꿈 사용자"}</span> · {post.campus || "단국대"}{post.created_at ? ` · ${formatRelativeTimeKo(post.created_at)}` : ""}</small>
+              )}
+            </div>
+          </div>
+
+          {post.room === "memory" ? (
+            <>
+              {renderTranslatedCloudText(post, post.memory_story || post.message, {
+                field: post.memory_story ? "memory_story" : "message",
+                className: "communityPostBody",
+              })}
+              {post.sender_user_id !== currentUser?.id && (
+                <button
+                  className="communityResponseButton"
+                  onClick={() => openClaimFromCommunityCard(post)}
+                >
+                  이거 저예요!
+                </button>
+              )}
+            </>
+          ) : post.room === "language" ? (
+            <>
+              <div className="communityCloudMeta">
+                <span>
+                  {post.lang_interests?.length ? `관심사: ${post.lang_interests.join(", ")}` : "언어교환 · 문화교류"}
+                  {post.target_gender && post.target_gender !== "상관없음" ? ` · ${post.target_gender} 선호` : ""}
+                </span>
+              </div>
+              {post.message && renderTranslatedCloudText(post, post.message, {
+                field: "message",
+                className: "communityPostBody",
+              })}
+              {post.sender_user_id !== currentUser?.id && (
+                <button
+                  className="communityResponseButton"
+                  onClick={() => openClaimFromCommunityCard(post)}
+                >
+                  언어교환 신청하기
+                </button>
+              )}
+            </>
+          ) : post.room === "taxi" ? (
+            <>
+              <div className="taxiCloudSummary">
+                <p><span>일자 및 출발 시각</span><b>{post.seen_date || "일자 미정"} · {post.time_period || "시각 미정"}</b></p>
+                <p><span>출발 장소</span><b>{post.place || "미정"}</b></p>
+                <p><span>목적지</span><b>{post.detail_place || "미정"}</b></p>
+              </div>
+              <button
+                className="communityResponseButton taxiGroupJoinButton"
+                onClick={() => joinTaxiGroupChat(post)}
+                disabled={joiningTaxiPostId === post.id}
+              >
+                {joiningTaxiPostId === post.id
+                  ? "단체방 여는 중..."
+                  : post.sender_user_id === currentUser?.id
+                    ? "내 단체 채팅방 열기"
+                    : "같이 타고 단체방 참여하기"}
+              </button>
+            </>
+          ) : (
+            <>
+              <div className="communityCloudMeta">
+                <span>{getPastConnectionDetail(post)}</span>
+              </div>
+              {post.sender_user_id !== currentUser?.id && (
+                <button
+                  className="communityResponseButton"
+                  onClick={() => openClaimFromCommunityCard(post)}
+                >
+                  저도 그 동네예요!
+                </button>
+              )}
+            </>
+          )}
+        </article>
+  );
+
   const renderBottomNav = () => {
     const navItems = [
       {
@@ -6592,11 +6780,11 @@ useEffect(() => {
         },
       },
       {
-        key: "calendar",
-        label: "기록",
-        icon: <CalendarIcon size={20} />,
-        active: page === "cloudCalendar",
-        onClick: openCloudCalendarPage,
+        key: "board",
+        label: "게시판",
+        icon: <ListIcon size={20} />,
+        active: page === "board",
+        onClick: openBoardPage,
       },
       {
         key: "chats",
@@ -7259,6 +7447,14 @@ useEffect(() => {
               <p>다른 사람에게 보이는 정보와 계정 설정을 관리해요.</p>
             </div>
           </div>
+
+          <button
+            type="button"
+            className="white mypageCalendarButton"
+            onClick={openCloudCalendarPage}
+          >
+            <CalendarIcon size={18} /> 구름 확인 기록 보기
+          </button>
 
           <div className="myCloudHeroBox">
              <p className="myCloudHeroTitle">☁️ 나와 연결된 구름 {receivedCloudCount}개</p>
@@ -8749,6 +8945,101 @@ useEffect(() => {
         </div>
       )}
 
+      {page === "board" && (() => {
+        const visibleBoardPosts =
+          boardFilter === "all" ? boardPosts : boardPosts.filter((post) => post.room === boardFilter);
+        return (
+          <div className="card boardPage">
+            <div className="boardHeader">
+              <h2>게시판</h2>
+              <button
+                type="button"
+                className="white boardRefreshButton"
+                onClick={loadBoardPosts}
+                disabled={boardLoading}
+              >
+                {boardLoading ? "불러오는 중..." : "새로고침"}
+              </button>
+            </div>
+
+            <div className="boardFilterChips" role="tablist" aria-label="게시판 주제">
+              {[{ key: "all", label: "전체", icon: "☁️" }, ...BOARD_ROOMS].map((room) => (
+                <button
+                  type="button"
+                  role="tab"
+                  key={room.key}
+                  aria-selected={boardFilter === room.key}
+                  className={boardFilter === room.key ? "boardFilterChip active" : "boardFilterChip"}
+                  onClick={() => setBoardFilter(room.key)}
+                >
+                  <span aria-hidden="true">{room.icon}</span> {room.label}
+                </button>
+              ))}
+            </div>
+
+            {boardLoading && boardPosts.length === 0 && (
+              <p className="noticeBox">게시판을 불러오는 중이에요...</p>
+            )}
+            {!boardLoading && visibleBoardPosts.length === 0 && (
+              <p className="noticeBox">아직 올라온 글이 없어요. 첫 글을 올려보세요!</p>
+            )}
+
+            <div className="communityCloudList boardPostList">
+              {visibleBoardPosts.map((post) => renderCommunityCloudCard(post))}
+            </div>
+
+            <button
+              type="button"
+              className="boardWriteFab"
+              onClick={handleBoardWriteButton}
+              aria-label="글쓰기"
+            >
+              ✏️ 글쓰기
+            </button>
+
+            {boardWritePickerOpen && (
+              <div className="appGuideBackdrop" role="presentation" onClick={() => setBoardWritePickerOpen(false)}>
+                <section
+                  className="appGuideDialog boardWritePicker"
+                  role="dialog"
+                  aria-modal="true"
+                  aria-labelledby="board-write-picker-title"
+                  onClick={(e) => e.stopPropagation()}
+                >
+                  <header className="appGuideHeader">
+                    <div>
+                      <span>글쓰기</span>
+                      <h2 id="board-write-picker-title">어떤 글을 올릴까요?</h2>
+                    </div>
+                  </header>
+                  <div className="boardWritePickerList">
+                    {BOARD_ROOMS.map((room) => (
+                      <button
+                        type="button"
+                        key={room.key}
+                        className="white boardWritePickerItem"
+                        onClick={() => startBoardWrite(room.key)}
+                      >
+                        <span aria-hidden="true">{room.icon}</span>
+                        <span>
+                          <b>{room.label}</b>
+                          <small>{room.writeHint}</small>
+                        </span>
+                      </button>
+                    ))}
+                  </div>
+                  <div className="appGuideActions single">
+                    <button type="button" className="white" onClick={() => setBoardWritePickerOpen(false)}>
+                      닫기
+                    </button>
+                  </div>
+                </section>
+              </div>
+            )}
+          </div>
+        );
+      })()}
+
       {page === "communityClouds" && (
         <div className="card communityCloudListPage">
           <h2>
@@ -8788,81 +9079,7 @@ useEffect(() => {
           )}
 
           <div className="communityCloudList">
-            {filteredCommunityClouds.map((post) => (
-              <article className={`communityCloudCard${post.room === "taxi" ? " taxiGroupCloudCard" : ""}`} key={post.id}>
-                <div className="communityCloudCardTop">
-                  <span>{post.room === "memory" ? "📖" : post.room === "taxi" ? "🚕" : "🏡"}</span>
-                  <div>
-                    <b>
-                      {post.room === "memory"
-                        ? post.memory_title || "게시판 구름"
-                        : post.room === "taxi"
-                          ? "택시팟 단체 구름"
-                          : [post.past_region, post.past_subregion].filter(Boolean).join(" ") || post.past_kind || "고향 구름"}
-                    </b>
-                    {post.room !== "taxi" && (
-                      <small><span data-i18n-ignore>{post.sender_nickname || "단꿈 사용자"}</span> · {post.campus || "단국대"}</small>
-                    )}
-                  </div>
-                </div>
-
-                {post.room === "memory" ? (
-                  <>
-                    {renderTranslatedCloudText(post, post.memory_story || post.message, {
-                      field: post.memory_story ? "memory_story" : "message",
-                      className: "communityPostBody",
-                    })}
-                    {post.sender_user_id !== currentUser?.id && (
-                      <button
-                        className="communityResponseButton"
-                        onClick={() => {
-                          setSelectedPost(post);
-                          setPage("claimForm");
-                        }}
-                      >
-                        이거 저예요!
-                      </button>
-                    )}
-                  </>
-                ) : post.room === "taxi" ? (
-                  <>
-                    <div className="taxiCloudSummary">
-                      <p><span>일자 및 출발 시각</span><b>{post.seen_date || "일자 미정"} · {post.time_period || "시각 미정"}</b></p>
-                      <p><span>출발 장소</span><b>{post.place || "미정"}</b></p>
-                      <p><span>목적지</span><b>{post.detail_place || "미정"}</b></p>
-                    </div>
-                    <button
-                      className="communityResponseButton taxiGroupJoinButton"
-                      onClick={() => joinTaxiGroupChat(post)}
-                      disabled={joiningTaxiPostId === post.id}
-                    >
-                      {joiningTaxiPostId === post.id
-                        ? "단체방 여는 중..."
-                        : post.sender_user_id === currentUser?.id
-                          ? "내 단체 채팅방 열기"
-                          : "같이 타고 단체방 참여하기"}
-                    </button>
-                  </>
-                ) : (
-                  <>
-                    <div className="communityCloudMeta">
-                      <span>{getPastConnectionDetail(post)}</span>
-                    </div>
-                    {post.sender_user_id !== currentUser?.id && (
-                      <button
-                        className="communityResponseButton"
-                        onClick={() => {
-                          setSelectedPost(post);
-                          setPage("claimForm");
-                        }}
-                      >
-                        저도 그 동네예요!
-                      </button>
-                    )}
-                  </>
-                )}
-              </article>
-            ))}
+            {filteredCommunityClouds.map((post) => renderCommunityCloudCard(post))}
           </div>
 
           <button onClick={() => setPage("searchRoomSelect")} className="white">다른 방 보기</button>
@@ -9826,7 +10043,14 @@ useEffect(() => {
 	          </button>
 
           <button
-            onClick={() => ["memory", "past_connection", "taxi"].includes(selectedPost?.room) ? openCommunityCloudRoom(selectedPost.room) : setPage("result")}
+            onClick={() => {
+              if (claimFromBoardRef.current) {
+                claimFromBoardRef.current = false;
+                setPage("board");
+                return;
+              }
+              ["memory", "past_connection", "taxi"].includes(selectedPost?.room) ? openCommunityCloudRoom(selectedPost.room) : setPage("result");
+            }}
             className="white"
           >
             뒤로가기

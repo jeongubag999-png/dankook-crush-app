@@ -2236,3 +2236,128 @@ body {
 .appGuideActions.single {
   grid-template-columns: minmax(0, 1fr);
 }
+
+/* ── 게시판 탭 (2026-11) ───────────────────────────────────────────── */
+.app .boardPage {
+  padding-bottom: 96px;
+}
+
+.app .boardHeader {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 12px;
+  margin-bottom: 12px;
+}
+
+.app .boardHeader h2 {
+  margin: 0;
+}
+
+.app .boardRefreshButton {
+  flex: 0 0 auto;
+  width: auto;
+  height: 34px;
+  min-height: 34px;
+  margin: 0;
+  padding: 6px 14px;
+  font-size: 13px;
+}
+
+.app .boardFilterChips {
+  display: flex;
+  gap: 8px;
+  overflow-x: auto;
+  margin: 0 -4px 14px;
+  padding: 2px 4px 4px;
+  scrollbar-width: none;
+}
+
+.app .boardFilterChips::-webkit-scrollbar {
+  display: none;
+}
+
+.app .boardFilterChip {
+  flex: 0 0 auto;
+  width: auto;
+  height: 36px;
+  min-height: 36px;
+  margin: 0;
+  padding: 0 14px;
+  border: 1px solid var(--v2-line);
+  border-radius: 999px;
+  background: var(--v2-surface);
+  color: var(--v2-ink-soft);
+  font-size: 14px;
+  font-weight: 600;
+  line-height: 1.2;
+  white-space: nowrap;
+  box-shadow: none;
+}
+
+.app .boardFilterChip.active {
+  border-color: var(--v2-blue);
+  background: var(--v2-blue-soft);
+  color: var(--v2-blue-dark);
+}
+
+.app .boardWriteFab {
+  position: fixed;
+  right: max(16px, calc(50% - 280px));
+  bottom: calc(88px + env(safe-area-inset-bottom));
+  z-index: 40;
+  width: auto;
+  min-height: 48px;
+  margin: 0;
+  padding: 12px 20px;
+  border-radius: 999px;
+  font-size: 15px;
+  font-weight: 700;
+  box-shadow: 0 10px 24px rgba(47, 111, 224, 0.32);
+}
+
+.app .boardWritePickerList {
+  display: grid;
+  gap: 8px;
+  margin: 4px 0 12px;
+}
+
+.app .boardWritePickerItem {
+  display: flex;
+  align-items: center;
+  justify-content: flex-start;
+  gap: 12px;
+  width: 100%;
+  margin: 0;
+  padding: 12px 14px;
+  text-align: left;
+}
+
+.app .boardWritePickerItem > span:first-child {
+  font-size: 22px;
+}
+
+.app .boardWritePickerItem b {
+  display: block;
+  font-size: 15px;
+}
+
+.app .boardWritePickerItem small {
+  display: block;
+  margin-top: 2px;
+  color: var(--v2-muted);
+  font-size: 12px;
+  font-weight: 500;
+}
+
+.app .mypageCalendarButton {
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  gap: 6px;
+  margin: 12px 0;
+}
+
+.app .boardFilterChips > .boardFilterChip {
+  margin: 0;
+}
