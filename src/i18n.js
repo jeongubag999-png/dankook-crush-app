@@ -1193,14 +1193,28 @@ export function translateText(value, language = activeLanguage) {
   return translated;
 }
 
+// 번역기가 마지막으로 써 넣은 값. 이것과 다른 비한글 값은 앱(React)이 새로 바꾼 글자다.
+const writtenText = new WeakMap();
+
 function translateTextNode(node) {
   if (!node?.nodeValue) return;
   if (node.parentElement?.closest("[data-i18n-ignore]")) return;
-  if (/[가-힣]/.test(node.nodeValue)) originalText.set(node, node.nodeValue);
+  const current = node.nodeValue;
+  if (/[가-힣]/.test(current)) {
+    originalText.set(node, current);
+  } else if (originalText.has(node) && current !== writtenText.get(node)) {
+    // 앱이 한글 문구를 한글 없는 글자(파일 이름, 숫자 등)로 바꾼 경우다. 예전 한글 원문으로
+    // 되돌리면 화면이 갱신되지 않은 것처럼 보이므로(예: 인증 사진 선택 후에도 버튼 문구가
+    // 그대로) 원문 기록을 지우고 앱이 쓴 값을 그대로 둔다.
+    originalText.delete(node);
+    writtenText.delete(node);
+    return;
+  }
   const source = originalText.get(node);
   if (source == null) return;
   const next = activeLanguage === "ko" ? source : translateText(source, activeLanguage);
-  if (node.nodeValue !== next) node.nodeValue = next;
+  writtenText.set(node, next);
+  if (current !== next) node.nodeValue = next;
 }
 
 function translateElementAttributes(element) {

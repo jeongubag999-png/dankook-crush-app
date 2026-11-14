@@ -27,15 +27,24 @@ export const submitDkuVerification = async ({
       return { ok: false, reason: "MY DKU 이미지를 읽지 못했어요." };
     }
 
-    const { data, error } = await supabase.functions.invoke("dku-auto-verification", {
-      body: {
-        imageBase64,
-        signupName,
-        signupStudentId,
-        signupDepartment,
-        screenshotPath,
-      },
-    });
+    const invoke = () =>
+      supabase.functions.invoke("dku-auto-verification", {
+        body: {
+          imageBase64,
+          signupName,
+          signupStudentId,
+          signupDepartment,
+          screenshotPath,
+        },
+      });
+
+    // 가입 직후 첫 호출은 네트워크·콜드스타트로 가끔 실패해서 한 번 더 시도한다.
+    let { data, error } = await invoke();
+    if (error) {
+      console.log("MY DKU 자동 인증 첫 호출 실패, 재시도:", error);
+      await new Promise((resolve) => setTimeout(resolve, 1500));
+      ({ data, error } = await invoke());
+    }
 
     if (error) {
       console.log("MY DKU 자동 인증 서버 호출 실패:", error);

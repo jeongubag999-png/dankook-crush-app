@@ -1596,20 +1596,44 @@ const [verificationFile, setVerificationFile] = useState(null);
       // 엣지 함수(서비스 롤) 안에서 이뤄진다. 클라이언트가 status 값을 직접 정하지
       // 않으므로 인증 결과를 스스로 조작할 수 없다.
       setSignupProgress("3단계: MY DKU 자동 인증 확인 중...");
+      // 원본(최대 5MB) 대신 업로드에 쓴 압축본을 보낸다. 요청이 작아져 서버 호출 실패가 줄고
+      // OCR 결과는 같다(1600px JPEG).
       const verificationResult = await submitDkuVerification({
-        file: verificationFile,
+        file: compressedFile,
         signupName: authForm.name.trim(),
         signupStudentId: authForm.student_id.trim(),
         signupDepartment: authForm.department.trim(),
         screenshotPath: filePath,
       });
 
-      if (!verificationResult.ok) {
-        toast.error(verificationResult.reason || "인증 신청 저장에 실패했어요. 잠시 후 다시 시도해주세요.");
-        return;
-      }
+      let finalVerificationStatus = verificationResult.status;
 
-      const finalVerificationStatus = verificationResult.status;
+      if (!verificationResult.ok) {
+        // 자동 인증 서버가 실패해도 계정과 사진은 이미 만들어졌다. 여기서 멈추면 사용자는
+        // 같은 아이디로 다시 가입할 수도 없어 막혀 버리므로, 수동 검토 신청으로 이어 준다.
+        console.log("자동 인증 실패, 수동 검토로 전환:", verificationResult.reason);
+        const { error: fallbackError } = await supabase.from("dku_verifications").insert([{
+          user_id: signedUpUser.id,
+          name: authForm.name.trim(),
+          student_id: authForm.student_id.trim(),
+          department: authForm.department.trim(),
+          screenshot_path: filePath,
+          status: "pending",
+        }]);
+
+        if (fallbackError) {
+          console.log(fallbackError);
+          // 신청 저장까지 실패하면 인증 대기 화면의 "사진 다시 올리기"로 보낸다.
+          setSession(data.session || null);
+          setCurrentUser(signedUpUser);
+          resetActivityData(signedUpUser?.id || null);
+          toast.error("인증 신청 저장에 실패했어요. 다음 화면에서 사진을 한 번 더 올려주세요.");
+          setPage("verificationPending");
+          return;
+        }
+
+        finalVerificationStatus = "pending";
+      }
 
       // ── profiles 테이블에 기본 정보 자동 저장 ──
       const { error: profileUpsertError } = await supabase.from("profiles").upsert(
@@ -1648,7 +1672,9 @@ const [verificationFile, setVerificationFile] = useState(null);
         toast.success("MY DKU 자동 인증 완료! 바로 이용할 수 있어요.");
         setPage("profile");
       } else {
-        if (verificationResult.reason) {
+        if (!verificationResult.ok) {
+          toast("자동 인증이 잠시 안 돼서 관리자 확인으로 접수했어요.");
+        } else if (verificationResult.reason) {
           toast("자동 인증 보류: " + verificationResult.reason);
         }
         toast.success("회원가입 신청 완료! 학생 인증 승인 후 이용할 수 있어요.");
